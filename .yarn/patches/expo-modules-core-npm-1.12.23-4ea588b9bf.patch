@@ -1,0 +1,17 @@
+diff --git a/android/src/main/cpp/JavaScriptModuleObject.cpp b/android/src/main/cpp/JavaScriptModuleObject.cpp
+index 08c21538ddb638a2b98601bedf5bd00de2ae7c20..5b1bb31151962d8dd377525c6d765c9327d0d374 100644
+--- a/android/src/main/cpp/JavaScriptModuleObject.cpp
++++ b/android/src/main/cpp/JavaScriptModuleObject.cpp
+@@ -145,7 +145,11 @@ void JavaScriptModuleObject::decorate(jsi::Runtime &runtime, jsi::Object *module
+   for (auto &[name, classInfo]: classes) {
+     auto &[classRef, constructor, ownerClass] = classInfo;
+     auto classObject = classRef->cthis();
+-    auto weakConstructor = std::weak_ptr(constructor);
++    
++    // https://github.com/expo/expo/discussions/29610#discussioncomment-9762642
++    // https://github.com/expo/expo/pull/29075/files
++    auto weakConstructor = std::weak_ptr<decltype(constructor)::element_type>(constructor);
++    
+     auto klass = SharedObject::createClass(
+       runtime,
+       name.c_str(),
