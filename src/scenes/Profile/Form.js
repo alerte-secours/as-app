@@ -35,19 +35,11 @@ const schema = {
   properties: {
     login: { type: "string" },
     email: {
-      oneOf: [
-        {
-          type: "string",
-          format: "email",
-          errorMessage: {
-            format: "adresse email invalide",
-          },
-        },
-        {
-          type: "string",
-          maxLength: 0,
-        },
-      ],
+      type: "string",
+      pattern: "^$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", // format: "email" doesn't seem to allow optional (tried many approaches)
+      errorMessage: {
+        pattern: "adresse email invalide",
+      },
     },
   },
 };
@@ -101,7 +93,7 @@ export default function Form({
 
   const onSubmit = useCallback(
     async (data) => {
-      if (!(email && email === data.email)) {
+      if (data.email && !(email && email === data.email)) {
         const isRegistered = await checkEmailIsRegistered(data.email);
         if (isRegistered) {
           setError("email", {
