@@ -86,6 +86,14 @@ export const generateSuggestKeepOpenContent = (data) => {
   };
 };
 
+export const generateBackgroundGeolocationLostContent = (data) => {
+  return {
+    title: `Localisation en arrière-plan désactivée`,
+    body: `Votre localisation en arrière-plan a été désactivée. Veuillez vérifier les paramètres de l'application.`,
+    bigText: `Votre localisation en arrière-plan a été désactivée. Pour continuer à utiliser pleinement l'application, veuillez vérifier les paramètres de votre appareil.`,
+  };
+};
+
 export const getNotificationContent = (enumType, data) => {
   const type = kebabCase(enumType);
 
@@ -106,6 +114,8 @@ export const getNotificationContent = (enumType, data) => {
       return generateSuggestCloseContent(data);
     case "suggest-keep-open":
       return generateSuggestKeepOpenContent(data);
+    case "background-geolocation-lost":
+      return generateBackgroundGeolocationLostContent(data);
     default:
       return { title: type, body: JSON.stringify(data) };
   }
