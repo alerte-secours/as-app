@@ -1,6 +1,6 @@
 {
   "name": "alerte-secours",
-  "version": "1.8.2",
+  "version": "1.9.0",
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client --private-key-path ./keys/private-key.pem",
@@ -47,8 +47,8 @@
     "open:deeplink": "npx uri-scheme open --android"
   },
   "customExpoVersioning": {
-    "versionCode": 176,
-    "buildNumber": 176
+    "versionCode": 177,
+    "buildNumber": 177
   },
   "commit-and-tag-version": {
     "scripts": {
