@@ -27,6 +27,7 @@ import WebLinkAquila from "~/containers/Links/WebLinks/Aquila";
 import WebLinkEmerga from "~/containers/Links/WebLinks/Emerga";
 import WebLinkDeltaPlane from "~/containers/Links/WebLinks/DeltaPlane";
 import WebLinkDroguesInfoService from "~/containers/Links/WebLinks/DroguesInfoService";
+import WebLinkIJP from "~/containers/Links/WebLinks/IJP";
 
 export default function Links() {
   const styles = useStyles();
@@ -52,6 +53,7 @@ export default function Links() {
         <View style={styles.section}>
           <WebLinkLDA />
           <WebLinkCarl />
+          <WebLinkIJP />
           <WebLinkDroguesInfoService />
           <WebLinkDeltaPlane />
         </View>
