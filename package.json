@@ -36,7 +36,7 @@
     "e2e:start": "adb -s emulator-5554 shell am start -n com.alertesecours/.MainActivity",
     "e2e:test": "detox test --configuration android.emu.debug",
     "e2e:run": "yarn start & yarn e2e:build && yarn e2e:deploy && yarn e2e:test",
-    "install:android": "cd android/app/build/outputs/bundle/release && java -jar /opt/bundletool-all-1.17.1.jar build-apks --mode universal --bundle ./app-release.aab --output ./app.apks && mv app.apks app.zip && unzip -o app.zip && adb -s $DEVICE install universal.apk",
+    "install:android": "./install-android.sh",
     "log:android": "adb -s $DEVICE logcat | grep -E 'ReactNativeJS: '",
     "log:ios:simulator": "xcrun simctl spawn booted log stream --level debug --predicate 'subsystem contains \"com.facebook.react.log\" and processImagePath contains \"AlerteSecours\"'",
     "log:ios": "idevicesyslog | grep -i 'AlerteSecours\\|ReactNative'",
