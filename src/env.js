@@ -1,4 +1,8 @@
 import { Platform } from "react-native";
+import { secureStore } from "~/lib/secureStore";
+
+// Key for storing staging setting in secureStore
+const STAGING_SETTING_KEY = "env.isStaging";
 
 // Logging configuration
 const LOG_SCOPES = process.env.APP_LOG_SCOPES;
@@ -85,15 +89,49 @@ const stagingMap = {
   IS_STAGING: true,
 };
 
-export const setStaging = (enabled) => {
+export const setStaging = async (enabled) => {
   for (const key of Object.keys(env)) {
     if (stagingMap[key] !== undefined) {
       env[key] = enabled ? stagingMap[key] : envMap[key];
     }
   }
+
+  // Persist the staging setting
+  await secureStore.setItemAsync(STAGING_SETTING_KEY, String(enabled));
 };
 
+// Initialize with default values
 const env = { ...envMap };
+
+// Load the staging setting from secureStore
+export const initializeEnv = async () => {
+  try {
+    const storedStaging = await secureStore.getItemAsync(STAGING_SETTING_KEY);
+    if (storedStaging !== null) {
+      const isStaging = storedStaging === "true";
+      if (isStaging) {
+        // Apply staging settings without persisting again
+        for (const key of Object.keys(env)) {
+          if (stagingMap[key] !== undefined) {
+            env[key] = stagingMap[key];
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load staging setting from secureStore:", error);
+  }
+};
+
+// Initialize environment settings
+// We use an IIFE to handle the async initialization
+(async () => {
+  try {
+    await initializeEnv();
+  } catch (error) {
+    console.error("Failed to initialize environment settings:", error);
+  }
+})();
 
 export default env;
 
