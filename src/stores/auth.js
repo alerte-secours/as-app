@@ -132,14 +132,43 @@ export default createAtom(({ get, merge, getActions }) => {
 
   const reload = async () => {
     authLogger.info("Reloading auth state");
+
+    // Check if we're already reloading or in a loading state
+    const { isReloading, lastReloadTime } = get();
+    const now = Date.now();
+    const timeSinceLastReload = now - lastReloadTime;
+    const RELOAD_COOLDOWN = 2000; // 2 seconds cooldown
+
+    if (isReloading) {
+      authLogger.info("Auth reload already in progress, skipping");
+      return true;
+    }
+
+    if (timeSinceLastReload < RELOAD_COOLDOWN) {
+      authLogger.info("Auth reload requested too soon, skipping", {
+        timeSinceLastReload,
+        cooldown: RELOAD_COOLDOWN,
+      });
+      return true;
+    }
+
     if (isLoading()) {
       await loadingPromise;
       return true;
     }
-    startLoading();
-    await secureStore.deleteItemAsync("userToken");
-    await init();
-    return true;
+
+    // Set reloading state
+    merge({ isReloading: true, lastReloadTime: now });
+
+    try {
+      startLoading();
+      await secureStore.deleteItemAsync("userToken");
+      await init();
+      return true;
+    } finally {
+      // Clear reloading state even if there was an error
+      merge({ isReloading: false });
+    }
   };
 
   const onReload = async () => {
@@ -247,6 +276,8 @@ export default createAtom(({ get, merge, getActions }) => {
       onReload: false,
       onReloadAuthToken: null,
       userOffMode: false,
+      isReloading: false,
+      lastReloadTime: 0,
     },
     actions: {
       init,

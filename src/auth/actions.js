@@ -13,6 +13,9 @@ import { getDeviceUuid } from "./deviceUuid";
 export async function registerUser() {
   const { data } = await network.apolloClient.mutate({
     mutation: REGISTER_USER_MUTATION,
+    context: {
+      skipAuth: true, // Skip adding Authorization header
+    },
   });
   const authToken = data.addOneAuthInitToken.authTokenJwt;
   return { authToken };
@@ -26,6 +29,9 @@ export async function loginUserToken({ authToken }) {
       authTokenJwt: authToken,
       phoneModel: Device.modelName,
       deviceUuid,
+    },
+    context: {
+      skipAuth: true, // Skip adding Authorization header
     },
   });
   const userToken = data.doAuthLoginToken.userBearerJwt;

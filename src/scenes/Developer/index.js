@@ -95,9 +95,9 @@ export default function Developer() {
           <Switch
             value={isStaging}
             onValueChange={async (value) => {
-              setStaging(value);
-              setIsStaging(value);
-              await reset();
+              setIsStaging(value); // Update UI immediately
+              await setStaging(value); // Persist the change
+              await reset(); // Reset auth state
             }}
           />
         </View>

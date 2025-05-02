@@ -64,7 +64,31 @@ export default async function trackLocation() {
     feature: "tracking",
   });
 
+  // Track the last time we handled auth changes to prevent rapid successive calls
+  let lastAuthHandleTime = 0;
+  const AUTH_HANDLE_COOLDOWN = 3000; // 3 seconds cooldown
+
+  // Track the last time we triggered an auth reload to prevent rapid successive calls
+  let lastAuthReloadTime = 0;
+  const AUTH_RELOAD_COOLDOWN = 5000; // 5 seconds cooldown
+
   async function handleAuth(userToken) {
+    // Implement debouncing for auth state changes
+    const now = Date.now();
+    const timeSinceLastHandle = now - lastAuthHandleTime;
+
+    if (timeSinceLastHandle < AUTH_HANDLE_COOLDOWN) {
+      locationLogger.info(
+        "Auth state change handled too recently, debouncing",
+        {
+          timeSinceLastHandle,
+          cooldown: AUTH_HANDLE_COOLDOWN,
+        },
+      );
+      return;
+    }
+
+    lastAuthHandleTime = now;
     locationLogger.info("Handling auth token update", {
       hasToken: !!userToken,
     });
@@ -144,13 +168,29 @@ export default async function trackLocation() {
       method: response?.method,
       isSync: response?.isSync,
     });
+
     const statusCode = response?.status;
+    const now = Date.now();
+    const timeSinceLastReload = now - lastAuthReloadTime;
+
     switch (statusCode) {
       case 410:
+        // Token expired, logout
+        locationLogger.info("Auth token expired (410), logging out");
         authActions.logout();
         break;
       case 401:
+        // Unauthorized, check cooldown before triggering reload
+        if (timeSinceLastReload < AUTH_RELOAD_COOLDOWN) {
+          locationLogger.info("Auth reload requested too soon, skipping", {
+            timeSinceLastReload,
+            cooldown: AUTH_RELOAD_COOLDOWN,
+          });
+          return;
+        }
+
         locationLogger.info("Refreshing authentication token");
+        lastAuthReloadTime = now;
         authActions.reload(); // should retriger sync in handleAuth via subscribeAuthState when done
         break;
     }
