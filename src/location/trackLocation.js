@@ -5,6 +5,8 @@ import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
 import { initEmulatorMode } from "./emulatorService";
 
+import throttle from "lodash.throttle";
+
 import {
   getAuthState,
   subscribeAuthState,
@@ -65,31 +67,17 @@ export default async function trackLocation() {
     feature: "tracking",
   });
 
-  // Track the last time we handled auth changes to prevent rapid successive calls
-  let lastAuthHandleTime = 0;
-  const AUTH_HANDLE_COOLDOWN = 3000; // 3 seconds cooldown
+  // Log the geolocation sync URL for debugging
+  locationLogger.info("Geolocation sync URL configuration", {
+    url: env.GEOLOC_SYNC_URL,
+    isStaging: env.IS_STAGING,
+  });
 
-  // Track the last time we triggered an auth reload to prevent rapid successive calls
-  let lastAuthReloadTime = 0;
-  const AUTH_RELOAD_COOLDOWN = 5000; // 5 seconds cooldown
+  // Throttling configuration for auth reload only
+  const AUTH_RELOAD_THROTTLE = 5000; // 5 seconds throttle
 
+  // Handle auth function - no throttling or cooldown
   async function handleAuth(userToken) {
-    // Implement debouncing for auth state changes
-    const now = Date.now();
-    const timeSinceLastHandle = now - lastAuthHandleTime;
-
-    if (timeSinceLastHandle < AUTH_HANDLE_COOLDOWN) {
-      locationLogger.info(
-        "Auth state change handled too recently, debouncing",
-        {
-          timeSinceLastHandle,
-          cooldown: AUTH_HANDLE_COOLDOWN,
-        },
-      );
-      return;
-    }
-
-    lastAuthHandleTime = now;
     locationLogger.info("Handling auth token update", {
       hasToken: !!userToken,
     });
@@ -102,10 +90,40 @@ export default async function trackLocation() {
     // unsub();
     locationLogger.debug("Updating background geolocation config");
     await BackgroundGeolocation.setConfig({
+      url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
       headers: {
         Authorization: `Bearer ${userToken}`,
       },
     });
+
+    // Log the authorization header that was set
+    locationLogger.debug(
+      "Set Authorization header for background geolocation",
+      {
+        headerSet: true,
+        tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
+      },
+    );
+
+    // Verify the current configuration
+    try {
+      const currentConfig = await BackgroundGeolocation.getConfig();
+      locationLogger.debug("Current background geolocation config", {
+        hasHeaders: !!currentConfig.headers,
+        headerKeys: currentConfig.headers
+          ? Object.keys(currentConfig.headers)
+          : [],
+        authHeader: currentConfig.headers?.Authorization
+          ? currentConfig.headers.Authorization.substring(0, 15) + "..."
+          : "Not set",
+        url: currentConfig.url,
+      });
+    } catch (error) {
+      locationLogger.error("Failed to get background geolocation config", {
+        error: error.message,
+      });
+    }
+
     const state = await BackgroundGeolocation.getState();
     try {
       const decodedToken = jwtDecode(userToken);
@@ -160,7 +178,20 @@ export default async function trackLocation() {
     }
   });
 
+  // The core auth reload function that will be throttled
+  function _reloadAuth() {
+    locationLogger.info("Refreshing authentication token");
+    authActions.reload(); // should retriger sync in handleAuth via subscribeAuthState when done
+  }
+
+  // Create throttled version of auth reload with lodash
+  const reloadAuth = throttle(_reloadAuth, AUTH_RELOAD_THROTTLE, {
+    leading: true,
+    trailing: true,
+  });
+
   BackgroundGeolocation.onHttp((response) => {
+    // Log the full response including headers if available
     locationLogger.debug("HTTP response received", {
       status: response?.status,
       success: response?.success,
@@ -168,11 +199,18 @@ export default async function trackLocation() {
       url: response?.url,
       method: response?.method,
       isSync: response?.isSync,
+      requestHeaders:
+        response?.request?.headers || "Headers not available in response",
+    });
+
+    // Log the current auth token for comparison
+    const { userToken } = getAuthState();
+    locationLogger.debug("Current auth state token", {
+      tokenAvailable: !!userToken,
+      tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
     });
 
     const statusCode = response?.status;
-    const now = Date.now();
-    const timeSinceLastReload = now - lastAuthReloadTime;
 
     switch (statusCode) {
       case 410:
@@ -181,18 +219,28 @@ export default async function trackLocation() {
         authActions.logout();
         break;
       case 401:
-        // Unauthorized, check cooldown before triggering reload
-        if (timeSinceLastReload < AUTH_RELOAD_COOLDOWN) {
-          locationLogger.info("Auth reload requested too soon, skipping", {
-            timeSinceLastReload,
-            cooldown: AUTH_RELOAD_COOLDOWN,
+        // Unauthorized, use throttled reload
+        locationLogger.info("Unauthorized (401), attempting to refresh token");
+
+        // Add more detailed logging of the error response
+        try {
+          const errorBody = response?.responseText
+            ? JSON.parse(response.responseText)
+            : null;
+          locationLogger.debug("Unauthorized error details", {
+            errorBody,
+            errorType: errorBody?.error?.type,
+            errorMessage: errorBody?.error?.message,
+            errorPath: errorBody?.error?.errors?.[0]?.path,
           });
-          return;
+        } catch (e) {
+          locationLogger.debug("Failed to parse error response", {
+            error: e.message,
+            responseText: response?.responseText,
+          });
         }
 
-        locationLogger.info("Refreshing authentication token");
-        lastAuthReloadTime = now;
-        authActions.reload(); // should retriger sync in handleAuth via subscribeAuthState when done
+        reloadAuth();
         break;
     }
   });
@@ -246,10 +294,14 @@ export default async function trackLocation() {
       if (count > 0) {
         locationLogger.info(`Found ${count} pending records, forcing sync`);
         try {
-          const records = await BackgroundGeolocation.sync();
-          locationLogger.debug("Forced sync result", {
-            recordsCount: records?.length || 0,
-          });
+          const { userToken } = getAuthState();
+          const state = await BackgroundGeolocation.getState();
+          if (userToken && state.enabled) {
+            const records = await BackgroundGeolocation.sync();
+            locationLogger.debug("Forced sync result", {
+              recordsCount: records?.length || 0,
+            });
+          }
         } catch (error) {
           locationLogger.error("Forced sync failed", {
             error: error,
