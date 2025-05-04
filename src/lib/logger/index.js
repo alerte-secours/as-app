@@ -93,4 +93,4 @@ export const logger = new Logger();
 export const createLogger = (scopes) => logger.withScopes(scopes);
 
 // Export types and config for external use
-export { LOG_LEVELS } from "./config";
+export { LOG_LEVELS, setMinLogLevel } from "./config";
