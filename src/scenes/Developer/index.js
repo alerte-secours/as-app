@@ -9,6 +9,7 @@ import {
   Text,
   useTheme,
   Divider,
+  RadioButton,
 } from "react-native-paper";
 import { createStyles } from "~/theme";
 import env, { setStaging } from "~/env";
@@ -18,6 +19,8 @@ import {
   toggleEmulatorMode as toggleEmulatorModeService,
   initEmulatorMode,
 } from "~/location/emulatorService";
+import { LOG_LEVELS, setMinLogLevel } from "~/lib/logger";
+import { config as loggerConfig } from "~/lib/logger/config";
 
 const reset = async () => {
   await authActions.logout();
@@ -40,15 +43,25 @@ export default function Developer() {
   const [emulatorMode, setEmulatorMode] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null); // null, 'syncing', 'success', 'error'
   const [syncResult, setSyncResult] = useState("");
+  const [logLevel, setLogLevel] = useState(LOG_LEVELS.DEBUG);
 
-  // Initialize emulator mode when component mounts
+  // Initialize emulator mode and log level when component mounts
   useEffect(() => {
     // Initialize the emulator service
     initEmulatorMode();
 
     // Set the initial state based on the global service
     setEmulatorMode(getEmulatorModeState());
+
+    // Set the initial log level from config
+    setLogLevel(loggerConfig.minLevel);
   }, []);
+
+  // Handle log level change
+  const handleLogLevelChange = (level) => {
+    setLogLevel(level);
+    setMinLogLevel(level);
+  };
 
   // Handle toggling emulator mode
   const handleEmulatorModeToggle = async (enabled) => {
@@ -157,6 +170,33 @@ export default function Developer() {
             onValueChange={handleEmulatorModeToggle}
           />
         </View>
+      </Section>
+
+      <Section title="Logging Controls">
+        <Text variant="bodyLarge" style={styles.sectionLabel}>
+          Log Level
+        </Text>
+        <RadioButton.Group
+          onValueChange={handleLogLevelChange}
+          value={logLevel}
+        >
+          <View style={styles.radioRow}>
+            <RadioButton value={LOG_LEVELS.DEBUG} />
+            <Text variant="bodyMedium">DEBUG</Text>
+          </View>
+          <View style={styles.radioRow}>
+            <RadioButton value={LOG_LEVELS.INFO} />
+            <Text variant="bodyMedium">INFO</Text>
+          </View>
+          <View style={styles.radioRow}>
+            <RadioButton value={LOG_LEVELS.WARN} />
+            <Text variant="bodyMedium">WARN</Text>
+          </View>
+          <View style={styles.radioRow}>
+            <RadioButton value={LOG_LEVELS.ERROR} />
+            <Text variant="bodyMedium">ERROR</Text>
+          </View>
+        </RadioButton.Group>
       </Section>
 
       <Section title="Environment URLs">
@@ -338,5 +378,13 @@ const useStyles = createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
   urlValue: {
     flex: 1,
     flexWrap: "wrap",
+  },
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 2,
+  },
+  sectionLabel: {
+    marginBottom: 8,
   },
 }));

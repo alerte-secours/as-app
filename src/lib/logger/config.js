@@ -31,3 +31,12 @@ export const LOG_LEVEL_PRIORITY = {
   [LOG_LEVELS.WARN]: 2,
   [LOG_LEVELS.ERROR]: 3,
 };
+
+// Function to update the minimum log level
+export const setMinLogLevel = (level) => {
+  if (LOG_LEVELS[level] || Object.values(LOG_LEVELS).includes(level)) {
+    config.minLevel = level;
+    return true;
+  }
+  return false;
+};
