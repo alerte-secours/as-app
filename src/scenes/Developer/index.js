@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import * as Sentry from "@sentry/react-native";
+import BackgroundGeolocation from "react-native-background-geolocation";
 import {
   Button,
   Card,
@@ -12,6 +13,11 @@ import {
 import { createStyles } from "~/theme";
 import env, { setStaging } from "~/env";
 import { authActions } from "~/stores";
+import {
+  getEmulatorModeState,
+  toggleEmulatorMode as toggleEmulatorModeService,
+  initEmulatorMode,
+} from "~/location/emulatorService";
 
 const reset = async () => {
   await authActions.logout();
@@ -29,7 +35,50 @@ const Section = ({ title, children }) => {
 
 export default function Developer() {
   const styles = useStyles();
+  const { colors } = useTheme();
   const [isStaging, setIsStaging] = useState(env.IS_STAGING);
+  const [emulatorMode, setEmulatorMode] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(null); // null, 'syncing', 'success', 'error'
+  const [syncResult, setSyncResult] = useState("");
+
+  // Initialize emulator mode when component mounts
+  useEffect(() => {
+    // Initialize the emulator service
+    initEmulatorMode();
+
+    // Set the initial state based on the global service
+    setEmulatorMode(getEmulatorModeState());
+  }, []);
+
+  // Handle toggling emulator mode
+  const handleEmulatorModeToggle = async (enabled) => {
+    const newState = await toggleEmulatorModeService(enabled);
+    setEmulatorMode(newState);
+  };
+
+  // Function to trigger geolocation sync
+  const triggerGeolocSync = async () => {
+    try {
+      setSyncStatus("syncing");
+      setSyncResult("");
+
+      // Get the count of pending records first
+      const count = await BackgroundGeolocation.getCount();
+
+      // Perform the sync
+      const records = await BackgroundGeolocation.sync();
+
+      const result = `Synced ${
+        records?.length || 0
+      } records (${count} pending)`;
+      setSyncResult(result);
+      setSyncStatus("success");
+    } catch (error) {
+      console.error("Geolocation sync failed:", error);
+      setSyncResult(`Sync failed: ${error.message}`);
+      setSyncStatus("error");
+    }
+  };
   const triggerNullError = () => {
     try {
       // Wrap the null error in try-catch
@@ -101,6 +150,13 @@ export default function Developer() {
             }}
           />
         </View>
+        <View style={styles.settingRow}>
+          <Text variant="bodyLarge">Emulator Mode</Text>
+          <Switch
+            value={emulatorMode}
+            onValueChange={handleEmulatorModeToggle}
+          />
+        </View>
       </Section>
 
       <Section title="Environment URLs">
@@ -146,6 +202,35 @@ export default function Developer() {
             </Text>
           </View>
         </View>
+      </Section>
+
+      <Divider style={styles.divider} />
+
+      <Section title="Location Controls">
+        <Button
+          onPress={triggerGeolocSync}
+          style={styles.button}
+          contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
+          loading={syncStatus === "syncing"}
+          disabled={syncStatus === "syncing"}
+        >
+          Trigger Geolocation Sync
+        </Button>
+
+        {syncStatus && syncResult && (
+          <Text
+            style={[
+              styles.statusText,
+              {
+                color: syncStatus === "success" ? colors.primary : colors.error,
+                marginTop: 8,
+              },
+            ]}
+          >
+            {syncResult}
+          </Text>
+        )}
       </Section>
 
       <Divider style={styles.divider} />
