@@ -3,6 +3,7 @@ import { TRACK_MOVE } from "~/misc/devicePrefs";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
+import { initEmulatorMode } from "./emulatorService";
 
 import {
   getAuthState,
@@ -271,4 +272,7 @@ export default async function trackLocation() {
 
   // Check for pending records after a short delay to ensure everything is initialized
   setTimeout(checkPendingRecords, 5000);
+
+  // Initialize emulator mode if previously enabled
+  initEmulatorMode();
 }
