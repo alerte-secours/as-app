@@ -50,7 +50,9 @@ function Chat() {
             name="information-outline"
             style={styles.resolvedLabelImage}
           />
-          <Text style={styles.resolvedLabelText}>Cette alerte est résolue</Text>
+          <Text style={styles.resolvedLabelText}>
+            Cette alerte est terminée
+          </Text>
         </View>
       )}
       {isArchived && (
