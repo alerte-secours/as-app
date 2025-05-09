@@ -45,8 +45,8 @@
     "open:deeplink:android": "yarn open:deeplink --android",
     "open:deeplink:ios": "yarn open:deeplink --ios",
     "open:deeplink": "npx uri-scheme open --android",
-    "screenshot:ios": "xcrun simctl io booted screenshot ~/Desktop/sim-screen.png",
-    "screenshot:android": "adb exec-out screencap -p > emulator-screen.png"
+    "screenshot:ios": "scripts/screenshot-ios.sh",
+    "screenshot:android": "scripts/screenshot-android.sh"
   },
   "customExpoVersioning": {
     "versionCode": 177,
