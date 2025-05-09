@@ -95,3 +95,5 @@ android/app/google-services.json
 !ios/AlerteSecours/GoogleService-Info.example.plist
 !ios/AlerteSecours/Supporting/Expo.example.plist
 !android/app/google-services.example.json
+
+screenshot-*.png
