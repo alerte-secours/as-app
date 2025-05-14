@@ -83,8 +83,8 @@ Project background_fetch = project(':react-native-background-fetch')
         applicationId 'com.alertesecours'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 177
-        versionName "1.9.0"
+        versionCode 178
+        versionName "1.9.1"
         multiDexEnabled true
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
