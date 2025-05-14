@@ -14,7 +14,7 @@ export default function SACFieldAlert(props) {
           setValue("notifyRelatives", true);
           break;
         case "yellow":
-          setValue("callEmergency", false);
+          setValue("callEmergency", true);
           setValue("notifyRelatives", true);
           break;
         case "green":
