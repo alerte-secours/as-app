@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.9.2](https://github.com/alerte-secours/as-app/compare/v1.9.1...v1.9.2) (2025-05-16)
+
+
+### Bug Fixes
+
+* **ios-reported-bug:** app only displayed the splash screen after enabling access to location ([2e35c41](https://github.com/alerte-secours/as-app/commit/2e35c41e0f3e968df6dc07e7656cf50509557a7c))
+
 ## [1.9.1](https://github.com/alerte-secours/as-app/compare/v1.9.0...v1.9.1) (2025-05-14)
 
 
