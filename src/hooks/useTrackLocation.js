@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 
-import { usePermissionWizardState, usePermissionsState } from "~/stores";
+import {
+  usePermissionWizardState,
+  usePermissionsState,
+  useTreeState,
+} from "~/stores";
 
 import trackLocation from "~/location/trackLocation";
 
@@ -12,6 +16,8 @@ const locationLogger = createLogger({
 });
 
 export default function useTrackLocation() {
+  const { splashScreenHidden } = useTreeState(["splashScreenHidden"]);
+
   const { currentStep, completed } = usePermissionWizardState([
     "completed",
     "currentStep",
@@ -34,7 +40,8 @@ export default function useTrackLocation() {
     if (
       locationBackground &&
       motion &&
-      (currentStep === "tracking" || currentStep === "success" || completed)
+      (currentStep === "tracking" || currentStep === "success" || completed) &&
+      splashScreenHidden
     ) {
       locationLogger.info("Enabling location tracking", {
         step: currentStep,
@@ -48,7 +55,7 @@ export default function useTrackLocation() {
         step: currentStep,
       });
     }
-  }, [locationBackground, motion, currentStep, completed]);
+  }, [locationBackground, motion, currentStep, completed, splashScreenHidden]);
 
   useEffect(() => {
     if (trackLocationEnabled) {

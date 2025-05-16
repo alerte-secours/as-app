@@ -49,15 +49,21 @@ export default createAtom(({ merge, getActions }) => {
     merge({ suspend: true });
   };
 
+  const splashScreenHidden = () => {
+    merge({ splashScreenHidden: true });
+  };
+
   return {
     default: {
       triggerReload: false,
       suspend: false,
+      splashScreenHidden: false,
     },
     actions: {
       triggerReload,
       suspendTree,
       onReload,
+      splashScreenHidden,
     },
   };
 });
