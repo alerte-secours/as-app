@@ -9,6 +9,8 @@ import LayoutProviders from "~/layout/LayoutProviders";
 import loadRessources from "~/layout/loadRessources";
 import useMount from "~/hooks/useMount";
 
+import { treeActions } from "~/stores";
+
 SplashScreen.preventAutoHideAsync();
 
 export default function AppView() {
@@ -30,6 +32,7 @@ export default function AppView() {
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
       await SplashScreen.hideAsync();
+      treeActions.splashScreenHidden();
     }
   }, [appIsReady]);
 
