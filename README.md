@@ -1,7 +1,7 @@
 # Alerte Secours - Le Réflexe qui Sauve
 
 [![Liberapay](https://img.shields.io/liberapay/receives/alerte-secours.svg?logo=liberapay)](https://liberapay.com/alerte-secours)
-[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/alerte-secours)
+[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/alertesecours)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/alerte-secours?style=social)](https://github.com/sponsors/alerte-secours)
 
 Une application mobile pour la gestion des alertes et des fonctionnalités liées aux urgences, supportant les plateformes iOS et Android.
@@ -62,7 +62,7 @@ Si vous souhaitez contribuer à son développement, sa maintenance et son indép
 - 🟡 **[Liberapay – Soutien régulier](https://liberapay.com/alerte-secours)**  
   Pour un soutien **récurrent et engagé**. Chaque don contribue à assurer la stabilité du service sur le long terme.
 
-- ☕ **[Buy Me a Coffee – Don ponctuel](https://buymeacoffee.com/alerte-secours)**  
+- ☕ **[Buy Me a Coffee – Don ponctuel](https://buymeacoffee.com/alertesecours)**  
   Pour un **coup de pouce ponctuel**, un café virtuel pour encourager le travail accompli !
 
 - 🧑‍💻 **[GitHub Sponsors](https://github.com/sponsors/alerte-secours)**  
