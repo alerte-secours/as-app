@@ -1,252 +1,82 @@
-# Alerte Secours
+# Alerte Secours - Le Réflexe qui Sauve
 
-A mobile application for handling alerts and emergency-related functionality, supporting both iOS and Android platforms.
+[![Liberapay](https://img.shields.io/liberapay/receives/alerte-secours.svg?logo=liberapay)](https://liberapay.com/alerte-secours)
+[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?logo=buy-me-a-coffee)](https://buymeacoffee.com/alerte-secours)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/alerte-secours?style=social)](https://github.com/sponsors/alerte-secours)
 
-**Official Website:** [alerte-secours.fr](https://alerte-secours.fr)
+Une application mobile pour la gestion des alertes et des fonctionnalités liées aux urgences, supportant les plateformes iOS et Android.
 
-## Table of Contents
+**Site Web Officiel :** [alerte-secours.fr](https://alerte-secours.fr)
 
-- [Project Overview](#project-overview)
-- [Technical Stack](#technical-stack)
-- [Development Quick Start](#development-quick-start)
-- [Installation](#installation)
-  - [Android](#android)
-  - [iOS](#ios)
-- [Licensing](#licensing)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [Troubleshooting](#troubleshooting)
+## Aperçu du Projet
 
-## Project Overview
+Alerte Secours est une application mobile construite avec React Native qui gère les alertes et les fonctionnalités liées aux urgences. L'application supporte les plateformes iOS et Android et inclut des fonctionnalités telles que :
 
-Alerte Secours is a mobile application built with React Native that handles alerts and emergency-related functionality. The app supports both iOS and Android platforms and includes features such as:
+- Création et gestion d'alertes avec mises à jour en temps réel
+- Fonctionnalités basées sur la localisation avec intégration cartographique
+- Système de chat/messagerie avec salles de discussion spécifiques aux alertes
+- Authentification via vérification SMS
+- Liens profonds pour le partage d'alertes
+- Notifications push
 
-- Alert creation and management with real-time updates
-- Location-based features with mapping integration
-- Chat/Messaging system with alert-specific chat rooms
-- Authentication via SMS verification
-- Deep linking for alert sharing
-- Push notifications
+## Documentation Développeur
 
-## Technical Stack
+Pour les développeurs souhaitant contribuer au projet ou déployer l'application, consultez la [documentation technique complète](DEVELOPER.md) qui contient :
 
-- React Native
-- Expo framework
-- GraphQL with Hasura
-  - Apollo Client for frontend
-  - Federated remote schemas
-  - Real-time subscriptions support
-- Firebase Cloud Messaging (FCM) for push notifications only
-- Sentry for error tracking
-- MapLibre for mapping functionality
-- Zustand for state management
-- i18next for internationalization
-- React Navigation for navigation
-- Expo Updates for OTA updates
-- Background Geolocation for location tracking
-- Lottie for animations
-- React Hook Form for form handling
-- Axios for HTTP requests
-- Yarn Berry as package manager
-- ESLint and Prettier for code quality
-- Fastlane for deployment automation
+- Aperçu du projet et fonctionnalités
+- Stack technique détaillé
+- Guide de démarrage rapide
+- Instructions d'installation (Android/iOS)
+- Structure du projet
+- Guide de dépannage
+- Instructions de build et déploiement
 
-## Development Quick Start
+## Licence
 
-### Prerequisites
+Alerte Secours est sous licence **DevTheFuture Ethical Use License (DEF License)**. Points clés :
 
-- Node.js (version specified in `.node-version`)
-- Yarn package manager
-- Android Studio (for Android development)
-- Xcode (for iOS development)
-- Physical device or emulator/simulator
+### Usage à but non lucratif
+- Licence perpétuelle, libre de redevances et non exclusive pour usage à but non lucratif
+- Permet l'utilisation, la modification et la distribution à des fins non lucratives
 
-### Environment Setup
+### Usage commercial
+- Nécessite l'obtention d'une licence payante
+- Conditions déterminées par le Concédant (DevTheFuture.org)
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   yarn
-   ```
-3. Copy the staging environment file:
-   ```bash
-   cp .env.staging.example .env.staging
-   ```
-4. Start the development server with staging environment:
-   ```bash
-   yarn start:staging
-   ```
+### Restrictions sur les données personnelles
+- Ne doit pas être utilisé pour monétiser, vendre ou exploiter les données personnelles
+- Les données personnelles ne peuvent pas être utilisées pour le marketing, la publicité ou l'influence politique
+- L'agrégation de données n'est autorisée que si c'est une fonctionnalité explicite divulguée aux utilisateurs
 
-### Running on Devices
+### Restriction concurrentielle
+- Les concurrents sont interdits d'utiliser le logiciel sans consentement explicite
 
-#### Android
-```bash
-yarn android:staging
-```
+Pour le texte complet de la licence, voir [LICENSE.md](LICENSE.md).
 
-#### iOS
-```bash
-yarn ios:staging
-```
+## 💙 Soutenir le projet
 
-### Staging URLs
+Alerte-Secours est une application mobile citoyenne, librement accessible, sans publicité ni exploitation de données.
 
-The staging environment uses the following URLs:
+Si vous souhaitez contribuer à son développement, sa maintenance et son indépendance :
 
-- GraphQL API: `https://hasura-staging.alertesecours.fr/v1/graphql`
-- WebSocket: `wss://hasura-staging.alertesecours.fr/v1/graphql`
-- Files API: `https://files-staging.alertesecours.fr/api/v1/oas`
-- Minio: `https://minio-staging.alertesecours.fr`
-- Geolocation Sync: `https://api-staging.alertesecours.fr/api/v1/oas/geoloc/sync`
+- 🟡 **[Liberapay – Soutien régulier](https://liberapay.com/alerte-secours)**  
+  Pour un soutien **récurrent et engagé**. Chaque don contribue à assurer la stabilité du service sur le long terme.
 
-## Installation
+- ☕ **[Buy Me a Coffee – Don ponctuel](https://buymeacoffee.com/alerte-secours)**  
+  Pour un **coup de pouce ponctuel**, un café virtuel pour encourager le travail accompli !
 
-### Android
+- 🧑‍💻 **[GitHub Sponsors](https://github.com/sponsors/alerte-secours)**  
+  Pour les développeurs et utilisateurs de GitHub : soutenez le projet directement via votre compte.
 
-#### Using the Yarn Script
+## Contribuer
 
-The easiest way to install the app is to use the provided yarn script:
+Directives pour contribuer au projet :
 
-```bash
-# Set the device ID (emulator or physical device)
-export DEVICE=emulator-5554
+1. Suivez le style de code et les conventions utilisées dans le projet
+2. Écrivez des tests pour les nouvelles fonctionnalités
+3. Mettez à jour la documentation si nécessaire
+4. Utilisez les configurations ESLint et Prettier
 
-# Run the installation script
-yarn install:android
-```
+## Support
 
-This script (`install-android.sh`) handles the entire installation process, including building APKs with signing, extracting them, and installing on the device.
-
-#### Manual Installation
-
-If you need to install the app manually, you can examine the `install-android.sh` script in the project root to see the detailed steps involved.
-
-### iOS
-
-#### Authentication Key Setup
-
-1. Go to https://appstoreconnect.apple.com/access/integrations/api
-2. Click the "+" button to generate a new API key
-3. Give it a name (e.g., "AlerteSecours Build Key")
-4. Download the .p8 file when prompted
-5. Store the .p8 file in a secure location
-6. Note down the Key ID and Issuer ID shown on the website
-7. Set up environment variables:
-   ```sh
-   export ASC_API_KEY_ID="YOUR_KEY_ID"
-   export ASC_API_ISSUER_ID="YOUR_ISSUER_ID"
-   export ASC_API_KEY_PATH="/path/to/your/AuthKey.p8"
-   ```
-
-#### Building and Running
-
-To build and run the iOS app:
-
-```bash
-# Run in development mode with staging environment
-yarn ios:staging
-
-# Build for production (uses scripts/ios-archive.sh and scripts/ios-export.sh)
-yarn bundle:ios
-```
-
-The `bundle:ios` command uses the scripts in the `scripts` directory:
-- `ios-archive.sh` - Archives the iOS app
-- `ios-export.sh` - Exports the archived app
-- `ios-upload.sh` - Uploads the app to App Store Connect (used by `bundle:ios:upload`)
-
-## Licensing
-
-Alerte Secours is licensed under the DevTheFuture Ethical Use License (DEF License). Key points:
-
-### Nonprofit Use
-- Perpetual, royalty-free, non-exclusive license for nonprofit use
-- Allows use, modification, and distribution for nonprofit purposes
-
-### Profit Use
-- Requires obtaining a paid license
-- Terms determined by the Licensor (DevTheFuture.org)
-
-### Personal Data Restrictions
-- Must not be used to monetize, sell, or exploit personal data
-- Personal data cannot be used for marketing, advertising, or political influence
-- Data aggregation only allowed if it's an explicit feature disclosed to users
-
-### Competitor Restriction
-- Competitors are prohibited from using the software without explicit consent
-
-For the full license text, see [LICENSE.md](LICENSE.md).
-
-## Project Structure
-
-- `/android` - Android-specific code and configuration
-- `/ios` - iOS-specific code and configuration
-- `/src` - Main application source code
-  - `/app` - App initialization and configuration
-  - `/assets` - Static assets (images, fonts, animations)
-  - `/auth` - Authentication-related code
-  - `/biz` - Business logic and constants
-  - `/components` - Reusable UI components
-  - `/containers` - Container components
-  - `/data` - Data management
-  - `/events` - Event handling
-  - `/finders` - Search and finder utilities
-  - `/gql` - GraphQL queries and mutations
-  - `/hoc` - Higher-order components
-  - `/hooks` - Custom React hooks
-  - `/i18n` - Internationalization
-  - `/layout` - Layout components
-  - `/lib` - Library code
-  - `/location` - Location-related functionality
-  - `/misc` - Miscellaneous utilities
-  - `/navigation` - Navigation configuration
-  - `/network` - Network-related code
-  - `/notifications` - Notification handling
-  - `/permissions` - Permission handling
-  - `/scenes` - Scene components
-  - `/screens` - Screen components
-  - `/sentry` - Sentry error tracking configuration
-  - `/stores` - State management stores
-  - `/theme` - Styling and theming
-  - `/updates` - Update handling
-  - `/utils` - Utility functions
-- `/docs` - Documentation files
-- `/scripts` - Utility scripts for building, deployment, and development
-- `/e2e` - End-to-end tests
-
-## Contributing
-
-Guidelines for contributing to the project:
-
-1. Follow the code style and conventions used in the project
-2. Write tests for new features
-3. Update documentation as needed
-4. Use the ESLint and Prettier configurations
-
-## Troubleshooting
-
-### Common Issues
-
-#### Development Environment
-
-- **Clearing Yarn Cache**: Use `yarn clean` (removes node_modules and reinstalls dependencies)
-- **Cleaning Gradle**: Run `cd android && ./gradlew clean`
-- **Clearing Gradle Cache**: Remove gradle caches with `rm -rf ~/.gradle/caches/ android/.gradle/`
-- **Stopping Gradle Daemons**: Run `cd android && ./gradlew --stop`
-- **Clearing ADB Cache**: Run `adb shell pm clear com.alertesecours`
-- **Rebuilding Gradle**: Use `yarn expo run:android`
-- **Rebuilding Expo React Native**: Use `yarn expo prebuild`
-- **Clearing Metro Cache**: Use `yarn expo start --dev-client --clear`
-
-#### Screenshots and Testing
-
-- For Android screenshots: Use `scripts/screenshot-android.sh`
-- For iOS screenshots: Use `scripts/screenshot-ios.sh`
-- For Android emulator: Use `scripts/android-emulator`
-
-#### Emulator Issues
-- Clear cache / uninstall the app
-- Check emulator datetime
-- Check network connectivity
-
-For more troubleshooting tips, see the documentation in the `/docs` directory.
+Pour obtenir de l'aide, veuillez ouvrir un ticket sur notre tracker d'issues ou consulter la documentation dans le répertoire `/docs`.
