@@ -9,7 +9,8 @@ export default function SendAlertConfirm({ route }) {
 
   const { alert } = params;
   const level = alert?.level || params.level;
-  const callEmergency = params.forceCallEmergency || level === "red";
+  const callEmergency =
+    params.forceCallEmergency || level === "red" || level === "yellow";
 
   const methods = useForm({
     defaultValues: {
@@ -18,6 +19,7 @@ export default function SendAlertConfirm({ route }) {
       callEmergency,
       notifyAround: true,
       notifyRelatives: true,
+      followLocation: true,
     },
   });
 
