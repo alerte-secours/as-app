@@ -1,12 +1,20 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, Image, ScrollView } from "react-native";
+import {
+  View,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  Alert,
+} from "react-native";
 import { Button } from "react-native-paper";
+import { useNavigation } from "@react-navigation/native";
 import * as Updates from "expo-updates";
 import { StatusBar } from "expo-status-bar";
 import { MaterialIcons, AntDesign, FontAwesome } from "@expo/vector-icons";
 import Text from "~/components/Text";
 
-import { useTheme } from "~/theme";
+import { useTheme, createStyles } from "~/theme";
 
 import { paramsActions, useParamsState } from "~/stores";
 
@@ -16,7 +24,24 @@ const logo = require("~/assets/img/logo192.png");
 
 const version = require("../../../package.json").version;
 
+const openURL = async (url) => {
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Erreur", "Impossible d'ouvrir ce lien");
+    }
+  } catch (error) {
+    Alert.alert(
+      "Erreur",
+      "Une erreur s'est produite lors de l'ouverture du lien",
+    );
+  }
+};
+
 export default function About() {
+  const navigation = useNavigation();
   const textStyle = {
     textAlign: "left",
     fontSize: 16,
@@ -153,6 +178,81 @@ export default function About() {
             </Text>
           </View>
         </View>
+
+        {/* Website and Contribute Buttons */}
+        <View style={{ paddingHorizontal: 15, paddingVertical: 10 }}>
+          {/* Website Button */}
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: colors.surface,
+              borderRadius: 8,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              marginBottom: 10,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 2,
+            }}
+            onPress={() => openURL("https://alerte-secours.fr")}
+          >
+            <MaterialIcons
+              name="language"
+              size={24}
+              color={colors.primary}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: colors.onSurface,
+                fontSize: 16,
+                fontWeight: "bold",
+                marginLeft: 5,
+              }}
+            >
+              Site officiel
+            </Text>
+          </TouchableOpacity>
+
+          {/* Contribute Button */}
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: colors.surface,
+              borderRadius: 8,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 2,
+            }}
+            onPress={() => navigation.navigate("Contribute")}
+          >
+            <MaterialIcons
+              name="favorite"
+              size={24}
+              color={colors.primary}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={{
+                color: colors.onSurface,
+                fontSize: 16,
+                fontWeight: "bold",
+                marginLeft: 5,
+              }}
+            >
+              Contribuer au projet
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={{ padding: 15, justifyContent: "center" }}>
           <Button
             mode="text"

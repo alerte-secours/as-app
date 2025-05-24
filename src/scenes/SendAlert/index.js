@@ -12,6 +12,7 @@ import { createStyles, fontFamily } from "~/theme";
 import HelpBlock from "./HelpBlock";
 import RegisterRelativesButton from "./RegisterRelativesButton";
 import NotificationsButton from "./NotificationsButton";
+import ContributeButton from "./ContributeButton";
 
 export default function SendAlert() {
   const navigation = useNavigation();
@@ -215,6 +216,8 @@ export default function SendAlert() {
             {capitalize(levelLabel.call)}
           </Button>
         </View>
+
+        <ContributeButton />
       </View>
     </ScrollView>
   );

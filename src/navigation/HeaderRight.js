@@ -254,6 +254,12 @@ export default function HeaderRight(props) {
           />
           <Divider />
           <Menu.Item
+            title="Faire un don"
+            onPress={() => {
+              navigateTo({ name: "Contribute" });
+            }}
+          />
+          <Menu.Item
             title="À Propos"
             onPress={() => {
               navigateTo({ name: "About" });
