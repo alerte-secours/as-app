@@ -60,3 +60,17 @@ export const UPDATE_ALERT_SUBJECT_MUTATION = gql`
     }
   }
 `;
+
+export const UPDATE_ALERT_FOLLOW_LOCATION_MUTATION = gql`
+  mutation updateAlertFollowLocation(
+    $alertId: Int!
+    $followLocation: Boolean!
+  ) {
+    updateOneAlert(
+      pk_columns: { id: $alertId }
+      _set: { followLocation: $followLocation }
+    ) {
+      id
+    }
+  }
+`;

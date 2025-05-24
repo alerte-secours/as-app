@@ -50,6 +50,7 @@ import { useMutation } from "@apollo/client";
 
 import FieldLevel from "./FieldLevel";
 import FieldSubject from "./FieldSubject";
+import FieldFollowLocation from "./FieldFollowLocation";
 import MapLinksButton from "~/containers/MapLinksButton";
 import { useTheme } from "~/theme";
 
@@ -497,6 +498,8 @@ export default withConnectivity(
                 alert={alert}
                 setParentScrollEnabled={setParentScrollEnabled}
               />
+
+              <FieldFollowLocation alert={alert} />
             </View>
           )}
 
@@ -505,7 +508,7 @@ export default withConnectivity(
               <AlertInfoLineLevel alert={alert} isFirst />
             )}
             <AlertInfoLineCode alert={alert} />
-            <AlertInfoLineDistance alert={alert} />
+            {!isSent && <AlertInfoLineDistance alert={alert} />}
             <AlertInfoLineCreatedTime alert={alert} />
             <AlertInfoLineClosedTime alert={alert} />
             {(!isSent || !isOpen) && <AlertInfoLineSubject alert={alert} />}
