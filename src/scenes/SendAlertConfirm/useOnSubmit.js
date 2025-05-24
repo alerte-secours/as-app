@@ -33,8 +33,14 @@ async function onSubmit(args, context) {
   const [alertInput] = args;
   const { navigation } = context;
 
-  const { subject, level, callEmergency, notifyAround, notifyRelatives } =
-    alertInput;
+  const {
+    subject,
+    level,
+    callEmergency,
+    notifyAround,
+    notifyRelatives,
+    followLocation,
+  } = alertInput;
 
   const coords = await getCurrentLocation();
 
@@ -62,6 +68,7 @@ async function onSubmit(args, context) {
     callEmergency,
     notifyAround,
     notifyRelatives,
+    followLocation: !!followLocation,
     location,
     accuracy,
     altitude,

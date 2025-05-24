@@ -22,6 +22,7 @@ export default function FieldNotifySelector() {
   const callEmergency = watch("callEmergency");
   const notifyAround = watch("notifyAround");
   const notifyRelatives = watch("notifyRelatives");
+  const followLocation = watch("followLocation");
   const level = watch("level");
 
   const checkedColor = colors.primary;
@@ -106,6 +107,29 @@ export default function FieldNotifySelector() {
           }}
         />
       </View>
+      <View style={styles.followLocationContainer}>
+        <CheckboxItem
+          status={followLocation ? "checked" : "unchecked"}
+          style={styles.checkboxItem}
+          labelStyle={styles.checkboxLabel}
+          size={styleOptions.checkboxItem.size}
+          icon={() => (
+            <MaterialCommunityIcons
+              name="crosshairs-gps"
+              style={styles.checkboxIcon}
+              onPress={() => {
+                setValue("followLocation", !followLocation);
+              }}
+            />
+          )}
+          color={checkedColor}
+          uncheckedColor={uncheckedColor}
+          label="Suivre ma localisation"
+          onPress={() => {
+            setValue("followLocation", !followLocation);
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -122,12 +146,20 @@ const useStyles = createStyles(
   ({ wp, hp, scaleText, fontSize, theme: { colors, textShadowForWhite } }) => ({
     container: {
       marginTop: hp(2),
+      marginBottom: hp(3),
     },
     checkboxItemContainer: {
       borderRadius: 4,
       borderWidth: 1,
       borderColor: colors.outline,
       marginVertical: hp(0.2),
+      backgroundColor: colors.surface,
+    },
+    followLocationContainer: {
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.outline,
+      marginVertical: hp(4),
       backgroundColor: colors.surface,
     },
     checkboxItem: {
