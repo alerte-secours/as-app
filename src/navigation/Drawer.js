@@ -21,6 +21,7 @@ import Relatives from "~/scenes/Relatives";
 import Sheets from "~/scenes/Sheets";
 import AlertAggListArchived from "~/scenes/AlertAggListArchived";
 import About from "~/scenes/About";
+import Contribute from "~/scenes/Contribute";
 import Location from "~/scenes/Location";
 import Developer from "~/scenes/Developer";
 import HelpSignal from "~/scenes/HelpSignal";
@@ -405,6 +406,22 @@ export default React.memo(function DrawerNav() {
           drawerIcon: ({ focused }) => (
             <MaterialCommunityIcons
               name="hand-back-left"
+              {...iconProps}
+              {...(focused ? iconFocusedProps : {})}
+            />
+          ),
+          unmountOnBlur: true,
+        }}
+        listeners={{}}
+      />
+      <Drawer.Screen
+        name="Contribute"
+        component={Contribute}
+        options={{
+          drawerLabel: "Faire un don",
+          drawerIcon: ({ focused }) => (
+            <MaterialCommunityIcons
+              name="hand-heart"
               {...iconProps}
               {...(focused ? iconFocusedProps : {})}
             />

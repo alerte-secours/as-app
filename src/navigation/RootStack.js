@@ -39,6 +39,8 @@ function getHeaderTitle(route) {
       return "Alertes archivées";
     case "About":
       return "À Propos";
+    case "Contribute":
+      return "Faire un don";
     case "Location":
       return "Ma Localisation";
     case "NotFound":

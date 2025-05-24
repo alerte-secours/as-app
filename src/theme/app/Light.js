@@ -95,6 +95,13 @@ const ThemeLight = {
       call: "#4c6ef5",
       onColor: "#FFFFFF",
     },
+
+    donation: {
+      liberapay: "#f59f00", // Same as colors.warn
+      buymeacoffee: "#40c057", // Same as colors.ok
+      github: "#1864ab", // Same as colors.primary
+      onDonation: "#FFFFFF",
+    },
   },
 };
 

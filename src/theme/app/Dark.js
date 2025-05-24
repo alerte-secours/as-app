@@ -96,6 +96,13 @@ const ThemeDark = {
       call: "#4c6ef5",
       onColor: "#FFFFFF",
     },
+
+    donation: {
+      liberapay: "#f59f00", // Same as colors.warn
+      buymeacoffee: "#40c057", // Same as colors.ok
+      github: "#b3c4ff", // Same as colors.primary (dark theme)
+      onDonation: "#FFFFFF",
+    },
   },
 };
 export default ThemeDark;
