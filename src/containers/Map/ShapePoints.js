@@ -12,6 +12,11 @@ const hitbox = {
   height: HITBOX_SIZE,
 };
 
+const iconStyle = {
+  iconImage: ["get", "icon"],
+  iconSize: 0.5,
+};
+
 const useStyles = createStyles(({ theme: { colors } }) => ({
   clusterCount: {
     textField: "{point_count_abbreviated}",
@@ -45,6 +50,13 @@ export default function ShapePoints({ shape, children, ...shapeSourceProps }) {
       <AlertSymbolLayer level="red" isDisabled />
       <AlertSymbolLayer level="yellow" isDisabled />
       <AlertSymbolLayer level="green" isDisabled />
+
+      <Maplibre.SymbolLayer
+        filter={["==", ["get", "icon"], "origin"]}
+        key="points-origin"
+        id="points-origin"
+        style={iconStyle}
+      />
 
       {children}
     </Maplibre.ShapeSource>

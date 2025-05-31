@@ -3,6 +3,7 @@ import { getDistance } from "geolib";
 import Supercluster from "supercluster";
 import useShallowMemo from "~/hooks/useShallowMemo";
 import useShallowEffect from "~/hooks/useShallowEffect";
+import { deepEqual } from "fast-equals";
 
 export default function useFeatures({
   clusterFeature,
@@ -38,35 +39,67 @@ export default function useFeatures({
     return computedList;
   }, [alertingList, userCoords, hasUserCoords]);
 
-  const featureCollection = useShallowMemo(
-    () => ({
-      type: "FeatureCollection",
-      features: list.map((row) => {
-        const { alert } = row;
-        const { level, state } = alert;
-        const [longitude, latitude] = alert.location.coordinates;
+  const featureCollection = useShallowMemo(() => {
+    const features = list.map((row) => {
+      const { alert } = row;
+      const { level, state } = alert;
+      const [longitude, latitude] = alert.location.coordinates;
+      const coordinates = [longitude, latitude];
+      const id = `alert:${alert.id}`;
+      const icon = state === "open" ? level : `${level}Disabled`;
+      return {
+        type: "Feature",
+        id,
+        properties: {
+          id,
+          level,
+          icon,
+          alert,
+          coordinates,
+        },
+        geometry: {
+          type: "Point",
+          coordinates,
+        },
+      };
+    });
+
+    // Add initial location marker if locations are different
+    list.forEach((row) => {
+      const { alert } = row;
+      if (
+        alert.initialLocation &&
+        alert.location &&
+        !deepEqual(alert.initialLocation, alert.location)
+      ) {
+        const [longitude, latitude] = alert.initialLocation.coordinates;
         const coordinates = [longitude, latitude];
-        const id = `alert:${alert.id}`;
-        const icon = state === "open" ? level : `${level}Disabled`;
-        return {
+        const id = `alert:${alert.id}:initial`;
+
+        features.push({
           type: "Feature",
           id,
           properties: {
             id,
-            level,
-            icon,
+            icon: "origin",
+            level: alert.level,
             alert,
             coordinates,
+            isInitialLocation: true,
           },
           geometry: {
             type: "Point",
             coordinates,
           },
-        };
-      }),
-    }),
-    [list],
-  );
+        });
+      }
+    });
+
+    return {
+      type: "FeatureCollection",
+      features,
+    };
+  }, [list]);
 
   const superCluster = useShallowMemo(() => {
     const cluster = new Supercluster({ radius: 40, maxZoom: 16 });
