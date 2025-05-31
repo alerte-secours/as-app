@@ -7,17 +7,15 @@ import useTimeDisplay from "~/hooks/useTimeDisplay";
 export default function AlertInfoLineClosedTime({ alert, ...props }) {
   const { closedAt } = alert;
   const closedAtText = useTimeDisplay(closedAt);
-
   if (!closedAt) {
     return null;
   }
 
   return (
     <AlertInfoLine
-      icon={() => (
-        <MaterialCommunityIcons name="clock-time-four-outline" size={24} />
-      )}
-      text={`Terminée ${closedAtText}`}
+      iconName={"clock-time-four-outline"}
+      labelText={`Terminée`}
+      valueText={closedAtText}
       {...props}
     />
   );

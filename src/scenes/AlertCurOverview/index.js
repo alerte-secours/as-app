@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { View, ImageBackground, ScrollView } from "react-native";
 import { TouchableRipple, Button, Title } from "react-native-paper";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { deepEqual } from "fast-equals";
 
 import withConnectivity from "~/hoc/withConnectivity";
 
@@ -21,6 +22,7 @@ import alertBigButtonBgMessagesGrey from "~/assets/img/alert-big-button-bg-messa
 
 import Text from "~/components/Text";
 import AlertInfoLineLevel from "~/containers/AlertInfoLines/Level";
+import LocationInfoSection from "~/containers/LocationInfoSection";
 import AlertInfoLineCode from "~/containers/AlertInfoLines/Code";
 import AlertInfoLineDistance from "~/containers/AlertInfoLines/Distance";
 import AlertInfoLineCreatedTime from "~/containers/AlertInfoLines/CreatedTime";
@@ -197,6 +199,14 @@ export default withConnectivity(
     const alertLevelEmergency = level === "red" || level === "yellow";
 
     const [parentScrollEnabled, setParentScrollEnabled] = useState(true);
+
+    const isLocationsDifferent = useMemo(() => {
+      return (
+        alert.initialLocation &&
+        alert.location &&
+        !deepEqual(alert.initialLocation, alert.location)
+      );
+    }, [alert.initialLocation, alert.location]);
 
     // if (!isFocused) {
     //   return null;
@@ -512,11 +522,45 @@ export default withConnectivity(
             <AlertInfoLineCreatedTime alert={alert} />
             <AlertInfoLineClosedTime alert={alert} />
             {(!isSent || !isOpen) && <AlertInfoLineSubject alert={alert} />}
-            <AlertInfoLineAddress alert={alert} />
-            <AlertInfoLineNear alert={alert} />
-            <AlertInfoLineW3w alert={alert} />
-            <AlertInfoLineRadius alert={alert} />
-            <AlertInfoLineSentBy alert={alert} />
+
+            {useMemo(() => {
+              if (isLocationsDifferent) {
+                return (
+                  <>
+                    <LocationInfoSection
+                      title="Position initiale"
+                      alert={alert}
+                      styles={styles}
+                    />
+                    <LocationInfoSection
+                      title={
+                        alert.followLocation
+                          ? "Position actuelle"
+                          : "Dernière position connue"
+                      }
+                      alert={alert}
+                      useLastLocation={true}
+                      styles={styles}
+                    />
+                  </>
+                );
+              } else {
+                return (
+                  <>
+                    <AlertInfoLineAddress alert={alert} />
+                    <AlertInfoLineNear alert={alert} />
+                    <AlertInfoLineW3w alert={alert} />
+                  </>
+                );
+              }
+            }, [alert, styles, isLocationsDifferent])}
+
+            <View
+              style={isLocationsDifferent ? styles.locationSeparator : null}
+            >
+              <AlertInfoLineRadius alert={alert} />
+              <AlertInfoLineSentBy alert={alert} />
+            </View>
           </View>
         </View>
       </ScrollView>

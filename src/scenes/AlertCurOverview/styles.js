@@ -153,4 +153,20 @@ export default createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
     lineHeight: 18,
     textAlign: "center",
   },
+  locationSectionTitle: {
+    backgroundColor: colors.background,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginTop: 5,
+  },
+  locationTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: colors.primary,
+  },
+  locationSeparator: {
+    marginTop: 15,
+    borderTopWidth: 5,
+    borderColor: colors.background,
+  },
 }));
