@@ -1,5 +1,4 @@
-import React, { useCallback, useMemo } from "react";
-import { deepEqual } from "fast-equals";
+import React, { useCallback } from "react";
 import { View } from "react-native";
 import { IconButton, TouchableRipple } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -11,7 +10,7 @@ import { useNavigation } from "@react-navigation/native";
 import { createStyles, useTheme } from "~/theme";
 import { alertActions } from "~/stores";
 
-export default function SelectedFeatureBubbleAlert({ feature, close }) {
+export default function SelectedFeatureBubbleAlertInitial({ feature, close }) {
   const { properties = {} } = feature;
   const { alert } = properties;
   const styles = useStyles();
@@ -64,31 +63,11 @@ export default function SelectedFeatureBubbleAlert({ feature, close }) {
           />
         </View>
         <View style={styles.content}>
-          {useMemo(() => {
-            const isLocationsDifferent =
-              alert.initialLocation &&
-              alert.location &&
-              !deepEqual(alert.initialLocation, alert.location);
-
-            if (isLocationsDifferent) {
-              return (
-                <View style={styles.titleContainer}>
-                  <Text style={styles.titleText}>
-                    {alert.followLocation
-                      ? "Localisation actuelle"
-                      : "Dernière position connue"}
-                  </Text>
-                </View>
-              );
-            }
-            return null;
-          }, [
-            alert.initialLocation,
-            alert.location,
-            alert.followLocation,
-            styles.titleContainer,
-            styles.titleText,
-          ])}
+          <View style={styles.titleContainer}>
+            <Text style={styles.titleText}>
+              Localisation initiale de l'Alerte
+            </Text>
+          </View>
           <View style={styles.contentLine}>
             <Text style={styles.contentText}>Sujet :</Text>
             <Text style={[styles.contentTextValue, { color: levelColor }]}>
@@ -107,6 +86,10 @@ export default function SelectedFeatureBubbleAlert({ feature, close }) {
           <View style={styles.contentLine}>
             <Text style={styles.contentText}>Depuis l'adresse :</Text>
             <Text style={styles.contentTextValue}>{alert.address}</Text>
+          </View>
+          <View style={styles.contentLine}>
+            <Text style={styles.contentText}>À proximité de :</Text>
+            <Text style={styles.contentTextValue}>{alert.nearestPlace}</Text>
           </View>
           <View style={styles.contentLine}>
             <Text style={styles.contentText}>Localisation en 3 mots :</Text>
@@ -135,7 +118,6 @@ const useStyles = createStyles(({ wp, fontSize, theme: { colors } }) => ({
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 5,
-    // width: "100%",
     width: wp(75),
   },
   bubbleText: {
