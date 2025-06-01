@@ -30,7 +30,6 @@ const ALERT_FIELDS_FRAGMENT = gql`
     acknowledgedAroundCount
     acknowledgedConnectCount
     followLocation
-    followLocationRan
     accessCode
     userId
     keepOpenAt
