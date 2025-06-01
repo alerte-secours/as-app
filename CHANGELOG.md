@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.0](https://github.com/alerte-secours/as-app/compare/v1.9.2...v1.10.0) (2025-06-01)
+
+
+### Features
+
+* contribute ([3e70ff2](https://github.com/alerte-secours/as-app/commit/3e70ff23c9361a5d331e15160adbb44a8bf773ac))
+* **follow-location:** init ([ca3a2c8](https://github.com/alerte-secours/as-app/commit/ca3a2c8fcce2aaa613817bde047f143915ef8fe0))
+* **follow-location:** map bubble ([f3cca81](https://github.com/alerte-secours/as-app/commit/f3cca8182ca52a89f7f6d0785821185db277bbf0))
+* **follow-location:** map wip ([ce11db9](https://github.com/alerte-secours/as-app/commit/ce11db9863a7aaa14b28e104645d8ce0b23a235b))
+* **follow-location:** overview initial position ([30aeb2a](https://github.com/alerte-secours/as-app/commit/30aeb2a0e41196719977900e08b12d8ae813a69a))
+* **follow-location:** wip ([c30c0b0](https://github.com/alerte-secours/as-app/commit/c30c0b0482d946b6b4d6a2421416a59f9d57bfeb))
+
+
+### Bug Fixes
+
+* call emergency by default on yellow ([991b65d](https://github.com/alerte-secours/as-app/commit/991b65d990b909fb02f9941fedf84637d0a8b71e))
+
 ## [1.9.2](https://github.com/alerte-secours/as-app/compare/v1.9.1...v1.9.2) (2025-05-16)
 
 
