@@ -1,5 +1,12 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, StyleSheet, Image, ScrollView, Platform } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Image,
+  ScrollView,
+  Platform,
+  AppState,
+} from "react-native";
 import { Title } from "react-native-paper";
 import { Ionicons, Entypo } from "@expo/vector-icons";
 import {
@@ -37,7 +44,12 @@ const HeroMode = () => {
   const [batteryOptimizationEnabled, setBatteryOptimizationEnabled] =
     useState(null);
   const [batteryOptAttempted, setBatteryOptAttempted] = useState(false);
-  const permissions = usePermissionsState(["locationBackground", "motion"]);
+  const [batteryOptInProgress, setBatteryOptInProgress] = useState(false);
+  const permissions = usePermissionsState([
+    "locationBackground",
+    "motion",
+    "batteryOptimizationDisabled",
+  ]);
   const theme = useTheme();
 
   const [skipMessage] = useState(() => {
@@ -53,47 +65,75 @@ const HeroMode = () => {
     permissionWizardActions.setCurrentStep("skipInfo");
   }, []);
 
+  const handleBatteryOptimization = useCallback(async () => {
+    if (Platform.OS !== "android") {
+      permissionsActions.setBatteryOptimizationDisabled(true);
+      return true;
+    }
+
+    try {
+      setBatteryOptInProgress(true);
+      const isEnabled = await BatteryOptEnabled();
+      setBatteryOptimizationEnabled(isEnabled);
+
+      if (isEnabled) {
+        console.log(
+          "Battery optimization is enabled, requesting to disable...",
+        );
+        RequestDisableOptimization();
+        setBatteryOptAttempted(true);
+
+        // Give some time for the user to interact with the system dialog
+        // We'll check the status again in the retry flow
+        return false;
+      } else {
+        console.log("Battery optimization already disabled");
+        permissionsActions.setBatteryOptimizationDisabled(true);
+        return true;
+      }
+    } catch (error) {
+      console.error("Error handling battery optimization:", error);
+      setBatteryOptAttempted(true);
+      return false;
+    } finally {
+      setBatteryOptInProgress(false);
+    }
+  }, []);
+
   const handleRequestPermissions = useCallback(async () => {
     setRequesting(true);
     try {
-      // Set step to tracking before requesting permissions
-      permissionWizardActions.setCurrentStep("tracking");
+      // Don't change step immediately to avoid race conditions
+      console.log("Starting permission requests...");
 
       // Request motion permission first
       const motionGranted = await requestPermissionMotion.requestPermission();
       permissionsActions.setMotion(motionGranted);
+      console.log("Motion permission:", motionGranted);
 
       // Then request background location
       const locationGranted = await requestPermissionLocationBackground();
       permissionsActions.setLocationBackground(locationGranted);
+      console.log("Location background permission:", locationGranted);
 
-      // Check and request battery optimization disable (Android only)
-      let batteryOptDisabled = true;
-      if (Platform.OS === "android") {
-        try {
-          const isEnabled = await BatteryOptEnabled();
-          setBatteryOptimizationEnabled(isEnabled);
-          if (isEnabled) {
-            RequestDisableOptimization();
-            batteryOptDisabled = false;
-          }
-          setBatteryOptAttempted(true);
-        } catch (error) {
-          console.error("Error checking battery optimization:", error);
-        }
-      }
+      // Handle battery optimization separately to avoid dialog conflicts
+      const batteryOptDisabled = await handleBatteryOptimization();
+      console.log("Battery optimization disabled:", batteryOptDisabled);
 
-      // If all permissions granted and battery optimization handled, move to success
+      // Only set step to tracking after all permission requests are complete
+      permissionWizardActions.setCurrentStep("tracking");
+
+      // Check if we should proceed to success immediately
       if (locationGranted && motionGranted && batteryOptDisabled) {
         permissionWizardActions.setHeroPermissionsGranted(true);
-        permissionWizardActions.setCurrentStep("success");
+        // Don't navigate immediately, let the useEffect handle it
       }
     } catch (error) {
       console.error("Error requesting permissions:", error);
     }
     setRequesting(false);
     setHasAttempted(true);
-  }, []);
+  }, [handleBatteryOptimization]);
 
   const handleRetry = useCallback(async () => {
     // Re-check battery optimization status before retrying
@@ -101,18 +141,96 @@ const HeroMode = () => {
       try {
         const isEnabled = await BatteryOptEnabled();
         setBatteryOptimizationEnabled(isEnabled);
+
+        // If battery optimization is now disabled, update the store
+        if (!isEnabled) {
+          console.log("Battery optimization now disabled after retry");
+          permissionsActions.setBatteryOptimizationDisabled(true);
+        }
       } catch (error) {
         console.error("Error re-checking battery optimization:", error);
       }
     }
-    await handleRequestPermissions();
+
+    // Only request permissions again if some are still missing
+    const needsRetry =
+      !permissions.locationBackground ||
+      !permissions.motion ||
+      (Platform.OS === "android" && batteryOptimizationEnabled);
+
+    if (needsRetry) {
+      await handleRequestPermissions();
+    }
+
     setHasRetried(true);
-  }, [handleRequestPermissions]);
+  }, [handleRequestPermissions, permissions, batteryOptimizationEnabled]);
 
   const allGranted =
     permissions.locationBackground &&
     permissions.motion &&
     (Platform.OS === "ios" || !batteryOptimizationEnabled);
+
+  // Check battery optimization status on mount
+  useEffect(() => {
+    const checkInitialBatteryOptimization = async () => {
+      if (Platform.OS === "android") {
+        try {
+          const isEnabled = await BatteryOptEnabled();
+          setBatteryOptimizationEnabled(isEnabled);
+
+          // If already disabled, update the store
+          if (!isEnabled) {
+            permissionsActions.setBatteryOptimizationDisabled(true);
+          }
+        } catch (error) {
+          console.error("Error checking initial battery optimization:", error);
+        }
+      } else {
+        // iOS doesn't have battery optimization, so mark as disabled
+        permissionsActions.setBatteryOptimizationDisabled(true);
+      }
+    };
+
+    checkInitialBatteryOptimization();
+  }, []);
+
+  // Listen for app state changes to re-check battery optimization when user returns from settings
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      if (
+        nextAppState === "active" &&
+        Platform.OS === "android" &&
+        batteryOptAttempted
+      ) {
+        console.log("App became active, re-checking battery optimization...");
+        try {
+          const isEnabled = await BatteryOptEnabled();
+          setBatteryOptimizationEnabled(isEnabled);
+
+          if (!isEnabled) {
+            console.log(
+              "Battery optimization disabled after returning from settings",
+            );
+            permissionsActions.setBatteryOptimizationDisabled(true);
+          }
+        } catch (error) {
+          console.error(
+            "Error re-checking battery optimization on app focus:",
+            error,
+          );
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [batteryOptAttempted]);
 
   useEffect(() => {
     if (hasAttempted && allGranted) {
@@ -271,8 +389,11 @@ const HeroMode = () => {
           mode="contained"
           onPress={handleRequestPermissions}
           loading={requesting}
+          disabled={batteryOptInProgress}
         >
-          J'accorde les permissions
+          {batteryOptInProgress
+            ? "Traitement de l'optimisation de la batterie..."
+            : "J'accorde les permissions"}
         </CustomButton>
       );
     }
@@ -294,8 +415,15 @@ const HeroMode = () => {
         >
           {skipMessage}
         </CustomButton>
-        <CustomButton mode="contained" onPress={handleRetry}>
-          Réessayer d'accorder les permissions
+        <CustomButton
+          mode="contained"
+          onPress={handleRetry}
+          loading={requesting}
+          disabled={batteryOptInProgress}
+        >
+          {batteryOptInProgress
+            ? "Vérification en cours..."
+            : "Réessayer d'accorder les permissions"}
         </CustomButton>
         {hasRetried && (
           <>

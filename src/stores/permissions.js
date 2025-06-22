@@ -25,6 +25,10 @@ export default createAtom(({ merge }) => {
     merge({ motion });
   };
 
+  const setBatteryOptimizationDisabled = (batteryOptimizationDisabled) => {
+    merge({ batteryOptimizationDisabled });
+  };
+
   return {
     default: {
       fcm: false,
@@ -33,6 +37,7 @@ export default createAtom(({ merge }) => {
       readContacts: false,
       phoneCall: false,
       motion: false,
+      batteryOptimizationDisabled: false,
     },
     actions: {
       setFcm,
@@ -41,6 +46,7 @@ export default createAtom(({ merge }) => {
       setReadContacts,
       setPhoneCall,
       setMotion,
+      setBatteryOptimizationDisabled,
     },
   };
 });
