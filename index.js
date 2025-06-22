@@ -18,6 +18,8 @@ import { onBackgroundEvent as notificationBackgroundEvent } from "~/notification
 import onMessageReceived from "~/notifications/onMessageReceived";
 
 import { createLogger } from "~/lib/logger";
+import * as Sentry from "@sentry/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // setup notification, this have to stay in index.js
 notifee.onBackgroundEvent(notificationBackgroundEvent);
@@ -28,27 +30,60 @@ messaging().setBackgroundMessageHandler(onMessageReceived);
 // the environment is set up appropriately
 registerRootComponent(App);
 
+// Constants for persistence
+const LAST_SYNC_TIME_KEY = "@geolocation_last_sync_time";
+// const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const FORCE_SYNC_INTERVAL = 60 * 1000; // DEBUGGING
+
+// Helper functions for persisting sync time
+const getLastSyncTime = async () => {
+  try {
+    const value = await AsyncStorage.getItem(LAST_SYNC_TIME_KEY);
+    return value ? parseInt(value, 10) : Date.now();
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { module: "headless-task", operation: "get-last-sync-time" },
+    });
+    return Date.now();
+  }
+};
+
+const setLastSyncTime = async (time) => {
+  try {
+    await AsyncStorage.setItem(LAST_SYNC_TIME_KEY, time.toString());
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { module: "headless-task", operation: "set-last-sync-time" },
+    });
+  }
+};
+
 // this have to stay in index.js, see also https://github.com/transistorsoft/react-native-background-geolocation/wiki/Android-Headless-Mode
 const getCurrentPosition = () => {
   return new Promise((resolve) => {
+    // Add timeout protection
+    const timeout = setTimeout(() => {
+      resolve({ code: -1, message: "getCurrentPosition timeout" });
+    }, 15000); // 15 second timeout
+
     BackgroundGeolocation.getCurrentPosition(
       {
         samples: 1,
         persist: true,
         extras: { background: true },
+        timeout: 10, // 10 second timeout in the plugin itself
       },
       (location) => {
+        clearTimeout(timeout);
         resolve(location);
       },
       (error) => {
+        clearTimeout(timeout);
         resolve(error);
       },
     );
   });
 };
-
-const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-let lastSyncTime = Date.now();
 
 const geolocBgLogger = createLogger({
   service: "background-geolocation",
@@ -56,45 +91,362 @@ const geolocBgLogger = createLogger({
 });
 
 const HeadlessTask = async (event) => {
-  const { name, params } = event;
-  geolocBgLogger.info("HeadlessTask event received", { name, params });
+  // Add timeout protection for the entire headless task
+  const taskTimeout = setTimeout(() => {
+    geolocBgLogger.error("HeadlessTask timeout", { event });
+
+    Sentry.captureException(new Error("HeadlessTask timeout"), {
+      tags: {
+        module: "background-geolocation",
+        operation: "headless-task-timeout",
+        eventName: event?.name,
+      },
+    });
+  }, 60000); // 60 second timeout
+
+  let transaction;
 
   try {
+    // Validate event structure
+    if (!event || typeof event !== "object") {
+      throw new Error("Invalid event object received");
+    }
+
+    const { name, params } = event;
+
+    if (!name || typeof name !== "string") {
+      throw new Error("Invalid event name received");
+    }
+
+    // Start Sentry transaction for the entire HeadlessTask
+    transaction = Sentry.startTransaction({
+      name: "headless-task",
+      op: "background-task",
+      data: { eventName: name },
+    });
+
+    Sentry.getCurrentScope().setSpan(transaction);
+
+    // Add initial breadcrumb
+    Sentry.addBreadcrumb({
+      message: "HeadlessTask started",
+      category: "headless-task",
+      level: "info",
+      data: {
+        eventName: name,
+        params: params ? JSON.stringify(params) : null,
+        timestamp: Date.now(),
+      },
+    });
+
+    geolocBgLogger.info("HeadlessTask event received", { name, params });
+
     switch (name) {
       case "heartbeat":
-        // Check if we need to force a sync
+        // Add breadcrumb for heartbeat event
+        Sentry.addBreadcrumb({
+          message: "Heartbeat event received",
+          category: "headless-task",
+          level: "info",
+          timestamp: Date.now() / 1000,
+        });
+
+        // Get persisted last sync time
+        const lastSyncTime = await getLastSyncTime();
         const now = Date.now();
         const timeSinceLastSync = now - lastSyncTime;
 
+        // Add context about sync timing
+        Sentry.setContext("sync-timing", {
+          lastSyncTime: new Date(lastSyncTime).toISOString(),
+          currentTime: new Date(now).toISOString(),
+          timeSinceLastSync: timeSinceLastSync,
+          timeSinceLastSyncHours: (
+            timeSinceLastSync /
+            (1000 * 60 * 60)
+          ).toFixed(2),
+          needsForceSync: timeSinceLastSync >= FORCE_SYNC_INTERVAL,
+        });
+
+        Sentry.addBreadcrumb({
+          message: "Sync timing calculated",
+          category: "headless-task",
+          level: "info",
+          data: {
+            timeSinceLastSyncHours: (
+              timeSinceLastSync /
+              (1000 * 60 * 60)
+            ).toFixed(2),
+            needsForceSync: timeSinceLastSync >= FORCE_SYNC_INTERVAL,
+          },
+        });
+
+        // Get current position
+        const locationSpan = transaction.startChild({
+          op: "get-current-position",
+          description: "Getting current position",
+        });
+
         const location = await getCurrentPosition();
+        locationSpan.finish();
+
+        const isLocationError = location && location.code !== undefined;
+
+        Sentry.addBreadcrumb({
+          message: "getCurrentPosition completed",
+          category: "headless-task",
+          level: isLocationError ? "warning" : "info",
+          data: {
+            success: !isLocationError,
+            error: isLocationError ? location : undefined,
+            coords: !isLocationError ? location?.coords : undefined,
+          },
+        });
+
         geolocBgLogger.debug("getCurrentPosition result", { location });
 
         if (timeSinceLastSync >= FORCE_SYNC_INTERVAL) {
           geolocBgLogger.info("Forcing location sync after 24h");
-          // Update last sync time after successful sync
-          await BackgroundGeolocation.changePace(true);
-          await BackgroundGeolocation.sync();
-          lastSyncTime = now;
+
+          Sentry.addBreadcrumb({
+            message: "Force sync triggered",
+            category: "headless-task",
+            level: "info",
+            data: {
+              timeSinceLastSyncHours: (
+                timeSinceLastSync /
+                (1000 * 60 * 60)
+              ).toFixed(2),
+            },
+          });
+
+          try {
+            // Get pending records count before sync with timeout
+            const pendingCount = await Promise.race([
+              BackgroundGeolocation.getCount(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("getCount timeout")), 10000),
+              ),
+            ]);
+
+            Sentry.addBreadcrumb({
+              message: "Pending records count",
+              category: "headless-task",
+              level: "info",
+              data: { pendingCount },
+            });
+
+            // Change pace to ensure location updates with timeout
+            const paceSpan = transaction.startChild({
+              op: "change-pace",
+              description: "Changing pace to true",
+            });
+
+            await Promise.race([
+              BackgroundGeolocation.changePace(true),
+              new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("changePace timeout")),
+                  10000,
+                ),
+              ),
+            ]);
+            paceSpan.finish();
+
+            Sentry.addBreadcrumb({
+              message: "changePace completed",
+              category: "headless-task",
+              level: "info",
+            });
+
+            // Perform sync with timeout
+            const syncSpan = transaction.startChild({
+              op: "sync-locations",
+              description: "Syncing locations",
+            });
+
+            const syncResult = await Promise.race([
+              BackgroundGeolocation.sync(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("sync timeout")), 20000),
+              ),
+            ]);
+            syncSpan.finish();
+
+            Sentry.addBreadcrumb({
+              message: "Sync completed successfully",
+              category: "headless-task",
+              level: "info",
+              data: {
+                syncResult: Array.isArray(syncResult)
+                  ? `${syncResult.length} records`
+                  : "completed",
+              },
+            });
+
+            // Update last sync time after successful sync
+            await setLastSyncTime(now);
+
+            Sentry.addBreadcrumb({
+              message: "Last sync time updated",
+              category: "headless-task",
+              level: "info",
+              data: { newSyncTime: new Date(now).toISOString() },
+            });
+          } catch (syncError) {
+            Sentry.captureException(syncError, {
+              tags: {
+                module: "headless-task",
+                operation: "force-sync",
+                eventName: name,
+              },
+              contexts: {
+                syncAttempt: {
+                  timeSinceLastSync: timeSinceLastSync,
+                  lastSyncTime: new Date(lastSyncTime).toISOString(),
+                },
+              },
+            });
+
+            geolocBgLogger.error("Force sync failed", { error: syncError });
+          }
+        } else {
+          Sentry.addBreadcrumb({
+            message: "Force sync not needed",
+            category: "headless-task",
+            level: "info",
+            data: {
+              timeSinceLastSyncHours: (
+                timeSinceLastSync /
+                (1000 * 60 * 60)
+              ).toFixed(2),
+              nextSyncInHours: (
+                (FORCE_SYNC_INTERVAL - timeSinceLastSync) /
+                (1000 * 60 * 60)
+              ).toFixed(2),
+            },
+          });
         }
         break;
+
       case "location":
+        // Validate location parameters
+        if (!params || typeof params !== "object") {
+          geolocBgLogger.warn("Invalid location params", { params });
+          break;
+        }
+
+        Sentry.addBreadcrumb({
+          message: "Location update received",
+          category: "headless-task",
+          level: "info",
+          data: {
+            coords: params.location?.coords,
+            activity: params.location?.activity,
+            hasLocation: !!params.location,
+          },
+        });
+
         geolocBgLogger.debug("Location update received", {
           location: params.location,
         });
         break;
+
       case "http":
+        // Validate HTTP parameters
+        if (!params || typeof params !== "object" || !params.response) {
+          geolocBgLogger.warn("Invalid HTTP params", { params });
+          break;
+        }
+
+        const httpStatus = params.response?.status;
+        const isHttpSuccess = httpStatus === 200;
+
+        Sentry.addBreadcrumb({
+          message: "HTTP response received",
+          category: "headless-task",
+          level: isHttpSuccess ? "info" : "warning",
+          data: {
+            status: httpStatus,
+            success: params.response?.success,
+            hasResponse: !!params.response,
+          },
+        });
+
         geolocBgLogger.debug("HTTP response received", {
           response: params.response,
         });
+
         // Update last sync time on successful HTTP response
-        if (params.response?.status === 200) {
-          lastSyncTime = Date.now();
+        if (isHttpSuccess) {
+          try {
+            const now = Date.now();
+            await setLastSyncTime(now);
+
+            Sentry.addBreadcrumb({
+              message: "Last sync time updated (HTTP success)",
+              category: "headless-task",
+              level: "info",
+              data: { newSyncTime: new Date(now).toISOString() },
+            });
+          } catch (syncTimeError) {
+            geolocBgLogger.error("Failed to update sync time", {
+              error: syncTimeError,
+            });
+
+            Sentry.captureException(syncTimeError, {
+              tags: {
+                module: "headless-task",
+                operation: "update-sync-time-http",
+              },
+            });
+          }
         }
         break;
+
+      default:
+        Sentry.addBreadcrumb({
+          message: "Unknown event type",
+          category: "headless-task",
+          level: "warning",
+          data: { eventName: name },
+        });
+    }
+
+    // Finish transaction successfully
+    if (transaction) {
+      transaction.setStatus("ok");
     }
   } catch (error) {
-    geolocBgLogger.error("HeadlessTask error", { error });
+    // Capture any unexpected errors
+    Sentry.captureException(error, {
+      tags: {
+        module: "headless-task",
+        eventName: event?.name || "unknown",
+      },
+    });
+
+    geolocBgLogger.error("HeadlessTask error", { error, event });
+
+    // Mark transaction as failed
+    if (transaction) {
+      transaction.setStatus("internal_error");
+    }
+  } finally {
+    // Clear the timeout
+    clearTimeout(taskTimeout);
+
+    // Always finish the transaction
+    if (transaction) {
+      transaction.finish();
+    }
+
+    geolocBgLogger.debug("HeadlessTask completed", { event: event?.name });
   }
 };
 
-BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
+let headlessTaskRegistered = false;
+if (!headlessTaskRegistered) {
+  BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
+  headlessTaskRegistered = true;
+}

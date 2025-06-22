@@ -174,6 +174,7 @@
     "react-native-app-link": "^1.0.1",
     "react-native-background-fetch": "^4.2.7",
     "react-native-background-geolocation": "^4.18.6",
+    "react-native-battery-optimization-check": "^1.0.8",
     "react-native-contact-pick": "^0.1.2",
     "react-native-country-picker-modal": "^2.0.0",
     "react-native-device-country": "^1.0.5",

@@ -4,6 +4,7 @@ import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
 import { initEmulatorMode } from "./emulatorService";
+import * as Sentry from "@sentry/react-native";
 
 import throttle from "lodash.throttle";
 
@@ -32,6 +33,7 @@ const config = {
   locationAuthorizationRequest: "Always",
   stopOnTerminate: false,
   startOnBoot: true,
+  heartbeatInterval: 60, // DEBUGGING
   // Force the plugin to start aggressively
   foregroundService: true,
   notification: {
@@ -167,6 +169,20 @@ export default async function trackLocation() {
       activity: location.activity,
       battery: location.battery,
     });
+
+    // Add Sentry breadcrumb for location updates
+    Sentry.addBreadcrumb({
+      message: "Location update in trackLocation",
+      category: "geolocation",
+      level: "info",
+      data: {
+        coords: location.coords,
+        activity: location.activity?.type,
+        battery: location.battery?.level,
+        isMoving: location.isMoving,
+      },
+    });
+
     if (
       location.coords &&
       location.coords.latitude &&
@@ -203,6 +219,20 @@ export default async function trackLocation() {
         response?.request?.headers || "Headers not available in response",
     });
 
+    // Add Sentry breadcrumb for HTTP responses
+    Sentry.addBreadcrumb({
+      message: "Background geolocation HTTP response",
+      category: "geolocation-http",
+      level: response?.status === 200 ? "info" : "warning",
+      data: {
+        status: response?.status,
+        success: response?.success,
+        url: response?.url,
+        isSync: response?.isSync,
+        recordCount: response?.count,
+      },
+    });
+
     // Log the current auth token for comparison
     const { userToken } = getAuthState();
     locationLogger.debug("Current auth state token", {
@@ -216,6 +246,11 @@ export default async function trackLocation() {
       case 410:
         // Token expired, logout
         locationLogger.info("Auth token expired (410), logging out");
+        Sentry.addBreadcrumb({
+          message: "Auth token expired - logging out",
+          category: "geolocation-auth",
+          level: "warning",
+        });
         authActions.logout();
         break;
       case 401:
@@ -232,6 +267,16 @@ export default async function trackLocation() {
             errorType: errorBody?.error?.type,
             errorMessage: errorBody?.error?.message,
             errorPath: errorBody?.error?.errors?.[0]?.path,
+          });
+
+          Sentry.addBreadcrumb({
+            message: "Unauthorized - refreshing token",
+            category: "geolocation-auth",
+            level: "warning",
+            data: {
+              errorType: errorBody?.error?.type,
+              errorMessage: errorBody?.error?.message,
+            },
           });
         } catch (e) {
           locationLogger.debug("Failed to parse error response", {
@@ -291,8 +336,21 @@ export default async function trackLocation() {
       const count = await BackgroundGeolocation.getCount();
       locationLogger.debug("Pending location records", { count });
 
+      Sentry.addBreadcrumb({
+        message: "Checking pending location records",
+        category: "geolocation",
+        level: "info",
+        data: { pendingCount: count },
+      });
+
       if (count > 0) {
         locationLogger.info(`Found ${count} pending records, forcing sync`);
+
+        const transaction = Sentry.startTransaction({
+          name: "force-sync-pending-records",
+          op: "geolocation-sync",
+        });
+
         try {
           const { userToken } = getAuthState();
           const state = await BackgroundGeolocation.getState();
@@ -301,17 +359,63 @@ export default async function trackLocation() {
             locationLogger.debug("Forced sync result", {
               recordsCount: records?.length || 0,
             });
+
+            Sentry.addBreadcrumb({
+              message: "Forced sync completed",
+              category: "geolocation",
+              level: "info",
+              data: {
+                recordsCount: records?.length || 0,
+                hadToken: true,
+                wasEnabled: true,
+              },
+            });
+
+            transaction.setStatus("ok");
+          } else {
+            Sentry.addBreadcrumb({
+              message: "Forced sync skipped",
+              category: "geolocation",
+              level: "warning",
+              data: {
+                hasToken: !!userToken,
+                isEnabled: state.enabled,
+              },
+            });
+
+            transaction.setStatus("cancelled");
           }
         } catch (error) {
           locationLogger.error("Forced sync failed", {
             error: error,
             stack: error.stack,
           });
+
+          Sentry.captureException(error, {
+            tags: {
+              module: "track-location",
+              operation: "force-sync-pending",
+            },
+            contexts: {
+              pendingRecords: { count },
+            },
+          });
+
+          transaction.setStatus("internal_error");
+        } finally {
+          transaction.finish();
         }
       }
     } catch (error) {
       locationLogger.error("Failed to get pending records count", {
         error: error.message,
+      });
+
+      Sentry.captureException(error, {
+        tags: {
+          module: "track-location",
+          operation: "check-pending-records",
+        },
       });
     }
   }
