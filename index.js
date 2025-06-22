@@ -445,8 +445,4 @@ const HeadlessTask = async (event) => {
   }
 };
 
-let headlessTaskRegistered = false;
-if (!headlessTaskRegistered) {
-  BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
-  headlessTaskRegistered = true;
-}
+BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
