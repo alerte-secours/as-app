@@ -12,176 +12,176 @@ const logger = createLogger({
 
 // Background task to cancel expired notifications
 const backgroundTask = async () => {
-  const transaction = Sentry.startTransaction({
-    name: "auto-cancel-expired-notifications",
-    op: "background-task",
-  });
-
-  Sentry.getCurrentScope().setSpan(transaction);
-
-  try {
-    logger.info("Starting auto-cancel expired notifications task");
-
-    Sentry.addBreadcrumb({
-      message: "Auto-cancel task started",
-      category: "notifications",
-      level: "info",
-    });
-
-    // Get displayed notifications with timeout protection
-    const getNotificationsSpan = transaction.startChild({
-      op: "get-displayed-notifications",
-      description: "Getting displayed notifications",
-    });
-
-    let notifications;
-    try {
-      // Add timeout protection for the API call
-      notifications = await Promise.race([
-        notifee.getDisplayedNotifications(),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Timeout getting notifications")),
-            10000,
-          ),
-        ),
-      ]);
-      getNotificationsSpan.setStatus("ok");
-    } catch (error) {
-      getNotificationsSpan.setStatus("internal_error");
-      throw error;
-    } finally {
-      getNotificationsSpan.finish();
-    }
-
-    if (!Array.isArray(notifications)) {
-      logger.warn("No notifications array received", { notifications });
-      Sentry.addBreadcrumb({
-        message: "No notifications array received",
-        category: "notifications",
-        level: "warning",
-      });
-      return;
-    }
-
-    const currentTime = Math.round(new Date() / 1000);
-    let cancelledCount = 0;
-    let errorCount = 0;
-
-    logger.info("Processing notifications", {
-      totalNotifications: notifications.length,
-      currentTime,
-    });
-
-    Sentry.addBreadcrumb({
-      message: "Processing notifications",
-      category: "notifications",
-      level: "info",
-      data: {
-        totalNotifications: notifications.length,
-        currentTime,
-      },
-    });
-
-    // Process notifications with individual error handling
-    for (const notification of notifications) {
+  await Sentry.startSpan(
+    {
+      name: "auto-cancel-expired-notifications",
+      op: "background-task",
+    },
+    async (span) => {
       try {
-        if (!notification || !notification.id) {
-          logger.warn("Invalid notification object", { notification });
-          continue;
-        }
+        logger.info("Starting auto-cancel expired notifications task");
 
-        const expires = notification.data?.expires;
-        if (!expires) {
-          continue; // Skip notifications without expiry
-        }
-
-        if (typeof expires !== "number" || expires < currentTime) {
-          logger.debug("Cancelling expired notification", {
-            notificationId: notification.id,
-            expires,
-            currentTime,
-            expired: expires < currentTime,
-          });
-
-          // Cancel notification with timeout protection
-          await Promise.race([
-            notifee.cancelNotification(notification.id),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error("Timeout cancelling notification")),
-                5000,
-              ),
-            ),
-          ]);
-
-          cancelledCount++;
-
-          Sentry.addBreadcrumb({
-            message: "Notification cancelled",
-            category: "notifications",
-            level: "info",
-            data: {
-              notificationId: notification.id,
-              expires,
-            },
-          });
-        }
-      } catch (notificationError) {
-        errorCount++;
-        logger.error("Failed to process notification", {
-          error: notificationError,
-          notificationId: notification?.id,
+        Sentry.addBreadcrumb({
+          message: "Auto-cancel task started",
+          category: "notifications",
+          level: "info",
         });
 
-        Sentry.captureException(notificationError, {
+        // Get displayed notifications with timeout protection
+        let notifications;
+        await Sentry.startSpan(
+          {
+            op: "get-displayed-notifications",
+            description: "Getting displayed notifications",
+          },
+          async (getNotificationsSpan) => {
+            try {
+              // Add timeout protection for the API call
+              notifications = await Promise.race([
+                notifee.getDisplayedNotifications(),
+                new Promise((_, reject) =>
+                  setTimeout(
+                    () => reject(new Error("Timeout getting notifications")),
+                    10000,
+                  ),
+                ),
+              ]);
+              getNotificationsSpan.setStatus("ok");
+            } catch (error) {
+              getNotificationsSpan.setStatus("internal_error");
+              throw error;
+            }
+          },
+        );
+
+        if (!Array.isArray(notifications)) {
+          logger.warn("No notifications array received", { notifications });
+          Sentry.addBreadcrumb({
+            message: "No notifications array received",
+            category: "notifications",
+            level: "warning",
+          });
+          return;
+        }
+
+        const currentTime = Math.round(new Date() / 1000);
+        let cancelledCount = 0;
+        let errorCount = 0;
+
+        logger.info("Processing notifications", {
+          totalNotifications: notifications.length,
+          currentTime,
+        });
+
+        Sentry.addBreadcrumb({
+          message: "Processing notifications",
+          category: "notifications",
+          level: "info",
+          data: {
+            totalNotifications: notifications.length,
+            currentTime,
+          },
+        });
+
+        // Process notifications with individual error handling
+        for (const notification of notifications) {
+          try {
+            if (!notification || !notification.id) {
+              logger.warn("Invalid notification object", { notification });
+              continue;
+            }
+
+            const expires = notification.data?.expires;
+            if (!expires) {
+              continue; // Skip notifications without expiry
+            }
+
+            if (typeof expires !== "number" || expires < currentTime) {
+              logger.debug("Cancelling expired notification", {
+                notificationId: notification.id,
+                expires,
+                currentTime,
+                expired: expires < currentTime,
+              });
+
+              // Cancel notification with timeout protection
+              await Promise.race([
+                notifee.cancelNotification(notification.id),
+                new Promise((_, reject) =>
+                  setTimeout(
+                    () => reject(new Error("Timeout cancelling notification")),
+                    5000,
+                  ),
+                ),
+              ]);
+
+              cancelledCount++;
+
+              Sentry.addBreadcrumb({
+                message: "Notification cancelled",
+                category: "notifications",
+                level: "info",
+                data: {
+                  notificationId: notification.id,
+                  expires,
+                },
+              });
+            }
+          } catch (notificationError) {
+            errorCount++;
+            logger.error("Failed to process notification", {
+              error: notificationError,
+              notificationId: notification?.id,
+            });
+
+            Sentry.captureException(notificationError, {
+              tags: {
+                module: "auto-cancel-expired",
+                operation: "cancel-notification",
+              },
+              contexts: {
+                notification: {
+                  id: notification?.id,
+                  expires: notification?.data?.expires,
+                },
+              },
+            });
+          }
+        }
+
+        logger.info("Auto-cancel task completed", {
+          totalNotifications: notifications.length,
+          cancelledCount,
+          errorCount,
+        });
+
+        Sentry.addBreadcrumb({
+          message: "Auto-cancel task completed",
+          category: "notifications",
+          level: "info",
+          data: {
+            totalNotifications: notifications.length,
+            cancelledCount,
+            errorCount,
+          },
+        });
+
+        span.setStatus("ok");
+      } catch (error) {
+        logger.error("Auto-cancel task failed", { error });
+
+        Sentry.captureException(error, {
           tags: {
             module: "auto-cancel-expired",
-            operation: "cancel-notification",
-          },
-          contexts: {
-            notification: {
-              id: notification?.id,
-              expires: notification?.data?.expires,
-            },
+            operation: "background-task",
           },
         });
+
+        span.setStatus("internal_error");
+        throw error; // Re-throw to be handled by caller
       }
-    }
-
-    logger.info("Auto-cancel task completed", {
-      totalNotifications: notifications.length,
-      cancelledCount,
-      errorCount,
-    });
-
-    Sentry.addBreadcrumb({
-      message: "Auto-cancel task completed",
-      category: "notifications",
-      level: "info",
-      data: {
-        totalNotifications: notifications.length,
-        cancelledCount,
-        errorCount,
-      },
-    });
-
-    transaction.setStatus("ok");
-  } catch (error) {
-    logger.error("Auto-cancel task failed", { error });
-
-    Sentry.captureException(error, {
-      tags: {
-        module: "auto-cancel-expired",
-        operation: "background-task",
-      },
-    });
-
-    transaction.setStatus("internal_error");
-    throw error; // Re-throw to be handled by caller
-  } finally {
-    transaction.finish();
-  }
+    },
+  );
 };
 
 export const useAutoCancelExpired = () => {
