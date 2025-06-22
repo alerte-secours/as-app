@@ -346,65 +346,67 @@ export default async function trackLocation() {
       if (count > 0) {
         locationLogger.info(`Found ${count} pending records, forcing sync`);
 
-        const transaction = Sentry.startTransaction({
-          name: "force-sync-pending-records",
-          op: "geolocation-sync",
-        });
+        await Sentry.startSpan(
+          {
+            name: "force-sync-pending-records",
+            op: "geolocation-sync",
+          },
+          async (span) => {
+            try {
+              const { userToken } = getAuthState();
+              const state = await BackgroundGeolocation.getState();
+              if (userToken && state.enabled) {
+                const records = await BackgroundGeolocation.sync();
+                locationLogger.debug("Forced sync result", {
+                  recordsCount: records?.length || 0,
+                });
 
-        try {
-          const { userToken } = getAuthState();
-          const state = await BackgroundGeolocation.getState();
-          if (userToken && state.enabled) {
-            const records = await BackgroundGeolocation.sync();
-            locationLogger.debug("Forced sync result", {
-              recordsCount: records?.length || 0,
-            });
+                Sentry.addBreadcrumb({
+                  message: "Forced sync completed",
+                  category: "geolocation",
+                  level: "info",
+                  data: {
+                    recordsCount: records?.length || 0,
+                    hadToken: true,
+                    wasEnabled: true,
+                  },
+                });
 
-            Sentry.addBreadcrumb({
-              message: "Forced sync completed",
-              category: "geolocation",
-              level: "info",
-              data: {
-                recordsCount: records?.length || 0,
-                hadToken: true,
-                wasEnabled: true,
-              },
-            });
+                span.setStatus("ok");
+              } else {
+                Sentry.addBreadcrumb({
+                  message: "Forced sync skipped",
+                  category: "geolocation",
+                  level: "warning",
+                  data: {
+                    hasToken: !!userToken,
+                    isEnabled: state.enabled,
+                  },
+                });
 
-            transaction.setStatus("ok");
-          } else {
-            Sentry.addBreadcrumb({
-              message: "Forced sync skipped",
-              category: "geolocation",
-              level: "warning",
-              data: {
-                hasToken: !!userToken,
-                isEnabled: state.enabled,
-              },
-            });
+                span.setStatus("cancelled");
+              }
+            } catch (error) {
+              locationLogger.error("Forced sync failed", {
+                error: error,
+                stack: error.stack,
+              });
 
-            transaction.setStatus("cancelled");
-          }
-        } catch (error) {
-          locationLogger.error("Forced sync failed", {
-            error: error,
-            stack: error.stack,
-          });
+              Sentry.captureException(error, {
+                tags: {
+                  module: "track-location",
+                  operation: "force-sync-pending",
+                },
+                contexts: {
+                  pendingRecords: { count },
+                },
+              });
 
-          Sentry.captureException(error, {
-            tags: {
-              module: "track-location",
-              operation: "force-sync-pending",
-            },
-            contexts: {
-              pendingRecords: { count },
-            },
-          });
-
-          transaction.setStatus("internal_error");
-        } finally {
-          transaction.finish();
-        }
+              span.setStatus("internal_error");
+              throw error; // Re-throw to ensure span captures the error
+            }
+          },
+        );
       }
     } catch (error) {
       locationLogger.error("Failed to get pending records count", {
