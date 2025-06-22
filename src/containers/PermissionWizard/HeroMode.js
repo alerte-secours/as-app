@@ -3,6 +3,10 @@ import { View, StyleSheet, Image, ScrollView, Platform } from "react-native";
 import { Title } from "react-native-paper";
 import { Ionicons, Entypo } from "@expo/vector-icons";
 import {
+  RequestDisableOptimization,
+  BatteryOptEnabled,
+} from "react-native-battery-optimization-check";
+import {
   permissionsActions,
   usePermissionsState,
   permissionWizardActions,
@@ -30,6 +34,9 @@ const HeroMode = () => {
   const [requesting, setRequesting] = useState(false);
   const [hasAttempted, setHasAttempted] = useState(false);
   const [hasRetried, setHasRetried] = useState(false);
+  const [batteryOptimizationEnabled, setBatteryOptimizationEnabled] =
+    useState(null);
+  const [batteryOptAttempted, setBatteryOptAttempted] = useState(false);
   const permissions = usePermissionsState(["locationBackground", "motion"]);
   const theme = useTheme();
 
@@ -60,8 +67,24 @@ const HeroMode = () => {
       const locationGranted = await requestPermissionLocationBackground();
       permissionsActions.setLocationBackground(locationGranted);
 
-      // If both granted, move to success
-      if (locationGranted && motionGranted) {
+      // Check and request battery optimization disable (Android only)
+      let batteryOptDisabled = true;
+      if (Platform.OS === "android") {
+        try {
+          const isEnabled = await BatteryOptEnabled();
+          setBatteryOptimizationEnabled(isEnabled);
+          if (isEnabled) {
+            RequestDisableOptimization();
+            batteryOptDisabled = false;
+          }
+          setBatteryOptAttempted(true);
+        } catch (error) {
+          console.error("Error checking battery optimization:", error);
+        }
+      }
+
+      // If all permissions granted and battery optimization handled, move to success
+      if (locationGranted && motionGranted && batteryOptDisabled) {
         permissionWizardActions.setHeroPermissionsGranted(true);
         permissionWizardActions.setCurrentStep("success");
       }
@@ -73,11 +96,23 @@ const HeroMode = () => {
   }, []);
 
   const handleRetry = useCallback(async () => {
+    // Re-check battery optimization status before retrying
+    if (Platform.OS === "android") {
+      try {
+        const isEnabled = await BatteryOptEnabled();
+        setBatteryOptimizationEnabled(isEnabled);
+      } catch (error) {
+        console.error("Error re-checking battery optimization:", error);
+      }
+    }
     await handleRequestPermissions();
     setHasRetried(true);
   }, [handleRequestPermissions]);
 
-  const allGranted = permissions.locationBackground && permissions.motion;
+  const allGranted =
+    permissions.locationBackground &&
+    permissions.motion &&
+    (Platform.OS === "ios" || !batteryOptimizationEnabled);
 
   useEffect(() => {
     if (hasAttempted && allGranted) {
@@ -97,6 +132,15 @@ const HeroMode = () => {
     if (!permissions.locationBackground) {
       warnings.push(
         "Sans la localisation en arrière-plan, vous ne pourrez pas être alerté des situations d'urgence à proximité lorsque l'application est fermée.",
+      );
+    }
+    if (
+      Platform.OS === "android" &&
+      batteryOptimizationEnabled &&
+      batteryOptAttempted
+    ) {
+      warnings.push(
+        "L'optimisation de la batterie est encore activée. L'application pourrait ne pas fonctionner correctement en arrière-plan.",
       );
     }
     return warnings.length > 0 ? (
@@ -140,6 +184,22 @@ const HeroMode = () => {
             version d'Android)
           </Text>
         </View>
+        {batteryOptimizationEnabled && batteryOptAttempted && (
+          <View style={styles.androidWarningSteps}>
+            <Text style={styles.androidWarningText}>
+              Pour désactiver l'optimisation de la batterie :
+            </Text>
+            <Text style={styles.androidWarningStep}>
+              4. Recherchez "Batterie" ou "Optimisation de la batterie"
+            </Text>
+            <Text style={styles.androidWarningStep}>
+              5. Trouvez cette application dans la liste
+            </Text>
+            <Text style={styles.androidWarningStep}>
+              6. Sélectionnez "Ne pas optimiser" ou "Désactiver l'optimisation"
+            </Text>
+          </View>
+        )}
         <CustomButton
           mode="outlined"
           onPress={openSettings}
@@ -295,6 +355,20 @@ const HeroMode = () => {
                   donnée de mouvement n'est stockée ni transmise.
                 </Text>
               </View>
+              {Platform.OS === "android" && (
+                <View style={styles.permissionItem}>
+                  <Ionicons
+                    name="battery-charging"
+                    size={24}
+                    style={styles.icon}
+                  />
+                  <Text style={styles.permissionText}>
+                    Optimisation de la batterie : désactiver l'optimisation de
+                    la batterie pour cette application afin qu'elle puisse
+                    fonctionner correctement en arrière-plan.
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
