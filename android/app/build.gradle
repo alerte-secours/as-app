@@ -67,11 +67,11 @@ def jscFlavor = 'org.webkit:android-jsc:+'
 apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
 android {
 // @generated begin react-native-background-geolocation-project - expo prebuild (DO NOT MODIFY) sync-451bbca0f2f08c9fc8b21a201ef5b476b165ba21
-Project background_geolocation = project(':react-native-background-geolocation')
-apply from: "${background_geolocation.projectDir}/app.gradle"
+// Project background_geolocation = project(':react-native-background-geolocation')
+// apply from: "${background_geolocation.projectDir}/app.gradle"
 // @generated end react-native-background-geolocation-project
 // @generated begin react-native-background-fetch-project - expo prebuild (DO NOT MODIFY) sync-56d2d70cbc3f26369dd5e711d0ab87bf3c0aebb3
-Project background_fetch = project(':react-native-background-fetch')
+// Project background_fetch = project(':react-native-background-fetch')
 // @generated end react-native-background-fetch-project
     ndkVersion rootProject.ext.ndkVersion
 
@@ -115,10 +115,10 @@ Project background_fetch = project(':react-native-background-fetch')
             minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
 // @generated begin react-native-background-geolocation-proguard - expo prebuild (DO NOT MODIFY) sync-606db7f838db1722ea0ff547adceb798272bd706
-	    proguardFiles "${background_geolocation.projectDir}/proguard-rules.pro"
+	    // proguardFiles "${background_geolocation.projectDir}/proguard-rules.pro"
 // @generated end react-native-background-geolocation-proguard
 // @generated begin react-native-background-fetch-proguard - expo prebuild (DO NOT MODIFY) sync-7cb5d9a88ae03463dcde5b7e8571a725ecd5854f
-	    proguardFiles "${background_fetch.projectDir}/proguard-rules.pro"
+	    // proguardFiles "${background_fetch.projectDir}/proguard-rules.pro"
 // @generated end react-native-background-fetch-proguard
             crunchPngs false
             proguardFile "${rootProject.projectDir}/../node_modules/detox/android/detox/proguard-rules-app.pro"
