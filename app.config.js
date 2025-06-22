@@ -24,9 +24,10 @@ let config = {
     orientation: "portrait",
     userInterfaceStyle: "automatic",
     splash: {
-      image: "./src/assets/img/splashscreen.png",
+      image: "./src/assets/img/splash-icon.png",
       backgroundColor: "#364fc7",
       resizeMode: "contain",
+      imageWidth: 200,
     },
     // Add notification configuration at root level
     notification: {
@@ -56,6 +57,7 @@ let config = {
         },
       ],
       permissions: [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.CALL_PHONE",
