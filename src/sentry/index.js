@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react-native";
+import "@sentry/tracing";
 import { Platform } from "react-native";
 
 import env from "~/env";
