@@ -16,7 +16,7 @@ import { largeIcons, smallIcon } from "../icons";
 
 import { ALERT_INFOS_QUERY } from "../gql";
 import { displayNotification, createChannel } from "../helpers";
-import { generateAlertInfosContent } from "../content";
+import { generateAlertEmergencyInfoContent } from "../content";
 
 const { custom } = Light;
 
@@ -60,7 +60,7 @@ export default async function notifAlertInfos(data) {
   const largeIcon = largeIcons[level];
 
   // Generate notification content
-  const { title, body, bigText } = generateAlertInfosContent({
+  const { title, body, bigText } = generateAlertEmergencyInfoContent({
     code,
     what3Words,
     address,
