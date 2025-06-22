@@ -93,6 +93,7 @@
     "@react-navigation/native": "^6.0.8",
     "@react-navigation/stack": "^6.3.21",
     "@sentry/react-native": "~6.10.0",
+    "@sentry/tracing": "^7.120.3",
     "@turf/along": "^7.1.0",
     "@turf/boolean-equal": "^7.1.0",
     "@turf/distance": "^7.1.0",

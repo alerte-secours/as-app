@@ -5735,6 +5735,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sentry-internal/tracing@npm:7.120.3":
+  version: 7.120.3
+  resolution: "@sentry-internal/tracing@npm:7.120.3"
+  dependencies:
+    "@sentry/core": "npm:7.120.3"
+    "@sentry/types": "npm:7.120.3"
+    "@sentry/utils": "npm:7.120.3"
+  checksum: 10/bd6adcced941c651596de9b2c8a35f1492c5557bda36c3283b0ef0386e72586481d4288704d0cc71eb78fd2675715488ebc4239e001a571abc44dd3363022401
+  languageName: node
+  linkType: hard
+
 "@sentry/babel-plugin-component-annotate@npm:3.2.2":
   version: 3.2.2
   resolution: "@sentry/babel-plugin-component-annotate@npm:3.2.2"
@@ -5841,6 +5852,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sentry/core@npm:7.120.3":
+  version: 7.120.3
+  resolution: "@sentry/core@npm:7.120.3"
+  dependencies:
+    "@sentry/types": "npm:7.120.3"
+    "@sentry/utils": "npm:7.120.3"
+  checksum: 10/fee971b8e0bbb5b499cd1161e18c6495f9d5472c286f5de5f84dc183dcfa739d31b7b57379f1fa01eb02b67f55c8ec008c1bcdb4f8da75144efd700592099602
+  languageName: node
+  linkType: hard
+
 "@sentry/core@npm:8.54.0":
   version: 8.54.0
   resolution: "@sentry/core@npm:8.54.0"
@@ -5885,12 +5906,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sentry/tracing@npm:^7.120.3":
+  version: 7.120.3
+  resolution: "@sentry/tracing@npm:7.120.3"
+  dependencies:
+    "@sentry-internal/tracing": "npm:7.120.3"
+  checksum: 10/6d5e673a5cd4276bd717392d5da92c9977058a2b7a6d732718b16f088a335b8c4ab8a29662781cb658010bdcac4191950cc87edf4e3fd805b48626ed2afb8994
+  languageName: node
+  linkType: hard
+
+"@sentry/types@npm:7.120.3":
+  version: 7.120.3
+  resolution: "@sentry/types@npm:7.120.3"
+  checksum: 10/56b9f32393b506e5e7250713fd764d755decae827ee545399dc66653eff2ddeb2f03a9c98ba5a0a846546dc37ab3af8d3535cf57ed01d9a7d00cd9dc72a55a36
+  languageName: node
+  linkType: hard
+
 "@sentry/types@npm:8.54.0":
   version: 8.54.0
   resolution: "@sentry/types@npm:8.54.0"
   dependencies:
     "@sentry/core": "npm:8.54.0"
   checksum: 10/f4b070af5b83cf5f5420f959b63e5ca6751ef68695b576d906df389908b4a467c7b2a4734554c601700616880dd20df9b42965a7faef7ec9a816d6a5a99c7625
+  languageName: node
+  linkType: hard
+
+"@sentry/utils@npm:7.120.3":
+  version: 7.120.3
+  resolution: "@sentry/utils@npm:7.120.3"
+  dependencies:
+    "@sentry/types": "npm:7.120.3"
+  checksum: 10/c50fa4b7334898c0db7840899b2fd1da1bc47a097ecbc433bc835b6e90d3e76b1761ef926cd5e9f0c15e9b00c1f091dd763862f4c98468f9628214be83fe5426
   languageName: node
   linkType: hard
 
@@ -6883,6 +6929,7 @@ __metadata:
     "@react-navigation/native": "npm:^6.0.8"
     "@react-navigation/stack": "npm:^6.3.21"
     "@sentry/react-native": "npm:~6.10.0"
+    "@sentry/tracing": "npm:^7.120.3"
     "@turf/along": "npm:^7.1.0"
     "@turf/boolean-equal": "npm:^7.1.0"
     "@turf/distance": "npm:^7.1.0"
