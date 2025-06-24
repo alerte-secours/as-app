@@ -104,7 +104,8 @@ const HeadlessTask = async (event) => {
     });
   }, 60000); // 60 second timeout
 
-  let transaction;
+  // Simple performance tracking without deprecated APIs
+  const taskStartTime = Date.now();
 
   try {
     // Validate event structure
@@ -117,15 +118,6 @@ const HeadlessTask = async (event) => {
     if (!name || typeof name !== "string") {
       throw new Error("Invalid event name received");
     }
-
-    // Start Sentry transaction for the entire HeadlessTask
-    transaction = Sentry.startTransaction({
-      name: "headless-task",
-      op: "background-task",
-      data: { eventName: name },
-    });
-
-    Sentry.getCurrentScope().setSpan(transaction);
 
     // Add initial breadcrumb
     Sentry.addBreadcrumb({
@@ -181,14 +173,10 @@ const HeadlessTask = async (event) => {
           },
         });
 
-        // Get current position
-        const locationSpan = transaction.startChild({
-          op: "get-current-position",
-          description: "Getting current position",
-        });
-
+        // Get current position with performance tracking
+        const locationStartTime = Date.now();
         const location = await getCurrentPosition();
-        locationSpan.finish();
+        const locationDuration = Date.now() - locationStartTime;
 
         const isLocationError = location && location.code !== undefined;
 
@@ -237,11 +225,7 @@ const HeadlessTask = async (event) => {
             });
 
             // Change pace to ensure location updates with timeout
-            const paceSpan = transaction.startChild({
-              op: "change-pace",
-              description: "Changing pace to true",
-            });
-
+            const paceStartTime = Date.now();
             await Promise.race([
               BackgroundGeolocation.changePace(true),
               new Promise((_, reject) =>
@@ -251,27 +235,24 @@ const HeadlessTask = async (event) => {
                 ),
               ),
             ]);
-            paceSpan.finish();
+            const paceDuration = Date.now() - paceStartTime;
 
             Sentry.addBreadcrumb({
               message: "changePace completed",
               category: "headless-task",
               level: "info",
+              data: { duration: paceDuration },
             });
 
             // Perform sync with timeout
-            const syncSpan = transaction.startChild({
-              op: "sync-locations",
-              description: "Syncing locations",
-            });
-
+            const syncStartTime = Date.now();
             const syncResult = await Promise.race([
               BackgroundGeolocation.sync(),
               new Promise((_, reject) =>
                 setTimeout(() => reject(new Error("sync timeout")), 20000),
               ),
             ]);
-            syncSpan.finish();
+            const syncDuration = Date.now() - syncStartTime;
 
             Sentry.addBreadcrumb({
               message: "Sync completed successfully",
@@ -413,35 +394,46 @@ const HeadlessTask = async (event) => {
         });
     }
 
-    // Finish transaction successfully
-    if (transaction) {
-      transaction.setStatus("ok");
-    }
+    // Task completed successfully
+    const taskDuration = Date.now() - taskStartTime;
+
+    Sentry.addBreadcrumb({
+      message: "HeadlessTask completed successfully",
+      category: "headless-task",
+      level: "info",
+      data: {
+        eventName: name,
+        duration: taskDuration,
+      },
+    });
   } catch (error) {
+    const taskDuration = Date.now() - taskStartTime;
+
     // Capture any unexpected errors
     Sentry.captureException(error, {
       tags: {
         module: "headless-task",
         eventName: event?.name || "unknown",
       },
+      extra: {
+        duration: taskDuration,
+      },
     });
 
-    geolocBgLogger.error("HeadlessTask error", { error, event });
-
-    // Mark transaction as failed
-    if (transaction) {
-      transaction.setStatus("internal_error");
-    }
+    geolocBgLogger.error("HeadlessTask error", {
+      error,
+      event,
+      duration: taskDuration,
+    });
   } finally {
     // Clear the timeout
     clearTimeout(taskTimeout);
 
-    // Always finish the transaction
-    if (transaction) {
-      transaction.finish();
-    }
-
-    geolocBgLogger.debug("HeadlessTask completed", { event: event?.name });
+    const finalDuration = Date.now() - taskStartTime;
+    geolocBgLogger.debug("HeadlessTask completed", {
+      event: event?.name,
+      duration: finalDuration,
+    });
   }
 };
 
