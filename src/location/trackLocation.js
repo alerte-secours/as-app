@@ -5,6 +5,7 @@ import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
 import { initEmulatorMode } from "./emulatorService";
 import * as Sentry from "@sentry/react-native";
+import { SPAN_STATUS_OK, SPAN_STATUS_ERROR } from "@sentry/react-native";
 
 import throttle from "lodash.throttle";
 
@@ -33,7 +34,7 @@ const config = {
   locationAuthorizationRequest: "Always",
   stopOnTerminate: false,
   startOnBoot: true,
-  heartbeatInterval: 60, // DEBUGGING
+  heartbeatInterval: 900,
   // Force the plugin to start aggressively
   foregroundService: true,
   notification: {
@@ -372,7 +373,7 @@ export default async function trackLocation() {
                   },
                 });
 
-                span.setStatus("ok");
+                span.setStatus({ code: SPAN_STATUS_OK, message: "ok" });
               } else {
                 Sentry.addBreadcrumb({
                   message: "Forced sync skipped",
@@ -383,8 +384,7 @@ export default async function trackLocation() {
                     isEnabled: state.enabled,
                   },
                 });
-
-                span.setStatus("cancelled");
+                span.setStatus({ code: SPAN_STATUS_OK, message: "skipped" });
               }
             } catch (error) {
               locationLogger.error("Forced sync failed", {
@@ -402,7 +402,10 @@ export default async function trackLocation() {
                 },
               });
 
-              span.setStatus("internal_error");
+              span.setStatus({
+                code: SPAN_STATUS_ERROR,
+                message: "internal_error",
+              });
               throw error; // Re-throw to ensure span captures the error
             }
           },

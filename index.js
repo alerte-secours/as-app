@@ -32,8 +32,7 @@ registerRootComponent(App);
 
 // Constants for persistence
 const LAST_SYNC_TIME_KEY = "@geolocation_last_sync_time";
-// const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-const FORCE_SYNC_INTERVAL = 60 * 1000; // DEBUGGING
+const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000;
 
 // Helper functions for persisting sync time
 const getLastSyncTime = async () => {
