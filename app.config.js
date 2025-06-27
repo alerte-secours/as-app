@@ -10,8 +10,7 @@ let config = {
     version,
     updates: {
       url: "https://expo-updates.alertesecours.fr/api/manifest?project=alerte-secours&channel=release",
-      // enabled: true,
-      enabled: false, // DEBUGGING
+      enabled: true,
       checkAutomatically: "ON_ERROR_RECOVERY",
       fallbackToCacheTimeout: 0,
       codeSigningCertificate: "./keys/certificate.pem",
