@@ -330,110 +330,11 @@ export default async function trackLocation() {
       code: error.code,
     });
   }
-
-  // Add a function to check for pending records
-  async function checkPendingRecords() {
-    try {
-      const count = await BackgroundGeolocation.getCount();
-      locationLogger.debug("Pending location records", { count });
-
-      Sentry.addBreadcrumb({
-        message: "Checking pending location records",
-        category: "geolocation",
-        level: "info",
-        data: { pendingCount: count },
-      });
-
-      if (count > 0) {
-        locationLogger.info(`Found ${count} pending records, forcing sync`);
-
-        await Sentry.startSpan(
-          {
-            name: "force-sync-pending-records",
-            op: "geolocation-sync",
-          },
-          async (span) => {
-            try {
-              const { userToken } = getAuthState();
-              const state = await BackgroundGeolocation.getState();
-              if (userToken && state.enabled) {
-                const records = await BackgroundGeolocation.sync();
-                locationLogger.debug("Forced sync result", {
-                  recordsCount: records?.length || 0,
-                });
-
-                Sentry.addBreadcrumb({
-                  message: "Forced sync completed",
-                  category: "geolocation",
-                  level: "info",
-                  data: {
-                    recordsCount: records?.length || 0,
-                    hadToken: true,
-                    wasEnabled: true,
-                  },
-                });
-
-                span.setStatus({ code: SPAN_STATUS_OK, message: "ok" });
-              } else {
-                Sentry.addBreadcrumb({
-                  message: "Forced sync skipped",
-                  category: "geolocation",
-                  level: "warning",
-                  data: {
-                    hasToken: !!userToken,
-                    isEnabled: state.enabled,
-                  },
-                });
-                span.setStatus({ code: SPAN_STATUS_OK, message: "skipped" });
-              }
-            } catch (error) {
-              locationLogger.error("Forced sync failed", {
-                error: error,
-                stack: error.stack,
-              });
-
-              Sentry.captureException(error, {
-                tags: {
-                  module: "track-location",
-                  operation: "force-sync-pending",
-                },
-                contexts: {
-                  pendingRecords: { count },
-                },
-              });
-
-              span.setStatus({
-                code: SPAN_STATUS_ERROR,
-                message: "internal_error",
-              });
-              throw error; // Re-throw to ensure span captures the error
-            }
-          },
-        );
-      }
-    } catch (error) {
-      locationLogger.error("Failed to get pending records count", {
-        error: error.message,
-      });
-
-      Sentry.captureException(error, {
-        tags: {
-          module: "track-location",
-          operation: "check-pending-records",
-        },
-      });
-    }
-  }
-
   const { userToken } = getAuthState();
   locationLogger.debug("Setting up auth state subscription");
   subscribeAuthState(({ userToken }) => userToken, handleAuth);
   locationLogger.debug("Performing initial auth handling");
   handleAuth(userToken);
-
-  // Check for pending records after a short delay to ensure everything is initialized
-  setTimeout(checkPendingRecords, 5000);
-
   // Initialize emulator mode if previously enabled
   initEmulatorMode();
 }
