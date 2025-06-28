@@ -10,16 +10,16 @@ import {
 import { Title } from "react-native-paper";
 import { Ionicons, Entypo } from "@expo/vector-icons";
 import {
-  RequestDisableOptimization,
-  BatteryOptEnabled,
-} from "react-native-battery-optimization-check";
-import {
   permissionsActions,
   usePermissionsState,
   permissionWizardActions,
 } from "~/stores";
 import { createStyles, useTheme } from "~/theme";
 import openSettings from "~/lib/native/openSettings";
+import {
+  RequestDisableOptimization,
+  BatteryOptEnabled,
+} from "react-native-battery-optimization-check";
 
 import requestPermissionLocationBackground from "~/permissions/requestPermissionLocationBackground";
 import requestPermissionMotion from "~/permissions/requestPermissionMotion";
@@ -73,6 +73,8 @@ const HeroMode = () => {
 
     try {
       setBatteryOptInProgress(true);
+
+      // Check if battery optimization is enabled
       const isEnabled = await BatteryOptEnabled();
       setBatteryOptimizationEnabled(isEnabled);
 
@@ -80,11 +82,12 @@ const HeroMode = () => {
         console.log(
           "Battery optimization is enabled, requesting to disable...",
         );
+
+        // Request to disable battery optimization (opens Android Settings)
         RequestDisableOptimization();
         setBatteryOptAttempted(true);
 
-        // Give some time for the user to interact with the system dialog
-        // We'll check the status again in the retry flow
+        // Return false to indicate user needs to complete action in Settings
         return false;
       } else {
         console.log("Battery optimization already disabled");
@@ -106,19 +109,20 @@ const HeroMode = () => {
       // Don't change step immediately to avoid race conditions
       console.log("Starting permission requests...");
 
-      // Request motion permission first
+      // Request battery optimization FIRST (opens Android Settings)
+      // This prevents the bubbling issue by handling Settings-based permissions before in-app dialogs
+      const batteryOptDisabled = await handleBatteryOptimization();
+      console.log("Battery optimization disabled:", batteryOptDisabled);
+
+      // Request motion permission second
       const motionGranted = await requestPermissionMotion.requestPermission();
       permissionsActions.setMotion(motionGranted);
       console.log("Motion permission:", motionGranted);
 
-      // Then request background location
+      // Request background location last (after user returns from Settings if needed)
       const locationGranted = await requestPermissionLocationBackground();
       permissionsActions.setLocationBackground(locationGranted);
       console.log("Location background permission:", locationGranted);
-
-      // Handle battery optimization separately to avoid dialog conflicts
-      const batteryOptDisabled = await handleBatteryOptimization();
-      console.log("Battery optimization disabled:", batteryOptDisabled);
 
       // Only set step to tracking after all permission requests are complete
       permissionWizardActions.setCurrentStep("tracking");
