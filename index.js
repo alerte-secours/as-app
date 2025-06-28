@@ -224,7 +224,6 @@ const HeadlessTask = async (event) => {
             });
 
             // Change pace to ensure location updates with timeout
-            const paceStartTime = Date.now();
             await Promise.race([
               BackgroundGeolocation.changePace(true),
               new Promise((_, reject) =>
@@ -234,24 +233,20 @@ const HeadlessTask = async (event) => {
                 ),
               ),
             ]);
-            const paceDuration = Date.now() - paceStartTime;
 
             Sentry.addBreadcrumb({
               message: "changePace completed",
               category: "headless-task",
               level: "info",
-              data: { duration: paceDuration },
             });
 
             // Perform sync with timeout
-            const syncStartTime = Date.now();
             const syncResult = await Promise.race([
               BackgroundGeolocation.sync(),
               new Promise((_, reject) =>
                 setTimeout(() => reject(new Error("sync timeout")), 20000),
               ),
             ]);
-            const syncDuration = Date.now() - syncStartTime;
 
             Sentry.addBreadcrumb({
               message: "Sync completed successfully",
