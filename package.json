@@ -23,7 +23,7 @@
     "postinstall": "link-module-alias",
     "prepare": "husky || true",
     "deep-clean": "./node_modules/.bin/react-native-clean-project --keep-node-modules --remove-iOS-build --keep-brew --keep-pods --remove-iOS-pods --remove-android-build && yarn clean",
-    "clean": "\\rm -fr ./node_modules && \\rm -fr dist/* && \\rm -fr ios/build ios/Pods ios/KScoreApp.xcarchive && \\rm -fr android/build android/app/build",
+    "clean": "rm -rf ./node_modules dist/* ios/build ios/Pods ios/KScoreApp.xcarchive android/build android/app/build || true",
     "prebuild": "expo prebuild && yarn prebuild:hackfix",
     "prebuild:hackfix": "node scripts/removeDuplicates.js",
     "lint": "eslint .",
