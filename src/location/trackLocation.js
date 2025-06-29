@@ -195,18 +195,6 @@ export default async function trackLocation() {
     }
   });
 
-  // The core auth reload function that will be throttled
-  function _reloadAuth() {
-    locationLogger.info("Refreshing authentication token");
-    authActions.reload(); // should retriger sync in handleAuth via subscribeAuthState when done
-  }
-
-  // Create throttled version of auth reload with lodash
-  const reloadAuth = throttle(_reloadAuth, AUTH_RELOAD_THROTTLE, {
-    leading: true,
-    trailing: false, // Prevent trailing calls to avoid duplicate refreshes
-  });
-
   BackgroundGeolocation.onHttp(async (response) => {
     // Log the full response including headers if available
     locationLogger.debug("HTTP response received", {
@@ -243,52 +231,11 @@ export default async function trackLocation() {
 
     const statusCode = response?.status;
 
-    switch (statusCode) {
-      case 410:
-        // Token expired, logout
-        locationLogger.info("Auth token expired (410), logging out");
-        Sentry.addBreadcrumb({
-          message: "Auth token expired - logging out",
-          category: "geolocation-auth",
-          level: "warning",
-        });
-        authActions.logout();
-        break;
-      case 401:
-        // Unauthorized, use throttled reload
-        locationLogger.info("Unauthorized (401), attempting to refresh token");
-
-        // Add more detailed logging of the error response
-        try {
-          const errorBody = response?.responseText
-            ? JSON.parse(response.responseText)
-            : null;
-          locationLogger.debug("Unauthorized error details", {
-            errorBody,
-            errorType: errorBody?.error?.type,
-            errorMessage: errorBody?.error?.message,
-            errorPath: errorBody?.error?.errors?.[0]?.path,
-          });
-
-          Sentry.addBreadcrumb({
-            message: "Unauthorized - refreshing token",
-            category: "geolocation-auth",
-            level: "warning",
-            data: {
-              errorType: errorBody?.error?.type,
-              errorMessage: errorBody?.error?.message,
-            },
-          });
-        } catch (e) {
-          locationLogger.debug("Failed to parse error response", {
-            error: e.message,
-            responseText: response?.responseText,
-          });
-        }
-
-        reloadAuth();
-        break;
-    }
+    // log status code and response
+    locationLogger.debug("HTTP response received", {
+      status: statusCode,
+      responseText: response?.responseText,
+    });
   });
 
   try {
