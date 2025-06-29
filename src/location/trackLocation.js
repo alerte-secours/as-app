@@ -204,10 +204,10 @@ export default async function trackLocation() {
   // Create throttled version of auth reload with lodash
   const reloadAuth = throttle(_reloadAuth, AUTH_RELOAD_THROTTLE, {
     leading: true,
-    trailing: true,
+    trailing: false, // Prevent trailing calls to avoid duplicate refreshes
   });
 
-  BackgroundGeolocation.onHttp((response) => {
+  BackgroundGeolocation.onHttp(async (response) => {
     // Log the full response including headers if available
     locationLogger.debug("HTTP response received", {
       status: response?.status,
