@@ -39,13 +39,18 @@ export async function loginUserToken({ authToken }) {
 }
 
 export async function storeFcmToken({ deviceId, fcmToken }) {
-  const { data } = await network.apolloClient.mutate({
+  const { data, errors } = await network.apolloClient.mutate({
     mutation: STORE_FCM_TOKEN_MUTATION,
     variables: {
       deviceId,
       fcmToken,
     },
   });
+  if (errors && errors.length > 0) {
+    // Concatenate all error messages
+    const message = errors.map((err) => err.message).join("; ");
+    throw new Error(`GraphQL Error: ${message}`);
+  }
   const { updatedAt } = data.updateOneDevice;
   return { updatedAt };
 }
