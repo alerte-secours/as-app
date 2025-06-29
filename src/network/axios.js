@@ -24,19 +24,8 @@ export default function createAxios(baseOptions = {}) {
           "Content-Type": "application/json",
         },
       };
-
-      // Only add bearer token if Authorization header is not explicitly set to undefined
-      if (config.headers.Authorization !== undefined) {
-        setBearerHeader(defaultConfig.headers, getAuthState().userToken);
-      }
-
+      setBearerHeader(defaultConfig.headers, getAuthState().userToken);
       defaultsDeep(config, defaultConfig);
-
-      // Clean up undefined Authorization header
-      if (config.headers.Authorization === undefined) {
-        delete config.headers.Authorization;
-      }
-
       return config;
     },
     function (error) {
