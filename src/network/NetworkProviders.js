@@ -5,7 +5,7 @@ import { ApolloProvider } from "@apollo/client";
 
 import createApolloClient from "~/network/apollo";
 
-import createAxios from "~/network/axios";
+// import createAxios from "~/network/axios";
 import createKy from "~/network/ky";
 
 import network from "~/network";
@@ -40,8 +40,6 @@ initializeNewApolloClient();
 // network.oaFilesAxios = oaFilesAxios;
 const oaFilesKy = createKy({ prefixUrl: env.OA_FILES_URL + "/" }, { store });
 network.oaFilesKy = oaFilesKy;
-
-network.axios = createAxios();
 
 export default function NetworkProviders({ children }) {
   const [key, setKey] = useState(0);
