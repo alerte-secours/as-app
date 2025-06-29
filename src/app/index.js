@@ -42,7 +42,7 @@ const initializeStores = () => {
     // Initialize each store with error handling
     const initializeStore = async (name, initFn) => {
       try {
-        await Promise.resolve(initFn());
+        await initFn();
         appLogger.debug(`${name} initialized successfully`);
       } catch (error) {
         lifecycleLogger.error(`Failed to initialize ${name}`, {
