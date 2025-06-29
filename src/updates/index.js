@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import * as Updates from "expo-updates";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "~/lib/memoryAsyncStorage";
 import useNow from "~/hooks/useNow";
 import * as Sentry from "@sentry/react-native";
 

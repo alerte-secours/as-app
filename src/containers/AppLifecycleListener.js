@@ -12,6 +12,7 @@ import {
   useNetworkState,
 } from "~/stores";
 import { secureStore } from "~/lib/memorySecureStore";
+import memoryAsyncStorage from "~/lib/memoryAsyncStorage";
 
 import requestPermissionLocationBackground from "~/permissions/requestPermissionLocationBackground";
 import requestPermissionLocationForeground from "~/permissions/requestPermissionLocationForeground";
@@ -212,12 +213,19 @@ const AppLifecycleListener = () => {
           );
           checkPermissions(completed);
 
-          // Sync memory secure store back to persistent storage
-          lifecycleLogger.info(
-            "Syncing memory secure store to persistent storage",
-          );
+          // Sync memory stores back to persistent storage
+          lifecycleLogger.info("Syncing memory stores to persistent storage");
+
+          // Sync secure store
           secureStore.syncToSecureStore().catch((error) => {
             lifecycleLogger.error("Failed to sync memory secure store", {
+              error: error.message,
+            });
+          });
+
+          // Sync async storage
+          memoryAsyncStorage.syncToAsyncStorage().catch((error) => {
+            lifecycleLogger.error("Failed to sync memory async storage", {
               error: error.message,
             });
           });

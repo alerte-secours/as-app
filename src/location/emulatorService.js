@@ -1,5 +1,5 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "~/lib/memoryAsyncStorage";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 
