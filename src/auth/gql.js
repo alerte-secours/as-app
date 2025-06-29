@@ -1,4 +1,5 @@
 import { gql } from "@apollo/client";
+import { print } from "graphql";
 
 export const REGISTER_USER_MUTATION = gql`
   mutation registerUser {
@@ -36,3 +37,9 @@ export const STORE_FCM_TOKEN_MUTATION = gql`
     }
   }
 `;
+
+// Convert GraphQL documents to strings for Axios requests
+export const REGISTER_USER_MUTATION_STRING = print(REGISTER_USER_MUTATION);
+export const LOGIN_USER_TOKEN_MUTATION_STRING = print(
+  LOGIN_USER_TOKEN_MUTATION,
+);

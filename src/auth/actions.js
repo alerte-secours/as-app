@@ -1,40 +1,68 @@
 import * as Device from "expo-device";
 
 import network from "~/network";
+import env from "~/env";
 
 import {
-  REGISTER_USER_MUTATION,
-  LOGIN_USER_TOKEN_MUTATION,
   STORE_FCM_TOKEN_MUTATION,
+  REGISTER_USER_MUTATION_STRING,
+  LOGIN_USER_TOKEN_MUTATION_STRING,
 } from "~/auth/gql";
 
 import { getDeviceUuid } from "./deviceUuid";
 
+// to support refresh auth in headless mode we'll use axios instead of apollo
+// read more https://github.com/transistorsoft/react-native-background-fetch/issues/562
+
 export async function registerUser() {
-  const { data } = await network.apolloClient.mutate({
-    mutation: REGISTER_USER_MUTATION,
-    context: {
-      skipAuth: true, // Skip adding Authorization header
+  const { data } = await network.axios.post(
+    env.GRAPHQL_URL,
+    {
+      query: REGISTER_USER_MUTATION_STRING,
     },
-  });
-  const authToken = data.addOneAuthInitToken.authTokenJwt;
+    {
+      headers: {
+        // Skip adding Authorization header for this request
+        Authorization: undefined,
+      },
+    },
+  );
+
+  if (data.errors && data.errors.length > 0) {
+    const message = data.errors.map((err) => err.message).join("; ");
+    throw new Error(`GraphQL Error: ${message}`);
+  }
+
+  const authToken = data.data.addOneAuthInitToken.authTokenJwt;
   return { authToken };
 }
 
 export async function loginUserToken({ authToken }) {
   const deviceUuid = await getDeviceUuid();
-  const { data } = await network.apolloClient.mutate({
-    mutation: LOGIN_USER_TOKEN_MUTATION,
-    variables: {
-      authTokenJwt: authToken,
-      phoneModel: Device.modelName,
-      deviceUuid,
+  const { data } = await network.axios.post(
+    env.GRAPHQL_URL,
+    {
+      query: LOGIN_USER_TOKEN_MUTATION_STRING,
+      variables: {
+        authTokenJwt: authToken,
+        phoneModel: Device.modelName,
+        deviceUuid,
+      },
     },
-    context: {
-      skipAuth: true, // Skip adding Authorization header
+    {
+      headers: {
+        // Skip adding Authorization header for this request
+        Authorization: undefined,
+      },
     },
-  });
-  const userToken = data.doAuthLoginToken.userBearerJwt;
+  );
+
+  if (data.errors && data.errors.length > 0) {
+    const message = data.errors.map((err) => err.message).join("; ");
+    throw new Error(`GraphQL Error: ${message}`);
+  }
+
+  const userToken = data.data.doAuthLoginToken.userBearerJwt;
   return { userToken };
 }
 
