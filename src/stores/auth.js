@@ -1,4 +1,4 @@
-import { secureStore } from "~/lib/secureStore";
+import { secureStore } from "~/lib/memorySecureStore";
 import jwtDecode from "jwt-decode";
 import { createLogger } from "~/lib/logger";
 import { FEATURE_SCOPES } from "~/lib/logger/scopes";

@@ -11,6 +11,7 @@ import {
   usePermissionWizardState,
   useNetworkState,
 } from "~/stores";
+import { secureStore } from "~/lib/memorySecureStore";
 
 import requestPermissionLocationBackground from "~/permissions/requestPermissionLocationBackground";
 import requestPermissionLocationForeground from "~/permissions/requestPermissionLocationForeground";
@@ -210,6 +211,16 @@ const AppLifecycleListener = () => {
             },
           );
           checkPermissions(completed);
+
+          // Sync memory secure store back to persistent storage
+          lifecycleLogger.info(
+            "Syncing memory secure store to persistent storage",
+          );
+          secureStore.syncToSecureStore().catch((error) => {
+            lifecycleLogger.error("Failed to sync memory secure store", {
+              error: error.message,
+            });
+          });
 
           // Then handle WebSocket reconnection with proper error handling
           activeTimeout.current = setTimeout(() => {
