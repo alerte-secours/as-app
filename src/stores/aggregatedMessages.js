@@ -1,6 +1,6 @@
 import { createAtom } from "~/lib/atomic-zustand";
 import debounce from "lodash.debounce";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "~/lib/memoryAsyncStorage";
 
 const OVERRIDE_MESSAGES_STORAGE_KEY = "@override_messages";
 

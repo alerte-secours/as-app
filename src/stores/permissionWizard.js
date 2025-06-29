@@ -1,5 +1,5 @@
 import { createAtom } from "~/lib/atomic-zustand";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "~/lib/memoryAsyncStorage";
 
 const WIZARD_COMPLETED_KEY = "@permission_wizard_completed";
 

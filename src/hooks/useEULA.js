@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "~/lib/memoryAsyncStorage";
 import { Platform } from "react-native";
 
 const EULA_STORAGE_KEY = "@eula_accepted";

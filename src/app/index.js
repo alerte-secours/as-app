@@ -8,6 +8,7 @@ import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
 
 import { authActions, permissionWizardActions } from "~/stores";
 import { secureStore } from "~/lib/memorySecureStore";
+import memoryAsyncStorage from "~/lib/memoryAsyncStorage";
 
 import "~/lib/mapbox";
 import "~/i18n";
@@ -54,8 +55,9 @@ const initializeStores = () => {
       }
     };
 
-    // Initialize memory secure store first
+    // Initialize memory stores first
     initializeStore("memorySecureStore", secureStore.init);
+    initializeStore("memoryAsyncStorage", memoryAsyncStorage.init);
 
     // Then initialize other stores sequentially
     initializeStore("authActions", authActions.init);
