@@ -153,6 +153,7 @@ export default createAtom(({ get, merge, getActions }) => {
     }
 
     if (isLoading()) {
+      authLogger.info("Auth is already loading, waiting for completion");
       await loadingPromise;
       return true;
     }
@@ -162,9 +163,15 @@ export default createAtom(({ get, merge, getActions }) => {
 
     try {
       startLoading();
+
+      authLogger.debug("Deleting userToken for refresh");
       await secureStore.deleteItemAsync("userToken");
+
       await init();
       return true;
+    } catch (error) {
+      authLogger.error("Auth reload failed", { error: error.message });
+      throw error;
     } finally {
       // Clear reloading state even if there was an error
       merge({ isReloading: false });
