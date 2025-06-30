@@ -275,6 +275,31 @@ export default createAtom(({ get, merge, getActions }) => {
     triggerReload();
   };
 
+  const setUserToken = async (userToken) => {
+    authLogger.info("Setting user token", {
+      hasToken: !!userToken,
+    });
+
+    try {
+      // Update secure storage
+      await secureStore.setItemAsync("userToken", userToken);
+
+      // Update in-memory state
+      merge({ userToken });
+
+      // Update session from JWT
+      if (userToken) {
+        const jwtData = jwtDecode(userToken);
+        sessionActions.loadSessionFromJWT(jwtData);
+      }
+
+      authLogger.debug("User token updated successfully");
+    } catch (error) {
+      authLogger.error("Failed to set user token", { error: error.message });
+      throw error;
+    }
+  };
+
   return {
     default: {
       userToken: null,
@@ -294,6 +319,7 @@ export default createAtom(({ get, merge, getActions }) => {
       logout,
       onReload,
       userOnMode,
+      setUserToken,
     },
   };
 });
