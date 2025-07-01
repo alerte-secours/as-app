@@ -38,6 +38,8 @@ export const memorySecureStore = {
       "dev.userToken",
       "anon.authToken",
       "anon.userToken",
+      "fcmTokenStored",
+      "fcmTokenStoredDeviceId",
     ];
 
     // Load all known keys into memory
