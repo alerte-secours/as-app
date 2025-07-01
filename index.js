@@ -20,7 +20,6 @@ import onMessageReceived from "~/notifications/onMessageReceived";
 import { createLogger } from "~/lib/logger";
 import * as Sentry from "@sentry/react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { handleHttpResponse } from "~/lib/geolocation/httpResponseHandler";
 
 // setup notification, this have to stay in index.js
 notifee.onBackgroundEvent(notificationBackgroundEvent);
@@ -34,8 +33,7 @@ registerRootComponent(App);
 // Constants for persistence
 const LAST_SYNC_TIME_KEY = "@geolocation_last_sync_time";
 // const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000;
-// const FORCE_SYNC_INTERVAL = 60 * 60 * 1000; // DEBUGGING
-const FORCE_SYNC_INTERVAL = 5 * 60 * 1000; // DEBUGGING
+const FORCE_SYNC_INTERVAL = 60 * 60 * 1000; // DEBUGGING
 
 // Helper functions for persisting sync time
 const getLastSyncTime = async () => {
@@ -331,47 +329,54 @@ const HeadlessTask = async (event) => {
         break;
 
       case "http":
-        try {
-          // Use shared HTTP response handler for headless context
-          await handleHttpResponse(params, "headless");
+        // Validate HTTP parameters
+        if (!params || typeof params !== "object" || !params.response) {
+          geolocBgLogger.warn("Invalid HTTP params", { params });
+          break;
+        }
 
-          // Update last sync time on successful HTTP response (keep existing logic)
-          const httpStatus = params.status;
-          if (httpStatus === 200) {
-            try {
-              const now = Date.now();
-              await setLastSyncTime(now);
+        const httpStatus = params.response?.status;
+        const isHttpSuccess = httpStatus === 200;
 
-              Sentry.addBreadcrumb({
-                message: "Last sync time updated (HTTP success)",
-                category: "headless-task",
-                level: "info",
-                data: { newSyncTime: new Date(now).toISOString() },
-              });
-            } catch (syncTimeError) {
-              geolocBgLogger.error("Failed to update sync time", {
-                error: syncTimeError,
-              });
+        Sentry.addBreadcrumb({
+          message: "HTTP response received",
+          category: "headless-task",
+          level: isHttpSuccess ? "info" : "warning",
+          data: {
+            status: httpStatus,
+            success: params.response?.success,
+            hasResponse: !!params.response,
+          },
+        });
 
-              Sentry.captureException(syncTimeError, {
-                tags: {
-                  module: "headless-task",
-                  operation: "update-sync-time-http",
-                },
-              });
-            }
+        geolocBgLogger.debug("HTTP response received", {
+          response: params.response,
+        });
+
+        // Update last sync time on successful HTTP response
+        if (isHttpSuccess) {
+          try {
+            const now = Date.now();
+            await setLastSyncTime(now);
+
+            Sentry.addBreadcrumb({
+              message: "Last sync time updated (HTTP success)",
+              category: "headless-task",
+              level: "info",
+              data: { newSyncTime: new Date(now).toISOString() },
+            });
+          } catch (syncTimeError) {
+            geolocBgLogger.error("Failed to update sync time", {
+              error: syncTimeError,
+            });
+
+            Sentry.captureException(syncTimeError, {
+              tags: {
+                module: "headless-task",
+                operation: "update-sync-time-http",
+              },
+            });
           }
-        } catch (httpHandlerError) {
-          geolocBgLogger.error("HTTP response handler failed", {
-            error: httpHandlerError,
-          });
-
-          Sentry.captureException(httpHandlerError, {
-            tags: {
-              module: "headless-task",
-              operation: "http-response-handler",
-            },
-          });
         }
         break;
 
