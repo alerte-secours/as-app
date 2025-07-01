@@ -1,9 +1,8 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
-import AsyncStorage from "~/lib/memoryAsyncStorage";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
-
-const EMULATOR_MODE_KEY = "emulator_mode_enabled";
 
 // Global variables
 let emulatorIntervalId = null;
@@ -18,7 +17,9 @@ const emulatorLogger = createLogger({
 // Initialize emulator mode based on stored preference
 export const initEmulatorMode = async () => {
   try {
-    const storedValue = await AsyncStorage.getItem(EMULATOR_MODE_KEY);
+    const storedValue = await AsyncStorage.getItem(
+      STORAGE_KEYS.EMULATOR_MODE_ENABLED,
+    );
     emulatorLogger.debug("Initializing emulator mode", { storedValue });
 
     if (storedValue === "true") {
@@ -58,7 +59,7 @@ export const enableEmulatorMode = async () => {
     isEmulatorModeEnabled = true;
 
     // Persist the setting
-    await AsyncStorage.setItem(EMULATOR_MODE_KEY, "true");
+    await AsyncStorage.setItem(STORAGE_KEYS.EMULATOR_MODE_ENABLED, "true");
     emulatorLogger.debug("Emulator mode setting saved");
   } catch (error) {
     emulatorLogger.error("Failed to enable emulator mode", {
@@ -81,7 +82,7 @@ export const disableEmulatorMode = async () => {
 
   // Persist the setting
   try {
-    await AsyncStorage.setItem(EMULATOR_MODE_KEY, "false");
+    await AsyncStorage.setItem(STORAGE_KEYS.EMULATOR_MODE_ENABLED, "false");
     emulatorLogger.debug("Emulator mode setting saved");
   } catch (error) {
     emulatorLogger.error("Failed to save emulator mode setting", {

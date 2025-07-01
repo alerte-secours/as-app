@@ -1,8 +1,7 @@
 import { createAtom } from "~/lib/atomic-zustand";
 import debounce from "lodash.debounce";
-import AsyncStorage from "~/lib/memoryAsyncStorage";
-
-const OVERRIDE_MESSAGES_STORAGE_KEY = "@override_messages";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 export default createAtom(({ merge, set, get, reset }) => {
   const overrideMessagesCache = {};
@@ -10,7 +9,7 @@ export default createAtom(({ merge, set, get, reset }) => {
   const initCache = async () => {
     try {
       const storedData = await AsyncStorage.getItem(
-        OVERRIDE_MESSAGES_STORAGE_KEY,
+        STORAGE_KEYS.OVERRIDE_MESSAGES,
       );
       const storedMessages = storedData ? JSON.parse(storedData) : {};
       Object.entries(storedMessages).forEach(([messageId, data]) => {
@@ -24,7 +23,7 @@ export default createAtom(({ merge, set, get, reset }) => {
   const saveOverrideMessagesToStorage = async () => {
     try {
       await AsyncStorage.setItem(
-        OVERRIDE_MESSAGES_STORAGE_KEY,
+        STORAGE_KEYS.OVERRIDE_MESSAGES,
         JSON.stringify(overrideMessagesCache),
       );
     } catch (error) {

@@ -1,12 +1,13 @@
 import { createAtom } from "~/lib/atomic-zustand";
-import AsyncStorage from "~/lib/memoryAsyncStorage";
-
-const WIZARD_COMPLETED_KEY = "@permission_wizard_completed";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 export default createAtom(({ set, get }) => {
   const init = async () => {
     try {
-      const wizardCompleted = await AsyncStorage.getItem(WIZARD_COMPLETED_KEY);
+      const wizardCompleted = await AsyncStorage.getItem(
+        STORAGE_KEYS.PERMISSION_WIZARD_COMPLETED,
+      );
       if (wizardCompleted === "true") {
         set("completed", true);
       }
@@ -27,7 +28,10 @@ export default createAtom(({ set, get }) => {
       setCompleted: (completed) => {
         set("completed", completed);
         if (completed) {
-          AsyncStorage.setItem(WIZARD_COMPLETED_KEY, "true").catch((error) => {
+          AsyncStorage.setItem(
+            STORAGE_KEYS.PERMISSION_WIZARD_COMPLETED,
+            "true",
+          ).catch((error) => {
             console.error("Error saving permission wizard status:", error);
           });
         }

@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "~/lib/logger";
 import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
+import { getAsyncStorageKeys } from "./storageKeys";
 
 const storageLogger = createLogger({
   module: SYSTEM_SCOPES.STORAGE,
@@ -29,17 +30,8 @@ export const memoryAsyncStorage = {
 
     storageLogger.info("Initializing memory async storage");
 
-    // List of known keys that need to be cached
-    const knownKeys = [
-      "@geolocation_last_sync_time",
-      "@eula_accepted",
-      "@override_messages",
-      "@permission_wizard_completed",
-      "lastUpdateCheckTime",
-      "@last_known_location",
-      "eula_accepted",
-      "emulator_mode_enabled",
-    ];
+    // Get all registered AsyncStorage keys from the registry
+    const knownKeys = getAsyncStorageKeys();
 
     // Load all known keys into memory
     for (const key of knownKeys) {

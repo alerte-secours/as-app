@@ -1,4 +1,5 @@
-import { secureStore } from "~/lib/memorySecureStore";
+import { secureStore } from "~/storage/memorySecureStore";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 import jwtDecode from "jwt-decode";
 import { createLogger } from "~/lib/logger";
 import { FEATURE_SCOPES } from "~/lib/logger/scopes";
@@ -10,13 +11,13 @@ import isExpired from "~/lib/time/isExpired";
 import { registerUser, loginUserToken } from "~/auth/actions";
 
 // DEV
-// SecureStore.deleteItemAsync("userToken");
-// SecureStore.deleteItemAsync("authToken");
-// SecureStore.deleteItemAsync("dev.userToken");
-// SecureStore.deleteItemAsync("dev.authToken");
-// SecureStore.deleteItemAsync("anon.userToken");
-// SecureStore.deleteItemAsync("anon.authToken");
-// SecureStore.getItemAsync("userToken").then((t) => authLogger.debug("User token", { token: t }));
+// SecureStore.deleteItemAsync(STORAGE_KEYS.USER_TOKEN);
+// SecureStore.deleteItemAsync(STORAGE_KEYS.AUTH_TOKEN);
+// SecureStore.deleteItemAsync(STORAGE_KEYS.DEV_USER_TOKEN);
+// SecureStore.deleteItemAsync(STORAGE_KEYS.DEV_AUTH_TOKEN);
+// SecureStore.deleteItemAsync(STORAGE_KEYS.ANON_USER_TOKEN);
+// SecureStore.deleteItemAsync(STORAGE_KEYS.ANON_AUTH_TOKEN);
+// SecureStore.getItemAsync(STORAGE_KEYS.USER_TOKEN).then((t) => authLogger.debug("User token", { token: t }));
 
 const authLogger = createLogger({
   module: FEATURE_SCOPES.AUTH,
@@ -68,7 +69,7 @@ export default createAtom(({ get, merge, getActions }) => {
       authLogger.info("Attempting to login with auth token");
       const { userToken } = await loginUserToken({ authToken });
       authLogger.info("Successfully obtained user token");
-      await secureStore.setItemAsync("userToken", userToken);
+      await secureStore.setItemAsync(STORAGE_KEYS.USER_TOKEN, userToken);
       endLoading({
         userToken,
       });
@@ -81,8 +82,8 @@ export default createAtom(({ get, merge, getActions }) => {
           "Auth token expired, clearing tokens and reinitializing",
         );
         await Promise.all([
-          secureStore.deleteItemAsync("authToken"),
-          secureStore.deleteItemAsync("userToken"),
+          secureStore.deleteItemAsync(STORAGE_KEYS.AUTH_TOKEN),
+          secureStore.deleteItemAsync(STORAGE_KEYS.USER_TOKEN),
         ]);
         return init();
       }
@@ -93,8 +94,8 @@ export default createAtom(({ get, merge, getActions }) => {
   const init = async () => {
     authLogger.debug("Initializing auth state");
     let { userToken, authToken } = await promiseObject({
-      userToken: secureStore.getItemAsync("userToken"),
-      authToken: secureStore.getItemAsync("authToken"),
+      userToken: secureStore.getItemAsync(STORAGE_KEYS.USER_TOKEN),
+      authToken: secureStore.getItemAsync(STORAGE_KEYS.AUTH_TOKEN),
     });
     // await delay(5);
     // authLogger.debug("Auth tokens", { userToken, authToken });
@@ -121,7 +122,7 @@ export default createAtom(({ get, merge, getActions }) => {
       const res = await registerUser();
       authLogger.info("Successfully registered new user");
       authToken = res.authToken;
-      await secureStore.setItemAsync("authToken", authToken);
+      await secureStore.setItemAsync(STORAGE_KEYS.AUTH_TOKEN, authToken);
     }
 
     if (!userToken && authToken) {
@@ -165,7 +166,7 @@ export default createAtom(({ get, merge, getActions }) => {
       startLoading();
 
       authLogger.debug("Deleting userToken for refresh");
-      await secureStore.deleteItemAsync("userToken");
+      await secureStore.deleteItemAsync(STORAGE_KEYS.USER_TOKEN);
 
       await init();
       return true;
@@ -183,7 +184,7 @@ export default createAtom(({ get, merge, getActions }) => {
     const { onReloadAuthToken: authToken } = get();
 
     if (authToken) {
-      await secureStore.setItemAsync("authToken", authToken);
+      await secureStore.setItemAsync(STORAGE_KEYS.AUTH_TOKEN, authToken);
       await loadUserJWT(authToken);
     } else {
       await init();
@@ -204,12 +205,12 @@ export default createAtom(({ get, merge, getActions }) => {
     if (!isConnected) {
       // backup anon tokens
       const [anonAuthToken, anonUserToken] = await Promise.all([
-        secureStore.getItemAsync("authToken"),
-        secureStore.getItemAsync("userToken"),
+        secureStore.getItemAsync(STORAGE_KEYS.AUTH_TOKEN),
+        secureStore.getItemAsync(STORAGE_KEYS.USER_TOKEN),
       ]);
       await Promise.all([
-        secureStore.setItemAsync("anon.authToken", anonAuthToken),
-        secureStore.setItemAsync("anon.userToken", anonUserToken),
+        secureStore.setItemAsync(STORAGE_KEYS.ANON_AUTH_TOKEN, anonAuthToken),
+        secureStore.setItemAsync(STORAGE_KEYS.ANON_USER_TOKEN, anonUserToken),
       ]);
     }
     merge({ onReloadAuthToken: authTokenJwt });
@@ -219,12 +220,12 @@ export default createAtom(({ get, merge, getActions }) => {
   const impersonate = async ({ authTokenJwt }) => {
     authLogger.info("Starting impersonation");
     const [anonAuthToken, anonUserToken] = await Promise.all([
-      secureStore.getItemAsync("authToken"),
-      secureStore.getItemAsync("userToken"),
+      secureStore.getItemAsync(STORAGE_KEYS.AUTH_TOKEN),
+      secureStore.getItemAsync(STORAGE_KEYS.USER_TOKEN),
     ]);
     await Promise.all([
-      secureStore.setItemAsync("dev.authToken", anonAuthToken),
-      secureStore.setItemAsync("dev.userToken", anonUserToken),
+      secureStore.setItemAsync(STORAGE_KEYS.DEV_AUTH_TOKEN, anonAuthToken),
+      secureStore.setItemAsync(STORAGE_KEYS.DEV_USER_TOKEN, anonUserToken),
     ]);
     merge({ onReloadAuthToken: authTokenJwt });
     triggerReload();
@@ -234,29 +235,29 @@ export default createAtom(({ get, merge, getActions }) => {
     authLogger.info("Initiating logout");
     const [devAuthToken, devUserToken, anonAuthToken, anonUserToken] =
       await Promise.all([
-        secureStore.getItemAsync("dev.authToken"),
-        secureStore.getItemAsync("dev.userToken"),
-        secureStore.getItemAsync("anon.authToken"),
-        secureStore.getItemAsync("anon.userToken"),
+        secureStore.getItemAsync(STORAGE_KEYS.DEV_AUTH_TOKEN),
+        secureStore.getItemAsync(STORAGE_KEYS.DEV_USER_TOKEN),
+        secureStore.getItemAsync(STORAGE_KEYS.ANON_AUTH_TOKEN),
+        secureStore.getItemAsync(STORAGE_KEYS.ANON_USER_TOKEN),
       ]);
     if (devAuthToken && devUserToken) {
       await Promise.all([
-        secureStore.setItemAsync("authToken", devAuthToken),
-        secureStore.setItemAsync("userToken", devUserToken),
-        secureStore.deleteItemAsync("dev.authToken"),
-        secureStore.deleteItemAsync("dev.userToken"),
+        secureStore.setItemAsync(STORAGE_KEYS.AUTH_TOKEN, devAuthToken),
+        secureStore.setItemAsync(STORAGE_KEYS.USER_TOKEN, devUserToken),
+        secureStore.deleteItemAsync(STORAGE_KEYS.DEV_AUTH_TOKEN),
+        secureStore.deleteItemAsync(STORAGE_KEYS.DEV_USER_TOKEN),
       ]);
     } else if (anonAuthToken && anonUserToken) {
       await Promise.all([
-        secureStore.setItemAsync("authToken", anonAuthToken),
-        secureStore.setItemAsync("userToken", anonUserToken),
-        secureStore.deleteItemAsync("anon.authToken"),
-        secureStore.deleteItemAsync("anon.userToken"),
+        secureStore.setItemAsync(STORAGE_KEYS.AUTH_TOKEN, anonAuthToken),
+        secureStore.setItemAsync(STORAGE_KEYS.USER_TOKEN, anonUserToken),
+        secureStore.deleteItemAsync(STORAGE_KEYS.ANON_AUTH_TOKEN),
+        secureStore.deleteItemAsync(STORAGE_KEYS.ANON_USER_TOKEN),
       ]);
     } else {
       await Promise.all([
-        secureStore.deleteItemAsync("authToken"),
-        secureStore.deleteItemAsync("userToken"),
+        secureStore.deleteItemAsync(STORAGE_KEYS.AUTH_TOKEN),
+        secureStore.deleteItemAsync(STORAGE_KEYS.USER_TOKEN),
       ]);
       merge({
         userOffMode: true,
@@ -282,7 +283,7 @@ export default createAtom(({ get, merge, getActions }) => {
 
     try {
       // Update secure storage
-      await secureStore.setItemAsync("userToken", userToken);
+      await secureStore.setItemAsync(STORAGE_KEYS.USER_TOKEN, userToken);
 
       // Update in-memory state
       merge({ userToken });

@@ -20,6 +20,7 @@ import onMessageReceived from "~/notifications/onMessageReceived";
 import { createLogger } from "~/lib/logger";
 import * as Sentry from "@sentry/react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 // setup notification, this have to stay in index.js
 notifee.onBackgroundEvent(notificationBackgroundEvent);
@@ -31,14 +32,16 @@ messaging().setBackgroundMessageHandler(onMessageReceived);
 registerRootComponent(App);
 
 // Constants for persistence
-const LAST_SYNC_TIME_KEY = "@geolocation_last_sync_time";
 // const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000;
-const FORCE_SYNC_INTERVAL = 60 * 60 * 1000; // DEBUGGING
+// const FORCE_SYNC_INTERVAL = 60 * 60 * 1000; // DEBUGGING
+const FORCE_SYNC_INTERVAL = 5 * 60 * 1000; // DEBUGGING
 
 // Helper functions for persisting sync time
 const getLastSyncTime = async () => {
   try {
-    const value = await AsyncStorage.getItem(LAST_SYNC_TIME_KEY);
+    const value = await AsyncStorage.getItem(
+      STORAGE_KEYS.GEOLOCATION_LAST_SYNC_TIME,
+    );
     return value ? parseInt(value, 10) : Date.now();
   } catch (error) {
     Sentry.captureException(error, {
@@ -50,7 +53,10 @@ const getLastSyncTime = async () => {
 
 const setLastSyncTime = async (time) => {
   try {
-    await AsyncStorage.setItem(LAST_SYNC_TIME_KEY, time.toString());
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.GEOLOCATION_LAST_SYNC_TIME,
+      time.toString(),
+    );
   } catch (error) {
     Sentry.captureException(error, {
       tags: { module: "headless-task", operation: "set-last-sync-time" },

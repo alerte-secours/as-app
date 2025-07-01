@@ -11,8 +11,8 @@ import {
   usePermissionWizardState,
   useNetworkState,
 } from "~/stores";
-import { secureStore } from "~/lib/memorySecureStore";
-import memoryAsyncStorage from "~/lib/memoryAsyncStorage";
+import { secureStore } from "~/storage/memorySecureStore";
+import memoryAsyncStorage from "~/storage/memoryAsyncStorage";
 
 import requestPermissionLocationBackground from "~/permissions/requestPermissionLocationBackground";
 import requestPermissionLocationForeground from "~/permissions/requestPermissionLocationForeground";

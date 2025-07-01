@@ -1,4 +1,5 @@
-import { secureStore } from "~/lib/memorySecureStore";
+import { secureStore } from "~/storage/memorySecureStore";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 import uuidGenerator from "react-native-uuid";
 import { createLogger } from "~/lib/logger";
 import { FEATURE_SCOPES } from "~/lib/logger/scopes";
@@ -21,12 +22,12 @@ async function getDeviceUuid() {
   // Create a new promise for this generation attempt
   uuidGenerationPromise = (async () => {
     try {
-      let deviceUuid = await secureStore.getItemAsync("deviceUuid");
+      let deviceUuid = await secureStore.getItemAsync(STORAGE_KEYS.DEVICE_UUID);
 
       if (!deviceUuid) {
         deviceLogger.info("No device UUID found, generating new one");
         deviceUuid = uuidGenerator.v4();
-        await secureStore.setItemAsync("deviceUuid", deviceUuid);
+        await secureStore.setItemAsync(STORAGE_KEYS.DEVICE_UUID, deviceUuid);
         deviceLogger.info("New device UUID generated and stored", {
           uuid: deviceUuid.substring(0, 8) + "...",
         });
