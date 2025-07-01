@@ -125,111 +125,24 @@ const HeadlessTask = async (event) => {
       throw new Error("Invalid event name received");
     }
 
-    // Add initial breadcrumb
-    Sentry.addBreadcrumb({
-      message: "HeadlessTask started",
-      category: "headless-task",
-      level: "info",
-      data: {
-        eventName: name,
-        params: params ? JSON.stringify(params) : null,
-        timestamp: Date.now(),
-      },
-    });
-
     geolocBgLogger.info("HeadlessTask event received", { name, params });
 
     switch (name) {
       case "heartbeat":
-        // Add breadcrumb for heartbeat event
-        Sentry.addBreadcrumb({
-          message: "Heartbeat event received",
-          category: "headless-task",
-          level: "info",
-          timestamp: Date.now() / 1000,
-        });
-
         // Get persisted last sync time
         const lastSyncTime = await getLastSyncTime();
         const now = Date.now();
         const timeSinceLastSync = now - lastSyncTime;
 
-        // Add context about sync timing
-        Sentry.setContext("sync-timing", {
-          lastSyncTime: new Date(lastSyncTime).toISOString(),
-          currentTime: new Date(now).toISOString(),
-          timeSinceLastSync: timeSinceLastSync,
-          timeSinceLastSyncHours: (
-            timeSinceLastSync /
-            (1000 * 60 * 60)
-          ).toFixed(2),
-          needsForceSync: timeSinceLastSync >= FORCE_SYNC_INTERVAL,
-        });
-
-        Sentry.addBreadcrumb({
-          message: "Sync timing calculated",
-          category: "headless-task",
-          level: "info",
-          data: {
-            timeSinceLastSyncHours: (
-              timeSinceLastSync /
-              (1000 * 60 * 60)
-            ).toFixed(2),
-            needsForceSync: timeSinceLastSync >= FORCE_SYNC_INTERVAL,
-          },
-        });
-
         // Get current position with performance tracking
-        const locationStartTime = Date.now();
         const location = await getCurrentPosition();
-        const locationDuration = Date.now() - locationStartTime;
-
-        const isLocationError = location && location.code !== undefined;
-
-        Sentry.addBreadcrumb({
-          message: "getCurrentPosition completed",
-          category: "headless-task",
-          level: isLocationError ? "warning" : "info",
-          data: {
-            success: !isLocationError,
-            error: isLocationError ? location : undefined,
-            coords: !isLocationError ? location?.coords : undefined,
-          },
-        });
 
         geolocBgLogger.debug("getCurrentPosition result", { location });
 
         if (timeSinceLastSync >= FORCE_SYNC_INTERVAL) {
           geolocBgLogger.info("Forcing location sync after 24h");
 
-          Sentry.addBreadcrumb({
-            message: "Force sync triggered",
-            category: "headless-task",
-            level: "info",
-            data: {
-              timeSinceLastSyncHours: (
-                timeSinceLastSync /
-                (1000 * 60 * 60)
-              ).toFixed(2),
-            },
-          });
-
           try {
-            // Get pending records count before sync with timeout
-            const pendingCount = await Promise.race([
-              BackgroundGeolocation.getCount(),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("getCount timeout")), 10000),
-              ),
-            ]);
-
-            Sentry.addBreadcrumb({
-              message: "Pending records count",
-              category: "headless-task",
-              level: "info",
-              data: { pendingCount },
-            });
-
             // Change pace to ensure location updates with timeout
             await Promise.race([
               BackgroundGeolocation.changePace(true),
@@ -241,12 +154,6 @@ const HeadlessTask = async (event) => {
               ),
             ]);
 
-            Sentry.addBreadcrumb({
-              message: "changePace completed",
-              category: "headless-task",
-              level: "info",
-            });
-
             // Perform sync with timeout
             const syncResult = await Promise.race([
               BackgroundGeolocation.sync(),
@@ -255,26 +162,8 @@ const HeadlessTask = async (event) => {
               ),
             ]);
 
-            Sentry.addBreadcrumb({
-              message: "Sync completed successfully",
-              category: "headless-task",
-              level: "info",
-              data: {
-                syncResult: Array.isArray(syncResult)
-                  ? `${syncResult.length} records`
-                  : "completed",
-              },
-            });
-
             // Update last sync time after successful sync
             await setLastSyncTime(now);
-
-            Sentry.addBreadcrumb({
-              message: "Last sync time updated",
-              category: "headless-task",
-              level: "info",
-              data: { newSyncTime: new Date(now).toISOString() },
-            });
           } catch (syncError) {
             Sentry.captureException(syncError, {
               tags: {
@@ -292,22 +181,6 @@ const HeadlessTask = async (event) => {
 
             geolocBgLogger.error("Force sync failed", { error: syncError });
           }
-        } else {
-          Sentry.addBreadcrumb({
-            message: "Force sync not needed",
-            category: "headless-task",
-            level: "info",
-            data: {
-              timeSinceLastSyncHours: (
-                timeSinceLastSync /
-                (1000 * 60 * 60)
-              ).toFixed(2),
-              nextSyncInHours: (
-                (FORCE_SYNC_INTERVAL - timeSinceLastSync) /
-                (1000 * 60 * 60)
-              ).toFixed(2),
-            },
-          });
         }
         break;
 
@@ -317,17 +190,6 @@ const HeadlessTask = async (event) => {
           geolocBgLogger.warn("Invalid location params", { params });
           break;
         }
-
-        Sentry.addBreadcrumb({
-          message: "Location update received",
-          category: "headless-task",
-          level: "info",
-          data: {
-            coords: params.location?.coords,
-            activity: params.location?.activity,
-            hasLocation: !!params.location,
-          },
-        });
 
         geolocBgLogger.debug("Location update received", {
           location: params.location,
@@ -344,17 +206,6 @@ const HeadlessTask = async (event) => {
         const httpStatus = params.response?.status;
         const isHttpSuccess = httpStatus === 200;
 
-        Sentry.addBreadcrumb({
-          message: "HTTP response received",
-          category: "headless-task",
-          level: isHttpSuccess ? "info" : "warning",
-          data: {
-            status: httpStatus,
-            success: params.response?.success,
-            hasResponse: !!params.response,
-          },
-        });
-
         geolocBgLogger.debug("HTTP response received", {
           response: params.response,
         });
@@ -364,13 +215,6 @@ const HeadlessTask = async (event) => {
           try {
             const now = Date.now();
             await setLastSyncTime(now);
-
-            Sentry.addBreadcrumb({
-              message: "Last sync time updated (HTTP success)",
-              category: "headless-task",
-              level: "info",
-              data: { newSyncTime: new Date(now).toISOString() },
-            });
           } catch (syncTimeError) {
             geolocBgLogger.error("Failed to update sync time", {
               error: syncTimeError,
@@ -387,26 +231,11 @@ const HeadlessTask = async (event) => {
         break;
 
       default:
-        Sentry.addBreadcrumb({
-          message: "Unknown event type",
-          category: "headless-task",
-          level: "warning",
-          data: { eventName: name },
-        });
+        break;
     }
 
     // Task completed successfully
     const taskDuration = Date.now() - taskStartTime;
-
-    Sentry.addBreadcrumb({
-      message: "HeadlessTask completed successfully",
-      category: "headless-task",
-      level: "info",
-      data: {
-        eventName: name,
-        duration: taskDuration,
-      },
-    });
   } catch (error) {
     const taskDuration = Date.now() - taskStartTime;
 
