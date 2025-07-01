@@ -152,20 +152,19 @@ export const memoryAsyncStorage = {
     storageLogger.debug("Set in memory cache", { key });
 
     // Try to persist to AsyncStorage
-    (async () => {
-      try {
-        await AsyncStorage.setItem(key, value);
-        storageLogger.debug("Persisted to AsyncStorage", { key });
-      } catch (error) {
-        storageLogger.warn(
-          "Failed to persist to AsyncStorage, kept in memory only",
-          {
-            key,
-            error: error.message,
-          },
-        );
-      }
-    })();
+    try {
+      await AsyncStorage.setItem(key, value);
+      storageLogger.debug("Persisted to AsyncStorage", { key });
+    } catch (error) {
+      storageLogger.warn(
+        "Failed to persist to AsyncStorage, kept in memory only",
+        {
+          key,
+          error: error.message,
+        },
+      );
+      // Continue - value is at least in memory
+    }
   },
 
   /**
@@ -179,18 +178,16 @@ export const memoryAsyncStorage = {
     storageLogger.debug("Deleted from memory cache", { key });
 
     // Try to delete from AsyncStorage
-    (async () => {
-      try {
-        await AsyncStorage.removeItem(key);
-        storageLogger.debug("Deleted from AsyncStorage", { key });
-      } catch (error) {
-        storageLogger.warn("Failed to delete from AsyncStorage", {
-          key,
-          error: error.message,
-        });
-        // Continue - at least removed from memory
-      }
-    })();
+    try {
+      await AsyncStorage.removeItem(key);
+      storageLogger.debug("Deleted from AsyncStorage", { key });
+    } catch (error) {
+      storageLogger.warn("Failed to delete from AsyncStorage", {
+        key,
+        error: error.message,
+      });
+      // Continue - at least removed from memory
+    }
   },
 
   /**
@@ -245,16 +242,14 @@ export const memoryAsyncStorage = {
     storageLogger.info("Cleared memory cache");
 
     // Try to clear AsyncStorage
-    (async () => {
-      try {
-        await AsyncStorage.clear();
-        storageLogger.info("Cleared AsyncStorage");
-      } catch (error) {
-        storageLogger.warn("Failed to clear AsyncStorage", {
-          error: error.message,
-        });
-      }
-    })();
+    try {
+      await AsyncStorage.clear();
+      storageLogger.info("Cleared AsyncStorage");
+    } catch (error) {
+      storageLogger.warn("Failed to clear AsyncStorage", {
+        error: error.message,
+      });
+    }
   },
 
   /**

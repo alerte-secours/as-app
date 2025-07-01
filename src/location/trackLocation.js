@@ -18,7 +18,6 @@ import {
 
 import setLocationState from "~/location/setLocationState";
 import { storeLocation } from "~/utils/location/storage";
-import { handleHttpResponse } from "~/lib/geolocation/httpResponseHandler";
 
 import env from "~/env";
 
@@ -77,6 +76,53 @@ export default async function trackLocation() {
     isStaging: env.IS_STAGING,
   });
 
+  // Throttling configuration for auth reload only
+  const AUTH_RELOAD_THROTTLE = 5000; // 5 seconds throttle
+
+  // The core auth reload function that will be throttled
+  async function _reloadAuth() {
+    locationLogger.info("Refreshing authentication token via sync endpoint");
+
+    try {
+      // Get current auth state to check if we have an auth token
+      const { authToken, userToken } = getAuthState();
+
+      if (!authToken) {
+        locationLogger.warn("No auth token available for refresh");
+        return;
+      }
+
+      locationLogger.debug(
+        "Auth token available, updating BackgroundGeolocation config",
+      );
+
+      // Update BackgroundGeolocation config to include X-Auth-Token header
+      await BackgroundGeolocation.setConfig({
+        headers: {
+          Authorization: `Bearer ${userToken}`, // Keep existing user token (may be expired)
+          "X-Auth-Token": authToken, // Add auth token for refresh
+        },
+      });
+
+      // Trigger sync to refresh token
+      await BackgroundGeolocation.changePace(true);
+      await BackgroundGeolocation.sync();
+
+      locationLogger.info("Token refresh sync triggered successfully");
+    } catch (error) {
+      locationLogger.error("Failed to refresh authentication token", {
+        error: error.message,
+        stack: error.stack,
+      });
+    }
+  }
+
+  // Create throttled version of auth reload with lodash
+  const reloadAuth = throttle(_reloadAuth, AUTH_RELOAD_THROTTLE, {
+    leading: true,
+    trailing: false, // Prevent trailing calls to avoid duplicate refreshes
+  });
+
   // Handle auth function - no throttling or cooldown
   async function handleAuth(userToken) {
     locationLogger.info("Handling auth token update", {
@@ -105,6 +151,25 @@ export default async function trackLocation() {
         tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
       },
     );
+
+    // Verify the current configuration
+    try {
+      const currentConfig = await BackgroundGeolocation.getConfig();
+      locationLogger.debug("Current background geolocation config", {
+        hasHeaders: !!currentConfig.headers,
+        headerKeys: currentConfig.headers
+          ? Object.keys(currentConfig.headers)
+          : [],
+        authHeader: currentConfig.headers?.Authorization
+          ? currentConfig.headers.Authorization.substring(0, 15) + "..."
+          : "Not set",
+        url: currentConfig.url,
+      });
+    } catch (error) {
+      locationLogger.error("Failed to get background geolocation config", {
+        error: error.message,
+      });
+    }
 
     const state = await BackgroundGeolocation.getState();
     try {
@@ -175,8 +240,132 @@ export default async function trackLocation() {
   });
 
   BackgroundGeolocation.onHttp(async (response) => {
-    // Use shared HTTP response handler for foreground context
-    await handleHttpResponse(response, "foreground");
+    // Log the full response including headers if available
+    locationLogger.debug("HTTP response received", {
+      status: response?.status,
+      success: response?.success,
+      responseText: response?.responseText,
+      url: response?.url,
+      method: response?.method,
+      isSync: response?.isSync,
+      requestHeaders:
+        response?.request?.headers || "Headers not available in response",
+    });
+
+    // Add Sentry breadcrumb for HTTP responses
+    Sentry.addBreadcrumb({
+      message: "Background geolocation HTTP response",
+      category: "geolocation-http",
+      level: response?.status === 200 ? "info" : "warning",
+      data: {
+        status: response?.status,
+        success: response?.success,
+        url: response?.url,
+        isSync: response?.isSync,
+        recordCount: response?.count,
+      },
+    });
+
+    // Log the current auth token for comparison
+    const { userToken } = getAuthState();
+    locationLogger.debug("Current auth state token", {
+      tokenAvailable: !!userToken,
+      tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
+    });
+
+    const statusCode = response?.status;
+
+    // log status code and response
+    locationLogger.debug("HTTP response received", {
+      status: statusCode,
+      responseText: response?.responseText,
+    });
+
+    switch (statusCode) {
+      case 200:
+        // Successful response, check for token refresh
+        try {
+          const responseBody = response?.responseText
+            ? JSON.parse(response.responseText)
+            : null;
+
+          if (responseBody?.userBearerJwt) {
+            locationLogger.info(
+              "Token refresh successful, updating stored token",
+            );
+
+            // Use auth action to update both in-memory and persistent storage
+            await authActions.setUserToken(responseBody.userBearerJwt);
+
+            // Update BackgroundGeolocation config with new token
+            await BackgroundGeolocation.setConfig({
+              headers: {
+                Authorization: `Bearer ${responseBody.userBearerJwt}`,
+              },
+            });
+
+            locationLogger.debug(
+              "Updated BackgroundGeolocation with refreshed token and removed X-Auth-Token header",
+            );
+
+            Sentry.addBreadcrumb({
+              message: "Token refreshed successfully",
+              category: "geolocation-auth",
+              level: "info",
+            });
+          }
+        } catch (e) {
+          locationLogger.debug("Failed to parse successful response", {
+            error: e.message,
+            responseText: response?.responseText,
+          });
+        }
+        break;
+      case 410:
+        // Auth token expired, logout
+        locationLogger.info("Auth token expired (410), logging out");
+        Sentry.addBreadcrumb({
+          message: "Auth token expired - logging out",
+          category: "geolocation-auth",
+          level: "warning",
+        });
+        authActions.logout();
+        break;
+      case 401:
+        // Unauthorized: User token expired, refresh using throttled reload
+        locationLogger.info("Unauthorized (401), attempting to refresh token");
+
+        // Add more detailed logging of the error response
+        try {
+          const errorBody = response?.responseText
+            ? JSON.parse(response.responseText)
+            : null;
+          locationLogger.debug("Unauthorized error details", {
+            errorBody,
+            errorType: errorBody?.error?.type,
+            errorMessage: errorBody?.error?.message,
+            errorPath: errorBody?.error?.errors?.[0]?.path,
+          });
+
+          Sentry.addBreadcrumb({
+            message: "Unauthorized - refreshing token",
+            category: "geolocation-auth",
+            level: "warning",
+            data: {
+              errorType: errorBody?.error?.type,
+              errorMessage: errorBody?.error?.message,
+            },
+          });
+        } catch (e) {
+          locationLogger.debug("Failed to parse error response", {
+            error: e.message,
+            responseText: response?.responseText,
+          });
+        }
+
+        reloadAuth();
+        break;
+    }
   });
 
   try {
