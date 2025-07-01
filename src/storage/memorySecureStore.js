@@ -1,6 +1,7 @@
 import { secureStore as originalSecureStore } from "./secureStore";
 import { createLogger } from "~/lib/logger";
 import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
+import { getSecureStoreKeys } from "./storageKeys";
 
 const storageLogger = createLogger({
   module: SYSTEM_SCOPES.STORAGE,
@@ -29,18 +30,8 @@ export const memorySecureStore = {
 
     storageLogger.info("Initializing memory secure store");
 
-    // List of known keys that need to be cached
-    const knownKeys = [
-      "deviceUuid",
-      "authToken",
-      "userToken",
-      "dev.authToken",
-      "dev.userToken",
-      "anon.authToken",
-      "anon.userToken",
-      "fcmTokenStored",
-      "fcmTokenStoredDeviceId",
-    ];
+    // Get all registered secure store keys from the registry
+    const knownKeys = getSecureStoreKeys();
 
     // Load all known keys into memory
     for (const key of knownKeys) {

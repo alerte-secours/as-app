@@ -1,6 +1,7 @@
 import React from "react";
 import { View, ScrollView, StyleSheet, Platform } from "react-native";
-import AsyncStorage from "~/lib/memoryAsyncStorage";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 import Text from "../Text";
 
@@ -64,14 +65,12 @@ Ce Contrat constitue l'intégralité de l'accord entre vous et nous concernant l
 Si vous avez des questions concernant ce Contrat, veuillez nous contacter à :
 Email : contact@alertesecours.fr`;
 
-const EULA_STORAGE_KEY = "@eula_accepted";
-
 const EULA = ({ onAccept, visible = true }) => {
   if (!visible || Platform.OS !== "ios") return null;
 
   const handleAccept = async () => {
     try {
-      await AsyncStorage.setItem(EULA_STORAGE_KEY, "true");
+      await AsyncStorage.setItem(STORAGE_KEYS.EULA_ACCEPTED, "true");
       onAccept();
     } catch (error) {
       console.error("Error saving EULA acceptance:", error);

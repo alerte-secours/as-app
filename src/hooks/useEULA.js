@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import AsyncStorage from "~/lib/memoryAsyncStorage";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { Platform } from "react-native";
-
-const EULA_STORAGE_KEY = "@eula_accepted";
 
 export const useEULA = () => {
   const [eulaAccepted, setEulaAccepted] = useState(true);
@@ -16,7 +15,7 @@ export const useEULA = () => {
 
     const checkEULA = async () => {
       try {
-        const accepted = await AsyncStorage.getItem(EULA_STORAGE_KEY);
+        const accepted = await AsyncStorage.getItem(STORAGE_KEYS.EULA_ACCEPTED);
         setEulaAccepted(!!accepted);
       } catch (error) {
         console.error("Error checking EULA status:", error);

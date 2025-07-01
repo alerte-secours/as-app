@@ -1,4 +1,5 @@
-import AsyncStorage from "~/lib/memoryAsyncStorage";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { createLogger } from "~/lib/logger";
 import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
 
@@ -6,8 +7,6 @@ const storageLogger = createLogger({
   module: SYSTEM_SCOPES.STORAGE,
   feature: "location-cache",
 });
-
-export const LOCATION_STORAGE_KEY = "@last_known_location";
 
 /**
  * Stores location data in AsyncStorage with timestamp
@@ -36,7 +35,7 @@ export async function storeLocation(
     });
 
     await AsyncStorage.setItem(
-      LOCATION_STORAGE_KEY,
+      STORAGE_KEYS.LAST_KNOWN_LOCATION,
       JSON.stringify({
         coords,
         timestamp,
@@ -58,7 +57,7 @@ export async function storeLocation(
 export async function getStoredLocation() {
   try {
     storageLogger.debug("Retrieving stored location data");
-    const stored = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+    const stored = await AsyncStorage.getItem(STORAGE_KEYS.LAST_KNOWN_LOCATION);
 
     if (!stored) {
       storageLogger.debug("No stored location data found");

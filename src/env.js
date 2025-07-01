@@ -1,8 +1,6 @@
 import { Platform } from "react-native";
-import { secureStore } from "~/lib/secureStore";
-
-// Key for storing staging setting in secureStore
-const STAGING_SETTING_KEY = "env.isStaging";
+import { secureStore } from "~/storage/memorySecureStore";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 // Logging configuration
 const LOG_SCOPES = process.env.APP_LOG_SCOPES;
@@ -97,7 +95,7 @@ export const setStaging = async (enabled) => {
   }
 
   // Persist the staging setting
-  await secureStore.setItemAsync(STAGING_SETTING_KEY, String(enabled));
+  await secureStore.setItemAsync(STORAGE_KEYS.ENV_IS_STAGING, String(enabled));
 };
 
 // Initialize with default values
@@ -106,7 +104,9 @@ const env = { ...envMap };
 // Load the staging setting from secureStore
 export const initializeEnv = async () => {
   try {
-    const storedStaging = await secureStore.getItemAsync(STAGING_SETTING_KEY);
+    const storedStaging = await secureStore.getItemAsync(
+      STORAGE_KEYS.ENV_IS_STAGING,
+    );
     if (storedStaging !== null) {
       const isStaging = storedStaging === "true";
       if (isStaging) {

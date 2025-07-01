@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import * as Updates from "expo-updates";
-import AsyncStorage from "~/lib/memoryAsyncStorage";
+import AsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 import useNow from "~/hooks/useNow";
 import * as Sentry from "@sentry/react-native";
 
 import env from "~/env";
 import { treeActions } from "~/stores";
-
-const LAST_UPDATE_CHECK_KEY = "lastUpdateCheckTime";
 const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 
 const applyUpdate = async () => {
@@ -28,12 +27,17 @@ const checkForUpdate = async () => {
     return;
   }
   try {
-    const lastCheckString = await AsyncStorage.getItem(LAST_UPDATE_CHECK_KEY);
+    const lastCheckString = await AsyncStorage.getItem(
+      STORAGE_KEYS.LAST_UPDATE_CHECK_TIME,
+    );
     const lastCheck = lastCheckString ? new Date(lastCheckString) : null;
     const nowDate = new Date();
 
     if (!lastCheck || nowDate - lastCheck > UPDATE_CHECK_INTERVAL) {
-      await AsyncStorage.setItem(LAST_UPDATE_CHECK_KEY, nowDate.toISOString());
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.LAST_UPDATE_CHECK_TIME,
+        nowDate.toISOString(),
+      );
 
       const update = await Updates.checkForUpdateAsync();
       if (!update.isAvailable) {

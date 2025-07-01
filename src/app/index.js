@@ -7,8 +7,8 @@ import { createLogger } from "~/lib/logger";
 import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
 
 import { authActions, permissionWizardActions } from "~/stores";
-import { secureStore } from "~/lib/memorySecureStore";
-import memoryAsyncStorage from "~/lib/memoryAsyncStorage";
+import { secureStore } from "~/storage/memorySecureStore";
+import memoryAsyncStorage from "~/storage/memoryAsyncStorage";
 
 import "~/lib/mapbox";
 import "~/i18n";
