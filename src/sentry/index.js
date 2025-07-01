@@ -25,7 +25,7 @@ const getReleaseVersion = () => {
 
 Sentry.init({
   dsn: env.SENTRY_DSN,
-  tracesSampleRate: 1.0,
+  tracesSampleRate: 0.1,
   debug: __DEV__,
   // Configure release to match ios-archive.sh format
   release: getReleaseVersion(),
