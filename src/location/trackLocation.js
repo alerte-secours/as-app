@@ -4,17 +4,8 @@ import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
 import { initEmulatorMode } from "./emulatorService";
-import * as Sentry from "@sentry/react-native";
-import { SPAN_STATUS_OK, SPAN_STATUS_ERROR } from "@sentry/react-native";
 
-import throttle from "lodash.throttle";
-
-import {
-  getAuthState,
-  subscribeAuthState,
-  authActions,
-  permissionsActions,
-} from "~/stores";
+import { getAuthState, subscribeAuthState, permissionsActions } from "~/stores";
 
 import setLocationState from "~/location/setLocationState";
 import { storeLocation } from "~/utils/location/storage";
@@ -149,19 +140,6 @@ export default async function trackLocation() {
       battery: location.battery,
     });
 
-    // Add Sentry breadcrumb for location updates
-    Sentry.addBreadcrumb({
-      message: "Location update in trackLocation",
-      category: "geolocation",
-      level: "info",
-      data: {
-        coords: location.coords,
-        activity: location.activity?.type,
-        battery: location.battery?.level,
-        isMoving: location.isMoving,
-      },
-    });
-
     if (
       location.coords &&
       location.coords.latitude &&
@@ -174,60 +152,11 @@ export default async function trackLocation() {
   });
 
   BackgroundGeolocation.onHttp(async (response) => {
-    // Log the full response including headers if available
-    locationLogger.debug("HTTP response received", {
-      status: response?.status,
-      success: response?.success,
-      responseText: response?.responseText,
-      url: response?.url,
-      method: response?.method,
-      isSync: response?.isSync,
-      requestHeaders:
-        response?.request?.headers || "Headers not available in response",
-    });
-
-    // Add Sentry breadcrumb for HTTP responses
-    Sentry.addBreadcrumb({
-      message: "Background geolocation HTTP response",
-      category: "geolocation-http",
-      level: response?.status === 200 ? "info" : "warning",
-      data: {
-        status: response?.status,
-        success: response?.success,
-        url: response?.url,
-        isSync: response?.isSync,
-        recordCount: response?.count,
-      },
-    });
-
-    // Log the current auth token for comparison
-    const { userToken } = getAuthState();
-    locationLogger.debug("Current auth state token", {
-      tokenAvailable: !!userToken,
-      tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
-    });
-
-    const statusCode = response?.status;
-
     // log status code and response
     locationLogger.debug("HTTP response received", {
-      status: statusCode,
+      status: response?.status,
       responseText: response?.responseText,
     });
-
-    switch (statusCode) {
-      case 401:
-      case 410:
-        // Auth token expired, logout
-        locationLogger.info("Auth token expired, logging out");
-        Sentry.addBreadcrumb({
-          message: "Auth token expired - logging out",
-          category: "geolocation-auth",
-          level: "warning",
-        });
-        authActions.logout();
-        break;
-    }
   });
 
   try {
