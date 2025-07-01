@@ -105,25 +105,6 @@ export default async function trackLocation() {
       },
     );
 
-    // Verify the current configuration
-    try {
-      const currentConfig = await BackgroundGeolocation.getConfig();
-      locationLogger.debug("Current background geolocation config", {
-        hasHeaders: !!currentConfig.headers,
-        headerKeys: currentConfig.headers
-          ? Object.keys(currentConfig.headers)
-          : [],
-        authHeader: currentConfig.headers?.Authorization
-          ? currentConfig.headers.Authorization.substring(0, 15) + "..."
-          : "Not set",
-        url: currentConfig.url,
-      });
-    } catch (error) {
-      locationLogger.error("Failed to get background geolocation config", {
-        error: error.message,
-      });
-    }
-
     const state = await BackgroundGeolocation.getState();
     try {
       const decodedToken = jwtDecode(userToken);
@@ -235,10 +216,10 @@ export default async function trackLocation() {
     });
 
     switch (statusCode) {
-      case 410:
       case 401:
+      case 410:
         // Auth token expired, logout
-        locationLogger.info("Auth token expired (410), logging out");
+        locationLogger.info("Auth token expired, logging out");
         Sentry.addBreadcrumb({
           message: "Auth token expired - logging out",
           category: "geolocation-auth",
