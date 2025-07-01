@@ -71,6 +71,7 @@ export default createAtom(({ get, merge, getActions }) => {
       await secureStore.setItemAsync("userToken", userToken);
       endLoading({
         userToken,
+        authToken,
       });
       sessionActions.loadSessionFromJWT(userToken);
       return { userToken };
@@ -110,6 +111,7 @@ export default createAtom(({ get, merge, getActions }) => {
       } else {
         endLoading({
           userToken,
+          authToken,
         });
         sessionActions.loadSessionFromJWT(jwtData);
         return;
@@ -122,6 +124,7 @@ export default createAtom(({ get, merge, getActions }) => {
       authLogger.info("Successfully registered new user");
       authToken = res.authToken;
       await secureStore.setItemAsync("authToken", authToken);
+      merge({ authToken });
     }
 
     if (!userToken && authToken) {
@@ -260,6 +263,8 @@ export default createAtom(({ get, merge, getActions }) => {
       ]);
       merge({
         userOffMode: true,
+        authToken: null,
+        userToken: null,
       });
       return;
     }
@@ -303,6 +308,7 @@ export default createAtom(({ get, merge, getActions }) => {
   return {
     default: {
       userToken: null,
+      authToken: null,
       loading: true,
       initialized: false,
       onReload: false,
