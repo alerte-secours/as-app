@@ -31,11 +31,13 @@ export const memoryAsyncStorage = {
 
     // List of known keys that need to be cached
     const knownKeys = [
-      "permission_wizard_completed",
-      "override_messages",
-      "last_known_location",
+      "@geolocation_last_sync_time",
+      "@eula_accepted",
+      "@override_messages",
+      "@permission_wizard_completed",
+      "lastUpdateCheckTime",
+      "@last_known_location",
       "eula_accepted",
-      "last_update_check",
       "emulator_mode_enabled",
     ];
 
