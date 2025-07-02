@@ -9,7 +9,7 @@ export default function getStatusCode({ networkError, graphQLErrors }) {
   if (graphQLErrors) {
     let code;
     for (const err of graphQLErrors) {
-      if (err.extensions.http) {
+      if (err.extensions?.http) {
         code = err.extensions.http;
         break;
       }
