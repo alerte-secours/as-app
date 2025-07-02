@@ -61,7 +61,7 @@ export default createAtom(({ get, merge, reset }) => {
       ...m,
       routeName,
     });
-    navLogger.info("Route updated", { routeName });
+    navLogger.debug("Route updated", { routeName });
   };
 
   const initialValues = {
@@ -78,11 +78,11 @@ export default createAtom(({ get, merge, reset }) => {
     default: initialValues,
     actions: {
       reset: () => {
-        navLogger.info("Resetting navigation state to initial values");
+        navLogger.debug("Resetting navigation state to initial values");
         reset();
       },
       updateRouteFromRootStack: (state) => {
-        navLogger.info("Updating route from root stack", { state });
+        navLogger.debug("Updating route from root stack", { state });
         const { index, routeNames } = state;
         const rootRouteName = routeNames[index];
         updateRoute({
@@ -90,7 +90,7 @@ export default createAtom(({ get, merge, reset }) => {
         });
       },
       updateRouteFromDrawer: (state) => {
-        navLogger.info("Updating route from drawer", { state });
+        navLogger.debug("Updating route from drawer", { state });
         const { index, routeNames } = state;
         const drawerRouteName = routeNames[index];
         updateRoute({
@@ -98,7 +98,7 @@ export default createAtom(({ get, merge, reset }) => {
         });
       },
       updateRouteFromMain: (state) => {
-        navLogger.info("Updating route from main", { state });
+        navLogger.debug("Updating route from main", { state });
         const { index, routeNames } = state;
         const mainRouteName = routeNames[index];
         updateRoute({
@@ -106,13 +106,13 @@ export default createAtom(({ get, merge, reset }) => {
         });
       },
       setNextNavigation: (nextNavigation) => {
-        navLogger.info("Setting next navigation", { nextNavigation });
+        navLogger.debug("Setting next navigation", { nextNavigation });
         merge({
           nextNavigation,
         });
       },
       setMessageViewFocus: (isFocused, alertId = null) => {
-        navLogger.info("Setting message view focus", { isFocused, alertId });
+        navLogger.debug("Setting message view focus", { isFocused, alertId });
         merge({
           isOnMessageView: isFocused,
           currentMessageAlertId: isFocused ? alertId : null,
