@@ -13,11 +13,11 @@ export default function getStatusCode({ networkError, graphQLErrors }) {
         code = err.extensions.http;
         break;
       }
-      if (err.extensions.statusCode) {
+      if (err.extensions?.statusCode) {
         code = err.extensions.statusCode;
         break;
       }
-      if (err.extensions.code) {
+      if (err.extensions?.code) {
         code = err.extensions.code;
         break;
       }
