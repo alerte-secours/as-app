@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.3](https://github.com/alerte-secours/as-app/compare/v1.10.2...v1.10.3) (2025-07-03)
+
+
+### Bug Fixes
+
+* **profile:** button enregistrer should be greysed when stored or no change ([9cfb40e](https://github.com/alerte-secours/as-app/commit/9cfb40e510584567400a6ea6f4871b345d723ac6))
+* up android target sdk version ([7918e74](https://github.com/alerte-secours/as-app/commit/7918e74184165509b7a76c2420c24fcf6629a5fa))
+* **wizard hero:** battery opti red inside parameters bubble ([dccf361](https://github.com/alerte-secours/as-app/commit/dccf361dbcb23239d28ea7f860ddeae3377349c0))
+
 ## [1.10.2](https://github.com/alerte-secours/as-app/compare/v1.10.1...v1.10.2) (2025-07-03)
 
 
