@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.4](https://github.com/alerte-secours/as-app/compare/v1.10.3...v1.10.4) (2025-07-03)
+
+
+### Bug Fixes
+
+* remove debuggin ([b70d6ed](https://github.com/alerte-secours/as-app/commit/b70d6ed9a070e9c01fa0d5206db5cc1a115e074e))
+
 ## [1.10.3](https://github.com/alerte-secours/as-app/compare/v1.10.2...v1.10.3) (2025-07-03)
 
 
