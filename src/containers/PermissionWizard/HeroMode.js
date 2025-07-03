@@ -690,7 +690,7 @@ const useStyles = createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
     color: colors.primary,
   },
   batteryOptimizationAlert: {
-    backgroundColor: colors.errorContainer || colors.surfaceVariant,
+    backgroundColor: colors.surfaceVariant,
     padding: 15,
     borderRadius: 6,
     marginBottom: 15,

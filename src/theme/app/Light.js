@@ -24,7 +24,7 @@ const ThemeLight = {
 
     error: "#fa5252",
     onError: "#ffffff",
-    errorContainer: "##fa5252",
+    errorContainer: "#fa5252",
     onErrorContainer: "#ffffff",
 
     warn: "#f59f00",
