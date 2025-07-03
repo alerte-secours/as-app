@@ -114,11 +114,14 @@ export default function Form({
           username: data.username,
         },
       });
+
+      methods.reset(data);
     },
     [
       checkEmailIsRegistered,
       clearErrors,
       email,
+      methods,
       saveProfileMutation,
       setError,
       userId,
