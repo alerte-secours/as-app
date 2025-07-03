@@ -32,9 +32,8 @@ messaging().setBackgroundMessageHandler(onMessageReceived);
 registerRootComponent(App);
 
 // Constants for persistence
-// const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000;
-// const FORCE_SYNC_INTERVAL = 60 * 60 * 1000; // DEBUGGING
-const FORCE_SYNC_INTERVAL = 5 * 60 * 1000; // DEBUGGING
+const FORCE_SYNC_INTERVAL = 24 * 60 * 60 * 1000;
+// const FORCE_SYNC_INTERVAL = 5 * 60 * 1000; // DEBUGGING
 
 // Helper functions for persisting sync time
 const getLastSyncTime = async () => {
