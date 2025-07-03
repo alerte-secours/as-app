@@ -256,15 +256,7 @@ const HeroMode = () => {
         "Sans la localisation en arrière-plan, vous ne pourrez pas être alerté des situations d'urgence à proximité lorsque l'application est fermée.",
       );
     }
-    if (
-      Platform.OS === "android" &&
-      batteryOptimizationEnabled &&
-      batteryOptAttempted
-    ) {
-      warnings.push(
-        "L'optimisation de la batterie est encore activée. L'application pourrait ne pas fonctionner correctement en arrière-plan.",
-      );
-    }
+    // Battery optimization warning is now handled in the Android settings box
     return warnings.length > 0 ? (
       <View style={styles.warningsContainer}>
         {warnings.map((warning, index) => (
@@ -280,12 +272,36 @@ const HeroMode = () => {
   };
 
   const renderAndroidPermissionWarning = () => {
+    const hasBatteryOptimizationIssue =
+      batteryOptimizationEnabled && batteryOptAttempted;
+
     return (
-      <View style={styles.androidWarning}>
+      <View
+        style={[
+          styles.androidWarning,
+          hasBatteryOptimizationIssue && styles.androidWarningCritical,
+        ]}
+      >
         <View style={styles.androidWarningHeader}>
           <Ionicons name="warning" size={24} color={theme.colors.warn} />
           <Text style={styles.androidWarningTitle}>Paramètres Android</Text>
         </View>
+
+        {hasBatteryOptimizationIssue && (
+          <View style={styles.batteryOptimizationAlert}>
+            <Text
+              style={[
+                styles.batteryOptimizationAlertText,
+                { color: theme.colors.error },
+              ]}
+            >
+              <Ionicons name="warning" size={16} /> L'optimisation de la
+              batterie est encore activée. L'application pourrait ne pas
+              fonctionner correctement en arrière-plan.
+            </Text>
+          </View>
+        )}
+
         <Text style={styles.androidWarningDescription}>
           Sur Android, les permissions peuvent être automatiquement révoquées si
           l'application n'est pas utilisée pendant une longue période.
@@ -306,9 +322,14 @@ const HeroMode = () => {
             version d'Android)
           </Text>
         </View>
-        {batteryOptimizationEnabled && batteryOptAttempted && (
+        {hasBatteryOptimizationIssue && (
           <View style={styles.androidWarningSteps}>
-            <Text style={styles.androidWarningText}>
+            <Text
+              style={[
+                styles.androidWarningText,
+                styles.batteryOptimizationText,
+              ]}
+            >
               Pour désactiver l'optimisation de la batterie :
             </Text>
             <Text style={styles.androidWarningStep}>
@@ -627,6 +648,10 @@ const useStyles = createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
     borderWidth: 1,
     borderColor: colors.warn,
   },
+  androidWarningCritical: {
+    borderColor: colors.error,
+    borderWidth: 2,
+  },
   androidWarningHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -663,6 +688,23 @@ const useStyles = createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
   androidSettingsButton: {
     marginTop: 5,
     color: colors.primary,
+  },
+  batteryOptimizationAlert: {
+    backgroundColor: colors.errorContainer || colors.surfaceVariant,
+    padding: 15,
+    borderRadius: 6,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  batteryOptimizationAlertText: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "500",
+  },
+  batteryOptimizationText: {
+    fontWeight: "600",
+    color: colors.error,
   },
   // iOS styles
   iosWarning: {
