@@ -42,7 +42,7 @@ self.define_singleton_method(use_autolinking_method_symbol) do |*args|
   end
 end
 
-platform :ios, '13.4'
+platform :ios, '16.0'
 install! 'cocoapods',
   :deterministic_uuids => false
 
@@ -116,7 +116,7 @@ target 'AlerteSecours' do
     # Set deployment target for all pods
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       end
     end
 
