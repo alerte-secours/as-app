@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.5](https://github.com/alerte-secours/as-app/compare/v1.10.4...v1.10.5) (2025-07-04)
+
+
+### Bug Fixes
+
+* bg location lost notif ([2fa7b48](https://github.com/alerte-secours/as-app/commit/2fa7b4839aedec61a5fdf2e5292440b3b0bb9c6b))
+* theming ([4e2ea42](https://github.com/alerte-secours/as-app/commit/4e2ea4219501c16f0e74fcd2a5d48dca9845b3ee))
+
 ## [1.10.4](https://github.com/alerte-secours/as-app/compare/v1.10.3...v1.10.4) (2025-07-03)
 
 
