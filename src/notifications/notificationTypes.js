@@ -1,6 +1,7 @@
 import { VirtualNotificationTypes } from "./virtualNotifications";
 import { getNotificationContent } from "./content";
 import openSettings from "~/lib/native/openSettings";
+import { navActions } from "~/stores";
 
 export const getNotificationColor = (notification, theme) => {
   const { colors } = theme;
@@ -83,7 +84,13 @@ export const createNotificationHandlers = (handlers) => {
     suggest_keep_open: async (data) => await openAlert({ data }),
     relative_invitation: async (data) => await openRelatives({ data }),
     relative_allow_ask: async (data) => await openRelatives({ data }),
-    background_geolocation_lost: async (data) => openSettings(),
+    background_geolocation_lost: async (data) => {
+      navActions.setNextNavigation([
+        {
+          name: "Params",
+        },
+      ]);
+    },
   };
 
   return {

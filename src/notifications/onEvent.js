@@ -14,6 +14,7 @@ import actionRelativeAllowAccept from "./actions/actionRelativeAllowAccept";
 import actionRelativeAllowReject from "./actions/actionRelativeAllowReject";
 import actionRelativeInvitationAccept from "./actions/actionRelativeInvitationAccept";
 import actionRelativeInvitationReject from "./actions/actionRelativeInvitationReject";
+import actionOpenSettings from "./actions/actionOpenSettings";
 
 import { navActions } from "~/stores";
 
@@ -271,6 +272,10 @@ export const onEvent = async ({ type, notification, pressAction }) => {
     }
     case "relative-invitation-reject": {
       await actionRelativeInvitationReject({ data });
+      break;
+    }
+    case "open-settings": {
+      await actionOpenSettings({ data });
       break;
     }
   }
