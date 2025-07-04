@@ -88,9 +88,9 @@ export const generateSuggestKeepOpenContent = (data) => {
 
 export const generateBackgroundGeolocationLostContent = (data) => {
   return {
-    title: `Localisation en arrière-plan désactivée`,
-    body: `Votre localisation en arrière-plan a été désactivée. Veuillez vérifier les paramètres de l'application.`,
-    bigText: `Votre localisation en arrière-plan a été désactivée. Pour continuer à utiliser pleinement l'application, veuillez vérifier les paramètres de votre appareil.`,
+    title: `Alerte-Secours ne peut plus accéder à votre position`,
+    body: `Vous ne pouvez plus recevoir d'alertes de proximité. Vérifiez les paramètres.`,
+    bigText: `Alerte-Secours ne peut plus accéder à votre position en arrière-plan. Vous ne pouvez plus recevoir d'alertes de proximité. Causes possibles : permissions révoquées, optimisation de batterie active, ou actualisation désactivée. Accédez aux paramètres de l'application pour réactiver.`,
   };
 };
 

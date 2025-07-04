@@ -6,6 +6,7 @@ import { createNotificationChannel as createSuggestCloseChannel } from "./channe
 import { createNotificationChannel as createSuggestKeepOpenChannel } from "./channels/notifSuggestKeepOpen";
 import { createNotificationChannel as createRelativeAllowAskChannel } from "./channels/notifRelativeAllowAsk";
 import { createNotificationChannel as createRelativeInvitationChannel } from "./channels/notifRelativeInvitation";
+import { createNotificationChannel as createSystemChannel } from "./channels/notifSystem";
 
 export default async function setActionCategories() {
   // Create all notification channels
@@ -17,6 +18,7 @@ export default async function setActionCategories() {
       createSuggestKeepOpenChannel(),
       createRelativeAllowAskChannel(),
       createRelativeInvitationChannel(),
+      createSystemChannel(),
     ]);
   } catch (error) {
     const errorData = {
@@ -110,6 +112,16 @@ export default async function setActionCategories() {
         {
           id: "relative-invitation-reject",
           title: "Refuser",
+        },
+      ],
+    },
+    {
+      id: "system",
+      actions: [
+        {
+          id: "open-settings",
+          title: "Paramètres",
+          foreground: true,
         },
       ],
     },
