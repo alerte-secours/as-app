@@ -4,7 +4,6 @@ All notable changes to this project will be documented in this file. See [commit
 
 ## [1.10.7](https://github.com/alerte-secours/as-app/compare/v1.10.1...v1.10.7) (2025-07-04)
 
-
 ### Bug Fixes
 
 * **android:** foreground service ([0ac2851](https://github.com/alerte-secours/as-app/commit/0ac28515dff752af30e45ff2f88d52da46c591aa))
@@ -41,6 +40,9 @@ All notable changes to this project will be documented in this file. See [commit
 * up android target sdk version ([7918e74](https://github.com/alerte-secours/as-app/commit/7918e74184165509b7a76c2420c24fcf6629a5fa))
 * **upgrade:** expo 52 + rn 0.76.9 ([a1ed6cf](https://github.com/alerte-secours/as-app/commit/a1ed6cfca6217ba2068908f12e78af990f91b9c5))
 * **wizard hero:** battery opti red inside parameters bubble ([dccf361](https://github.com/alerte-secours/as-app/commit/dccf361dbcb23239d28ea7f860ddeae3377349c0))
+* bg location force sync all 12 hours ([71b73e7](https://github.com/alerte-secours/as-app/commit/71b73e7ba4733bd46345d8f73a2a33bb8786726a))
+* **ios:** up ios version for rn compat ([8b1c529](https://github.com/alerte-secours/as-app/commit/8b1c5291d4ce0b042d745f76fc6dc62cf8bd6ca4))
+
 
 ## [1.10.6](https://github.com/alerte-secours/as-app/compare/v1.10.5...v1.10.6) (2025-07-04)
 
