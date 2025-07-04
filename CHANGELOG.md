@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.7](https://github.com/alerte-secours/as-app/compare/v1.10.1...v1.10.7) (2025-07-04)
+
+
+### Bug Fixes
+
+* **android:** foreground service ([0ac2851](https://github.com/alerte-secours/as-app/commit/0ac28515dff752af30e45ff2f88d52da46c591aa))
+* back to stateless refresh (sync endpoint) ([6af5875](https://github.com/alerte-secours/as-app/commit/6af58755c1b3e8c7be0d117d6fc07278406a0459))
+* **battery-opti-disable:** integrate permissions view ([d9b5d10](https://github.com/alerte-secours/as-app/commit/d9b5d10684446a01873810382e501e45cd19da1b))
+* **battery-opti-disable:** wip ([7082161](https://github.com/alerte-secours/as-app/commit/7082161b7f004b1052adbce2cf3ac9f74b2eee03))
+* bettery optimization glitch ([b4b7441](https://github.com/alerte-secours/as-app/commit/b4b7441bacc3728d684a6e2219c84b91c75461af))
+* bg location lost notif ([2fa7b48](https://github.com/alerte-secours/as-app/commit/2fa7b4839aedec61a5fdf2e5292440b3b0bb9c6b))
+* don't handle refresh in headless mode anymore ([b10ff5a](https://github.com/alerte-secours/as-app/commit/b10ff5a6e735df6323d70a3c5b0d651d1cbd01cc))
+* **headless-task:** wip ([c947d49](https://github.com/alerte-secours/as-app/commit/c947d4915ab19377cd2263a86bc9f902c41defdc))
+* **headless-task:** wip ([6c290f2](https://github.com/alerte-secours/as-app/commit/6c290f21b4d57513aa90dabcc68e9a7b074a6430))
+* **headless:** async-storage in memory first ([9f6452d](https://github.com/alerte-secours/as-app/commit/9f6452d5e368c82e0f93afd06c354756dd7913db))
+* **headless:** secure store in memory first ([4280820](https://github.com/alerte-secours/as-app/commit/4280820e0169c4f9e36793d3f0ad460e9bde558f))
+* **headless:** use axios instead of apollo for auth ([6444801](https://github.com/alerte-secours/as-app/commit/644480182d8da2ca1197c919262d5a5df0817d25))
+* **headless:** use fetch instead of axios for auth ([09ea8cd](https://github.com/alerte-secours/as-app/commit/09ea8cd5634f46c1daeeb24ad4230ee508bd8293))
+* import typo generateAlertEmergencyInfoContent ([d780fb4](https://github.com/alerte-secours/as-app/commit/d780fb4190acc24ceb9811682f8684ffb232a716))
+* improve error handling ([010aa2c](https://github.com/alerte-secours/as-app/commit/010aa2c2fc0cf80c6afd3eb4fe954f94c94b8bea))
+* **ios:** up ios version for rn compat ([8b1c529](https://github.com/alerte-secours/as-app/commit/8b1c5291d4ce0b042d745f76fc6dc62cf8bd6ca4))
+* known keys ([be0cd62](https://github.com/alerte-secours/as-app/commit/be0cd62cb943fb4d74243f78df2fb1fc29e97e76))
+* memoryAsyncStorage ([6e290bd](https://github.com/alerte-secours/as-app/commit/6e290bdb6997dd06ee8d674087368ad68b97a881))
+* prevent race condition ([6a77336](https://github.com/alerte-secours/as-app/commit/6a773367d49ef66a8a896ba18e63c660f30eb143))
+* **profile:** button enregistrer should be greysed when stored or no change ([9cfb40e](https://github.com/alerte-secours/as-app/commit/9cfb40e510584567400a6ea6f4871b345d723ac6))
+* re-enable expo-updates ([16332cb](https://github.com/alerte-secours/as-app/commit/16332cbb764be5f067aa7cb3c2713399d1959f7c))
+* re-up ([8331029](https://github.com/alerte-secours/as-app/commit/8331029e91220cc9c679dce1058ffc5f2cbb0577))
+* reduce tracesSampleRate ([b5ae235](https://github.com/alerte-secours/as-app/commit/b5ae235ba4f093451bb7bd41b19aa77a8a0bda96))
+* remove debuggin ([b70d6ed](https://github.com/alerte-secours/as-app/commit/b70d6ed9a070e9c01fa0d5206db5cc1a115e074e))
+* sentry + re-enable expo-updates + disable debug ([8e8e120](https://github.com/alerte-secours/as-app/commit/8e8e120391f197e7826edaef47817ff8fb14a6b8))
+* sentry tracing ([e6924ac](https://github.com/alerte-secours/as-app/commit/e6924ac9ff22b114eff4293f007becebe44e286d))
+* sentry tracing ([4a0f3ab](https://github.com/alerte-secours/as-app/commit/4a0f3ab7effd79f75efd976f5fd9e1d1531e5b19))
+* sentry tracing ([8ba4056](https://github.com/alerte-secours/as-app/commit/8ba4056187e6bd9ebf8ceec881197d6dc0aaaebc))
+* theming ([4e2ea42](https://github.com/alerte-secours/as-app/commit/4e2ea4219501c16f0e74fcd2a5d48dca9845b3ee))
+* undefined error ([47f11d1](https://github.com/alerte-secours/as-app/commit/47f11d1b888f4372fcb03db9bd1e839495455df3))
+* undefined error ([d4de0b4](https://github.com/alerte-secours/as-app/commit/d4de0b4541fedb29b3e5161f91fc65b3253308e0))
+* up android target sdk version ([7918e74](https://github.com/alerte-secours/as-app/commit/7918e74184165509b7a76c2420c24fcf6629a5fa))
+* **upgrade:** expo 52 + rn 0.76.9 ([a1ed6cf](https://github.com/alerte-secours/as-app/commit/a1ed6cfca6217ba2068908f12e78af990f91b9c5))
+* **wizard hero:** battery opti red inside parameters bubble ([dccf361](https://github.com/alerte-secours/as-app/commit/dccf361dbcb23239d28ea7f860ddeae3377349c0))
+
 ## [1.10.6](https://github.com/alerte-secours/as-app/compare/v1.10.5...v1.10.6) (2025-07-04)
 
 ## [1.10.5](https://github.com/alerte-secours/as-app/compare/v1.10.4...v1.10.5) (2025-07-04)
