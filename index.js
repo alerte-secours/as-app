@@ -19,7 +19,7 @@ import onMessageReceived from "~/notifications/onMessageReceived";
 
 import { createLogger } from "~/lib/logger";
 import * as Sentry from "@sentry/react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { memoryAsyncStorage } from "~/storage/memoryAsyncStorage";
 import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 // setup notification, this have to stay in index.js
@@ -38,7 +38,7 @@ const FORCE_SYNC_INTERVAL = 12 * 60 * 60 * 1000;
 // Helper functions for persisting sync time
 const getLastSyncTime = async () => {
   try {
-    const value = await AsyncStorage.getItem(
+    const value = await memoryAsyncStorage.getItem(
       STORAGE_KEYS.GEOLOCATION_LAST_SYNC_TIME,
     );
     return value ? parseInt(value, 10) : Date.now();
@@ -52,7 +52,7 @@ const getLastSyncTime = async () => {
 
 const setLastSyncTime = async (time) => {
   try {
-    await AsyncStorage.setItem(
+    await memoryAsyncStorage.setItem(
       STORAGE_KEYS.GEOLOCATION_LAST_SYNC_TIME,
       time.toString(),
     );
@@ -139,7 +139,7 @@ const HeadlessTask = async (event) => {
         geolocBgLogger.debug("getCurrentPosition result", { location });
 
         if (timeSinceLastSync >= FORCE_SYNC_INTERVAL) {
-          geolocBgLogger.info("Forcing location sync after 24h");
+          geolocBgLogger.info("Forcing location sync");
 
           try {
             // Change pace to ensure location updates with timeout
