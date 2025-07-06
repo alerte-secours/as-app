@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.9](https://github.com/alerte-secours/as-app/compare/v1.10.7...v1.10.9) (2025-07-06)
+
+
+### Bug Fixes
+
+* bg location force sync all 12 hours ([732dc3d](https://github.com/alerte-secours/as-app/commit/732dc3df7b6ab635c70d02d657d066e6c72a49c4))
+* **ios:** upgrade bundling ([23ecee5](https://github.com/alerte-secours/as-app/commit/23ecee5061e5e7324407223e7c1ce9a815f96521))
+
 ## [1.10.8](https://github.com/alerte-secours/as-app/compare/v1.10.7...v1.10.8) (2025-07-04)
 
 
