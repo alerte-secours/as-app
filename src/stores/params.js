@@ -1,4 +1,13 @@
 import { createAtom } from "~/lib/atomic-zustand";
+import memoryAsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
+import { createLogger } from "~/lib/logger";
+import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
+
+const paramsLogger = createLogger({
+  module: SYSTEM_SCOPES.APP,
+  feature: "params",
+});
 
 export default createAtom(({ merge, reset }) => {
   const setDevModeEnabled = (b) => {
@@ -37,6 +46,45 @@ export default createAtom(({ merge, reset }) => {
     });
   };
 
+  const setSentryEnabled = async (sentryEnabled) => {
+    merge({
+      sentryEnabled,
+    });
+
+    // Persist to storage
+    try {
+      await memoryAsyncStorage.setItem(
+        STORAGE_KEYS.SENTRY_ENABLED,
+        JSON.stringify(sentryEnabled),
+      );
+    } catch (error) {
+      paramsLogger.warn("Failed to persist Sentry preference", {
+        error: error.message,
+      });
+    }
+  };
+
+  const initSentryEnabled = async () => {
+    try {
+      const stored = await memoryAsyncStorage.getItem(
+        STORAGE_KEYS.SENTRY_ENABLED,
+      );
+      if (stored !== null) {
+        const sentryEnabled = JSON.parse(stored);
+        merge({ sentryEnabled });
+        return sentryEnabled;
+      }
+    } catch (error) {
+      paramsLogger.warn("Failed to load Sentry preference", {
+        error: error.message,
+      });
+    }
+  };
+
+  const init = async () => {
+    await initSentryEnabled();
+  };
+
   return {
     default: {
       // devModeEnabled: false,
@@ -46,6 +94,7 @@ export default createAtom(({ merge, reset }) => {
       mapColorScheme: "auto",
       hasRegisteredRelatives: null,
       alertListSortBy: "location",
+      sentryEnabled: true,
     },
     actions: {
       reset,
@@ -55,6 +104,8 @@ export default createAtom(({ merge, reset }) => {
       setMapColorScheme,
       setHasRegisteredRelatives,
       setAlertListSortBy,
+      setSentryEnabled,
+      init,
     },
   };
 });
