@@ -18,8 +18,8 @@ export default function DrawerItemList(props) {
   const { routes } = state;
 
   const section1 = routes.slice(0, 5);
-  const section2 = routes.slice(5, 8);
-  const section3 = routes.slice(8, routes.length);
+  const section2 = routes.slice(5, 9);
+  const section3 = routes.slice(9, routes.length);
 
   return (
     <>
