@@ -6,7 +6,7 @@ import { ErrorUtils } from "react-native";
 import { createLogger } from "~/lib/logger";
 import { SYSTEM_SCOPES } from "~/lib/logger/scopes";
 
-import { authActions, permissionWizardActions } from "~/stores";
+import { authActions, permissionWizardActions, paramsActions } from "~/stores";
 import { secureStore } from "~/storage/memorySecureStore";
 import memoryAsyncStorage from "~/storage/memoryAsyncStorage";
 
@@ -62,6 +62,7 @@ const initializeStores = () => {
     // Then initialize other stores sequentially
     initializeStore("authActions", authActions.init);
     initializeStore("permissionWizard", permissionWizardActions.init);
+    initializeStore("paramsActions", paramsActions.init);
     initializeStore("storeSubscriptions", storeSubscriptions.init);
 
     appLogger.info("Core initialization complete");

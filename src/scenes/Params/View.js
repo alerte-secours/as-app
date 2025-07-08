@@ -6,6 +6,7 @@ import ParamsRadius from "./Radius";
 import ParamsEmergencyCall from "./EmergencyCall";
 import ThemeSwitcher from "./ThemeSwitcher";
 import Permissions from "./Permissions";
+import SentryOptOut from "./SentryOptOut";
 
 export default function ParamsView({ data }) {
   const styles = useStyles();
@@ -24,6 +25,9 @@ export default function ParamsView({ data }) {
         </View>
         <View style={styles.section}>
           <ParamsRadius data={data} />
+        </View>
+        <View style={styles.section}>
+          <SentryOptOut />
         </View>
         <View style={styles.section}>
           <Permissions />
