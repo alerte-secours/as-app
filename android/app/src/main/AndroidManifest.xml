@@ -64,6 +64,10 @@
         <action android:name="com.alertesecours.OPEN_RELATIVES"/>
         <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
+      <intent-filter>
+        <action android:name="com.alertesecours.OPEN_BACKGROUND_GEOLOCATION_SETTINGS"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
       <intent-filter android:autoVerify="true" data-generated="true">
         <action android:name="android.intent.action.VIEW"/>
         <data android:scheme="https" android:host="app.alertesecours.fr" android:pathPrefix="/"/>
