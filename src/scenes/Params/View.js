@@ -1,5 +1,5 @@
-import React from "react";
-import { View, ScrollView } from "react-native";
+import React, { useCallback, useRef } from "react";
+import { View, ScrollView, InteractionManager } from "react-native";
 import { createStyles } from "~/theme";
 import ParamsNotifications from "./Notifications";
 import ParamsRadius from "./Radius";
@@ -7,12 +7,34 @@ import ParamsEmergencyCall from "./EmergencyCall";
 import ThemeSwitcher from "./ThemeSwitcher";
 import Permissions from "./Permissions";
 import SentryOptOut from "./SentryOptOut";
+import { useRoute, useFocusEffect } from "@react-navigation/native";
 
 export default function ParamsView({ data }) {
   const styles = useStyles();
 
+  const scrollRef = useRef(null);
+  const { params } = useRoute();
+  const didScroll = useRef(false);
+
+  const recordLayout = useCallback(
+    (key) =>
+      ({
+        nativeEvent: {
+          layout: { y },
+        },
+      }) => {
+        if (didScroll.current || params?.anchor !== key) return;
+
+        InteractionManager.runAfterInteractions(() => {
+          scrollRef.current?.scrollTo({ y, animated: true });
+          didScroll.current = true;
+        });
+      },
+    [params?.anchor],
+  );
+
   return (
-    <ScrollView style={styles.scrollView}>
+    <ScrollView ref={scrollRef} style={styles.scrollView}>
       <View style={styles.container}>
         <View style={styles.section}>
           <ThemeSwitcher />
@@ -29,7 +51,7 @@ export default function ParamsView({ data }) {
         <View style={styles.section}>
           <SentryOptOut />
         </View>
-        <View style={styles.section}>
+        <View onLayout={recordLayout("permissions")} style={styles.section}>
           <Permissions />
         </View>
       </View>

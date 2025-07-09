@@ -15,6 +15,7 @@ import actionRelativeAllowReject from "./actions/actionRelativeAllowReject";
 import actionRelativeInvitationAccept from "./actions/actionRelativeInvitationAccept";
 import actionRelativeInvitationReject from "./actions/actionRelativeInvitationReject";
 import actionOpenSettings from "./actions/actionOpenSettings";
+import actionOpenBackgroundGeolocationSettings from "./actions/actionOpenBackgroundGeolocationSettings";
 
 import { navActions } from "~/stores";
 
@@ -97,11 +98,12 @@ export const onNotificationOpenedAppEvent = async (remoteMessage) => {
   //   return;
   // }
   try {
-    eventLogger.info("Processing background notification tap", {
+    eventLogger.debug("Processing background notification tap", {
       messageId: remoteMessage?.messageId,
       data: remoteMessage?.data,
       notification: remoteMessage?.notification,
       clickAction: remoteMessage?.notification?.android?.clickAction,
+      notificationType: remoteMessage?.data?.type || "unknown",
     });
 
     if (!remoteMessage?.notification) {
@@ -275,7 +277,26 @@ export const onEvent = async ({ type, notification, pressAction }) => {
       break;
     }
     case "open-settings": {
+      eventLogger.debug("Processing open-settings action", {
+        data,
+        actionId,
+        notificationId: notification?.id,
+        launchActivity: pressAction?.launchActivity,
+      });
       await actionOpenSettings({ data });
+      break;
+    }
+    case "open-background-geolocation-settings": {
+      eventLogger.debug(
+        "Processing open-background-geolocation-settings action",
+        {
+          data,
+          actionId,
+          notificationId: notification?.id,
+          launchActivity: pressAction?.launchActivity,
+        },
+      );
+      await actionOpenBackgroundGeolocationSettings({ data });
       break;
     }
   }

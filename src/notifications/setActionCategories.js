@@ -123,6 +123,11 @@ export default async function setActionCategories() {
           title: "Paramètres",
           foreground: true,
         },
+        {
+          id: "open-background-geolocation-settings",
+          title: "Paramètres",
+          foreground: true,
+        },
       ],
     },
   ]);

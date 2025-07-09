@@ -84,10 +84,13 @@ export const createNotificationHandlers = (handlers) => {
     suggest_keep_open: async (data) => await openAlert({ data }),
     relative_invitation: async (data) => await openRelatives({ data }),
     relative_allow_ask: async (data) => await openRelatives({ data }),
-    background_geolocation_lost: async (data) => {
+    background_geolocation_lost: async (_data) => {
       navActions.setNextNavigation([
         {
           name: "Params",
+          params: {
+            anchor: "permissions",
+          },
         },
       ]);
     },
