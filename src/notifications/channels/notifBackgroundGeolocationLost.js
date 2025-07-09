@@ -21,6 +21,18 @@ export default async function notifBackgroundGeolocationLost(data) {
     },
   );
 
+  // DEBUG: Log notification configuration for diagnosis
+  backgroundGeolocationLogger.info(
+    "DEBUG: Background geolocation notification config",
+    {
+      channelId,
+      pressActionId: "open-settings",
+      launchActivity: "default",
+      hasData: !!data,
+      dataKeys: data ? Object.keys(data) : [],
+    },
+  );
+
   // Generate notification content
   const { title, body, bigText } =
     generateBackgroundGeolocationLostContent(data);
@@ -34,14 +46,14 @@ export default async function notifBackgroundGeolocationLost(data) {
     bigText,
     android: {
       pressAction: {
-        id: "open-settings",
+        id: "open-background-geolocation-settings",
         launchActivity: "default",
       },
       actions: [
         {
           title: "Paramètres",
           pressAction: {
-            id: "open-settings",
+            id: "open-background-geolocation-settings",
             launchActivity: "default",
           },
         },
