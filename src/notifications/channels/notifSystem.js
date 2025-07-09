@@ -5,6 +5,6 @@ const channelId = "system";
 export async function createNotificationChannel() {
   await createChannel({
     id: channelId,
-    name: "System",
+    name: "Paramètres",
   });
 }
