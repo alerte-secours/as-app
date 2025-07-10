@@ -97,3 +97,72 @@ You can run this script directly:
 export DEVICE=emulator-5554
 ./install-android.sh
 ```
+
+# enable USB debug mode
+
+Add udev rules for your device
+
+1. First, find your device's vendor ID:
+
+```sh
+lsusb
+```
+
+Look for your phone manufacturer (e.g., Google, Samsung, OnePlus). Note the ID like 18d1:4ee7
+
+2. Create/edit the udev rules file:
+
+```sh
+sudo micro /etc/udev/rules.d/51-android.rules
+```
+
+3. Add a line for your device. Here are common manufacturers:
+
+```
+# Google
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"
+# Samsung
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", MODE="0666", GROUP="plugdev"
+# OnePlus
+SUBSYSTEM=="usb", ATTR{idVendor}=="2a70", MODE="0666", GROUP="plugdev"
+# Xiaomi
+SUBSYSTEM=="usb", ATTR{idVendor}=="2717", MODE="0666", GROUP="plugdev"
+```
+
+4. Set proper permissions and reload rules:
+
+```sh
+sudo chmod a+r /etc/udev/rules.d/51-android.rules
+sudo udevadm control --reload-rules
+sudo service udev restart
+```
+
+5. Add yourself to the plugdev group:
+
+```sh
+sudo usermod -aG plugdev $USER
+```
+
+Force the authorization prompt
+
+1. Kill adb server:
+
+```sh
+adb kill-server
+```
+
+2. Unplug your device
+3. On your phone:
+  - Go to Developer options
+  - Revoke USB debugging authorizations
+  - Toggle USB debugging OFF then ON
+
+4. Plug the device back in
+5. Start adb with proper permissions:
+
+```sh
+adb start-server
+adb devices
+```
+
+6. The authorization prompt should now appear on your phone
