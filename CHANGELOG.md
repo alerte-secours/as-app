@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.11.0](https://github.com/alerte-secours/as-app/compare/v1.10.9...v1.11.0) (2025-07-12)
+
+
+### Features
+
+* **anchor:** bglost notification scroll to permissions + wip ([fd081d4](https://github.com/alerte-secours/as-app/commit/fd081d46a657059353bfb1e6022b68eedaee4e1a))
+* optout sentry reporting ([c1b220f](https://github.com/alerte-secours/as-app/commit/c1b220f0078db8d07b3d58a7ac146d8af159a17d))
+
+
+### Bug Fixes
+
+* force location sync storage effect on interval ([7f30ef9](https://github.com/alerte-secours/as-app/commit/7f30ef9abf11bbdade5c3db3bfd7269dc212b39c))
+* menu paramètres ([754e149](https://github.com/alerte-secours/as-app/commit/754e14946c0fa397558e5983a39c082c9072fe5c))
+* message_permission_required ([894d26d](https://github.com/alerte-secours/as-app/commit/894d26dad12c4736cde827232764ed5c8d77df4e))
+* **notification:**  android background-geolocation-lost ([aea3a26](https://github.com/alerte-secours/as-app/commit/aea3a2609639f01b1d7aa414c67e3bdb99a1a47c))
+* title_permission_required ([48b6637](https://github.com/alerte-secours/as-app/commit/48b663799d4bb4ef69671f0291a77a65418e2544))
+* wip ([b635f29](https://github.com/alerte-secours/as-app/commit/b635f29f45928210bc9a9a8c5d201d91a6b48a07))
+
 ## [1.10.9](https://github.com/alerte-secours/as-app/compare/v1.10.7...v1.10.9) (2025-07-06)
 
 
