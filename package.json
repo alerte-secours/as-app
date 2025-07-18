@@ -37,6 +37,7 @@
     "e2e:test": "detox test --configuration android.emu.debug",
     "e2e:run": "yarn start & yarn e2e:build && yarn e2e:deploy && yarn e2e:test",
     "install:android": "./install-android.sh",
+    "install:ios": "./install-ios.sh",
     "log:android": "adb -s $DEVICE logcat | grep -E 'ReactNativeJS: '",
     "log:ios:simulator": "xcrun simctl spawn booted log stream --level debug --predicate 'subsystem contains \"com.facebook.react.log\" and processImagePath contains \"AlerteSecours\"'",
     "log:ios": "idevicesyslog | grep -i 'AlerteSecours\\|ReactNative'",
