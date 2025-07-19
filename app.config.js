@@ -131,12 +131,12 @@ let config = {
           "tel",
           "telprompt",
         ],
+        BGTaskSchedulerPermittedIdentifiers: [
+          "com.transistorsoft.fetch",
+          "com.transistorsoft.customtask",
+        ],
       },
       UIBackgroundModes: ["location", "fetch", "processing"],
-      BGTaskSchedulerPermittedIdentifiers: [
-        "com.transistorsoft.fetch",
-        "com.transistorsoft.customtask",
-      ],
     },
     plugins: [
       [
