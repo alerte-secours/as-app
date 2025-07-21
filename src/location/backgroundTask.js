@@ -70,6 +70,8 @@ const geolocBgLogger = createLogger({
 // Shared heartbeat logic - mutualized between Android and iOS
 export const executeHeartbeatSync = async () => {
   const taskStartTime = Date.now();
+  let syncPerformed = false;
+  let syncSuccessful = false;
 
   try {
     geolocBgLogger.info("Executing heartbeat sync");
@@ -87,6 +89,7 @@ export const executeHeartbeatSync = async () => {
     // if (timeSinceLastSync >= FORCE_SYNC_INTERVAL) {
     if (true) {
       geolocBgLogger.info("Forcing location sync");
+      syncPerformed = true;
 
       try {
         // Change pace to ensure location updates with timeout
@@ -107,7 +110,10 @@ export const executeHeartbeatSync = async () => {
 
         // Update last sync time after successful sync
         await setLastSyncTime(now);
+        syncSuccessful = true;
       } catch (syncError) {
+        syncSuccessful = false;
+
         Sentry.captureException(syncError, {
           tags: {
             module: "headless-task",
@@ -129,7 +135,16 @@ export const executeHeartbeatSync = async () => {
     const taskDuration = Date.now() - taskStartTime;
     geolocBgLogger.debug("Heartbeat sync completed", {
       duration: taskDuration,
+      syncPerformed,
+      syncSuccessful,
     });
+
+    // Return result information for BackgroundFetch
+    return {
+      syncPerformed,
+      syncSuccessful,
+      duration: taskDuration,
+    };
   } catch (error) {
     const taskDuration = Date.now() - taskStartTime;
 
@@ -148,6 +163,12 @@ export const executeHeartbeatSync = async () => {
       duration: taskDuration,
     });
 
-    throw error; // Re-throw to be handled by caller
+    // Return error result for BackgroundFetch
+    return {
+      syncPerformed,
+      syncSuccessful: false,
+      duration: taskDuration,
+      error: error.message,
+    };
   }
 };

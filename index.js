@@ -194,7 +194,7 @@ const iosBackgroundFetchTask = async (event) => {
     // Force finish the task to prevent native side hanging
     try {
       if (taskId) {
-        BackgroundFetch.finish(taskId);
+        BackgroundFetch.finish(taskId, BackgroundFetch.FETCH_RESULT_FAILED);
         geolocBgLogger.debug(
           "iOS BackgroundFetch task force-finished due to timeout",
           { taskId },
@@ -223,6 +223,7 @@ const iosBackgroundFetchTask = async (event) => {
   }, 30000); // 30 second timeout (shorter for BackgroundFetch)
 
   const taskStartTime = Date.now();
+  let syncResult = null;
 
   try {
     if (!taskId) {
@@ -233,13 +234,14 @@ const iosBackgroundFetchTask = async (event) => {
       taskId,
     });
 
-    // Just execute the shared heartbeat logic
-    await executeHeartbeatSync();
+    // Execute the shared heartbeat logic and get result
+    syncResult = await executeHeartbeatSync();
 
     const taskDuration = Date.now() - taskStartTime;
     geolocBgLogger.debug("iOS BackgroundFetch task completed", {
       taskId,
       duration: taskDuration,
+      syncResult,
     });
   } catch (error) {
     const taskDuration = Date.now() - taskStartTime;
@@ -265,11 +267,35 @@ const iosBackgroundFetchTask = async (event) => {
     // Clear the timeout
     clearTimeout(taskTimeout);
 
-    // CRITICAL: Always call finish, even on error
+    // CRITICAL: Always call finish with appropriate result
     try {
       if (taskId) {
-        BackgroundFetch.finish(taskId);
-        geolocBgLogger.debug("iOS BackgroundFetch task finished", { taskId });
+        let fetchResult;
+
+        if (syncResult?.error) {
+          // Task failed
+          fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
+        } else if (syncResult?.syncPerformed && syncResult?.syncSuccessful) {
+          // Force sync was performed successfully - new data
+          fetchResult = BackgroundFetch.FETCH_RESULT_NEW_DATA;
+        } else if (syncResult?.syncPerformed && !syncResult?.syncSuccessful) {
+          // Force sync was attempted but failed
+          fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
+        } else {
+          // No sync was needed - no new data
+          fetchResult = BackgroundFetch.FETCH_RESULT_NO_DATA;
+        }
+
+        BackgroundFetch.finish(taskId, fetchResult);
+        geolocBgLogger.debug("iOS BackgroundFetch task finished", {
+          taskId,
+          fetchResult:
+            fetchResult === BackgroundFetch.FETCH_RESULT_NEW_DATA
+              ? "NEW_DATA"
+              : fetchResult === BackgroundFetch.FETCH_RESULT_NO_DATA
+              ? "NO_DATA"
+              : "FAILED",
+        });
       } else {
         geolocBgLogger.error(
           "Cannot finish iOS BackgroundFetch task - no taskId",
@@ -328,12 +354,16 @@ if (Platform.OS === "android") {
         taskId,
       });
 
+      let syncResult = null;
+
       try {
-        await executeHeartbeatSync();
+        // Execute the shared heartbeat logic and get result
+        syncResult = await executeHeartbeatSync();
         geolocBgLogger.info(
           "iOS BackgroundFetch configure task completed successfully",
           {
             taskId,
+            syncResult,
           },
         );
       } catch (error) {
@@ -350,13 +380,43 @@ if (Platform.OS === "android") {
           },
         });
       } finally {
-        // CRITICAL: Always call finish, even on error
+        // CRITICAL: Always call finish with appropriate result
         try {
           if (taskId) {
-            BackgroundFetch.finish(taskId);
+            let fetchResult;
+
+            if (syncResult?.error) {
+              // Task failed
+              fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
+            } else if (
+              syncResult?.syncPerformed &&
+              syncResult?.syncSuccessful
+            ) {
+              // Force sync was performed successfully - new data
+              fetchResult = BackgroundFetch.FETCH_RESULT_NEW_DATA;
+            } else if (
+              syncResult?.syncPerformed &&
+              !syncResult?.syncSuccessful
+            ) {
+              // Force sync was attempted but failed
+              fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
+            } else {
+              // No sync was needed - no new data
+              fetchResult = BackgroundFetch.FETCH_RESULT_NO_DATA;
+            }
+
+            BackgroundFetch.finish(taskId, fetchResult);
             geolocBgLogger.debug(
               "iOS BackgroundFetch configure task finished",
-              { taskId },
+              {
+                taskId,
+                fetchResult:
+                  fetchResult === BackgroundFetch.FETCH_RESULT_NEW_DATA
+                    ? "NEW_DATA"
+                    : fetchResult === BackgroundFetch.FETCH_RESULT_NO_DATA
+                    ? "NO_DATA"
+                    : "FAILED",
+              },
             );
           } else {
             geolocBgLogger.error(
@@ -403,8 +463,8 @@ if (Platform.OS === "android") {
         },
       );
 
-      // CRITICAL: Must call finish on timeout
-      BackgroundFetch.finish(taskId);
+      // CRITICAL: Must call finish on timeout with FAILED result
+      BackgroundFetch.finish(taskId, BackgroundFetch.FETCH_RESULT_FAILED);
     },
   ).catch((error) => {
     geolocBgLogger.error("iOS BackgroundFetch failed to configure", {
