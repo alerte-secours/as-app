@@ -20,10 +20,6 @@ import { onBackgroundEvent as notificationBackgroundEvent } from "~/notification
 import onMessageReceived from "~/notifications/onMessageReceived";
 
 import { executeHeartbeatSync } from "~/location/backgroundTask";
-import { createLogger } from "~/lib/logger";
-import * as Sentry from "@sentry/react-native";
-import { memoryAsyncStorage } from "~/storage/memoryAsyncStorage";
-import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 // setup notification, this have to stay in index.js
 notifee.onBackgroundEvent(notificationBackgroundEvent);
@@ -34,195 +30,22 @@ messaging().setBackgroundMessageHandler(onMessageReceived);
 // the environment is set up appropriately
 registerRootComponent(App);
 
-const geolocBgLogger = createLogger({
-  service: "background-geolocation",
-  task: "headless",
-});
-
-// Helper functions for persisting sync time (needed for HTTP event handling)
-const setLastSyncTime = async (time) => {
-  try {
-    await memoryAsyncStorage.setItem(
-      STORAGE_KEYS.GEOLOCATION_LAST_SYNC_TIME,
-      time.toString(),
-    );
-  } catch (error) {
-    Sentry.captureException(error, {
-      tags: { module: "headless-task", operation: "set-last-sync-time" },
-    });
-  }
-};
-
 // Android: Full BackgroundGeolocation headless task handler
 const androidHeadlessTask = async (event) => {
-  // Add timeout protection for the entire headless task
-  const taskTimeout = setTimeout(() => {
-    geolocBgLogger.error("Android HeadlessTask timeout", { event });
-
-    Sentry.captureException(new Error("Android HeadlessTask timeout"), {
-      tags: {
-        module: "background-geolocation",
-        operation: "android-headless-task-timeout",
-        eventName: event?.name,
-      },
-    });
-  }, 60000); // 60 second timeout
-
-  const taskStartTime = Date.now();
-
   try {
-    // Validate event structure
-    if (!event || typeof event !== "object") {
-      throw new Error("Invalid event object received");
+    const { name } = event;
+
+    if (name === "heartbeat") {
+      await executeHeartbeatSync();
     }
-
-    const { name, params } = event;
-
-    if (!name || typeof name !== "string") {
-      throw new Error("Invalid event name received");
-    }
-
-    geolocBgLogger.info("Android HeadlessTask event received", {
-      name,
-      params,
-    });
-
-    switch (name) {
-      case "heartbeat":
-        // Use the shared heartbeat logic
-        await executeHeartbeatSync();
-        break;
-
-      case "location":
-        // Validate location parameters
-        if (!params || typeof params !== "object") {
-          geolocBgLogger.warn("Invalid location params", { params });
-          break;
-        }
-
-        geolocBgLogger.debug("Location update received", {
-          location: params.location,
-        });
-        break;
-
-      case "http":
-        // Validate HTTP parameters
-        if (!params || typeof params !== "object" || !params.response) {
-          geolocBgLogger.warn("Invalid HTTP params", { params });
-          break;
-        }
-
-        const httpStatus = params.response?.status;
-        const isHttpSuccess = httpStatus === 200;
-
-        geolocBgLogger.debug("HTTP response received", {
-          response: params.response,
-        });
-
-        // Update last sync time on successful HTTP response
-        if (isHttpSuccess) {
-          try {
-            const now = Date.now();
-            await setLastSyncTime(now);
-          } catch (syncTimeError) {
-            geolocBgLogger.error("Failed to update sync time", {
-              error: syncTimeError,
-            });
-
-            Sentry.captureException(syncTimeError, {
-              tags: {
-                module: "headless-task",
-                operation: "update-sync-time-http",
-              },
-            });
-          }
-        }
-        break;
-
-      default:
-        geolocBgLogger.debug("Unknown event type", { name });
-        break;
-    }
-
-    const taskDuration = Date.now() - taskStartTime;
-    geolocBgLogger.debug("Android HeadlessTask completed", {
-      event: name,
-      duration: taskDuration,
-    });
   } catch (error) {
-    const taskDuration = Date.now() - taskStartTime;
-
-    // Capture any unexpected errors
-    Sentry.captureException(error, {
-      tags: {
-        module: "headless-task",
-        platform: "android",
-        eventName: event?.name || "unknown",
-      },
-      extra: {
-        duration: taskDuration,
-      },
-    });
-
-    geolocBgLogger.error("Android HeadlessTask error", {
-      error,
-      event,
-      duration: taskDuration,
-    });
-  } finally {
-    // Clear the timeout
-    clearTimeout(taskTimeout);
+    // silent error
   }
 };
 
 // iOS: Simple BackgroundFetch headless task handler
 const iosBackgroundFetchTask = async (event) => {
   const taskId = event?.taskId;
-
-  // Add timeout protection for the entire headless task
-  const taskTimeout = setTimeout(() => {
-    geolocBgLogger.error("iOS BackgroundFetch timeout", { event });
-
-    Sentry.captureException(new Error("iOS BackgroundFetch timeout"), {
-      tags: {
-        module: "background-fetch",
-        operation: "ios-background-fetch-timeout",
-        taskId,
-      },
-    });
-
-    // Force finish the task to prevent native side hanging
-    try {
-      if (taskId) {
-        BackgroundFetch.finish(taskId, BackgroundFetch.FETCH_RESULT_FAILED);
-        geolocBgLogger.debug(
-          "iOS BackgroundFetch task force-finished due to timeout",
-          { taskId },
-        );
-      }
-    } catch (finishError) {
-      geolocBgLogger.error(
-        "CRITICAL: Failed to force-finish timed out iOS BackgroundFetch task",
-        {
-          taskId,
-          error: finishError,
-        },
-      );
-
-      Sentry.captureException(finishError, {
-        tags: {
-          module: "background-fetch",
-          operation: "ios-background-fetch-timeout-finish",
-          critical: true,
-        },
-        contexts: {
-          task: { taskId },
-        },
-      });
-    }
-  }, 30000); // 30 second timeout (shorter for BackgroundFetch)
-
-  const taskStartTime = Date.now();
   let syncResult = null;
 
   try {
@@ -230,100 +53,31 @@ const iosBackgroundFetchTask = async (event) => {
       throw new Error("No taskId provided in iOS BackgroundFetch event");
     }
 
-    geolocBgLogger.info("iOS BackgroundFetch task started", {
-      taskId,
-    });
-
     // Execute the shared heartbeat logic and get result
     syncResult = await executeHeartbeatSync();
-
-    const taskDuration = Date.now() - taskStartTime;
-    geolocBgLogger.debug("iOS BackgroundFetch task completed", {
-      taskId,
-      duration: taskDuration,
-      syncResult,
-    });
   } catch (error) {
-    const taskDuration = Date.now() - taskStartTime;
-
-    // Capture any unexpected errors
-    Sentry.captureException(error, {
-      tags: {
-        module: "background-fetch",
-        platform: "ios",
-        taskId: taskId || "unknown",
-      },
-      extra: {
-        duration: taskDuration,
-      },
-    });
-
-    geolocBgLogger.error("iOS BackgroundFetch task error", {
-      error,
-      event,
-      duration: taskDuration,
-    });
+    // silent error
   } finally {
-    // Clear the timeout
-    clearTimeout(taskTimeout);
-
     // CRITICAL: Always call finish with appropriate result
     try {
       if (taskId) {
         let fetchResult;
 
-        if (syncResult?.error) {
+        if (syncResult?.error || !syncResult?.syncSuccessful) {
           // Task failed
           fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
         } else if (syncResult?.syncPerformed && syncResult?.syncSuccessful) {
           // Force sync was performed successfully - new data
           fetchResult = BackgroundFetch.FETCH_RESULT_NEW_DATA;
-        } else if (syncResult?.syncPerformed && !syncResult?.syncSuccessful) {
-          // Force sync was attempted but failed
-          fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
         } else {
           // No sync was needed - no new data
           fetchResult = BackgroundFetch.FETCH_RESULT_NO_DATA;
         }
 
         BackgroundFetch.finish(taskId, fetchResult);
-        geolocBgLogger.debug("iOS BackgroundFetch task finished", {
-          taskId,
-          fetchResult:
-            fetchResult === BackgroundFetch.FETCH_RESULT_NEW_DATA
-              ? "NEW_DATA"
-              : fetchResult === BackgroundFetch.FETCH_RESULT_NO_DATA
-              ? "NO_DATA"
-              : "FAILED",
-        });
-      } else {
-        geolocBgLogger.error(
-          "Cannot finish iOS BackgroundFetch task - no taskId",
-          { event },
-        );
       }
     } catch (finishError) {
-      // This is a critical error - the native side might be in a bad state
-      geolocBgLogger.error(
-        "CRITICAL: BackgroundFetch.finish() failed in iOS task",
-        {
-          taskId,
-          error: finishError,
-          event,
-        },
-      );
-
-      Sentry.captureException(finishError, {
-        tags: {
-          module: "background-fetch",
-          operation: "ios-background-fetch-finish",
-          critical: true,
-        },
-        contexts: {
-          task: { taskId },
-          event: { eventData: JSON.stringify(event) },
-        },
-      });
+      // silent error
     }
   }
 };
@@ -350,42 +104,20 @@ if (Platform.OS === "android") {
     },
     // Event callback
     async (taskId) => {
-      geolocBgLogger.info("iOS BackgroundFetch configure task started", {
-        taskId,
-      });
-
       let syncResult = null;
 
       try {
         // Execute the shared heartbeat logic and get result
         syncResult = await executeHeartbeatSync();
-        geolocBgLogger.info(
-          "iOS BackgroundFetch configure task completed successfully",
-          {
-            taskId,
-            syncResult,
-          },
-        );
       } catch (error) {
-        geolocBgLogger.error("iOS BackgroundFetch configure task failed", {
-          taskId,
-          error,
-        });
-
-        Sentry.captureException(error, {
-          tags: {
-            module: "background-fetch",
-            operation: "ios-background-fetch-configure-task",
-            taskId,
-          },
-        });
+        // silent error
       } finally {
         // CRITICAL: Always call finish with appropriate result
         try {
           if (taskId) {
             let fetchResult;
 
-            if (syncResult?.error) {
+            if (syncResult?.error || !syncResult?.syncSuccessful) {
               // Task failed
               fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
             } else if (
@@ -394,88 +126,24 @@ if (Platform.OS === "android") {
             ) {
               // Force sync was performed successfully - new data
               fetchResult = BackgroundFetch.FETCH_RESULT_NEW_DATA;
-            } else if (
-              syncResult?.syncPerformed &&
-              !syncResult?.syncSuccessful
-            ) {
-              // Force sync was attempted but failed
-              fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
             } else {
               // No sync was needed - no new data
               fetchResult = BackgroundFetch.FETCH_RESULT_NO_DATA;
             }
 
             BackgroundFetch.finish(taskId, fetchResult);
-            geolocBgLogger.debug(
-              "iOS BackgroundFetch configure task finished",
-              {
-                taskId,
-                fetchResult:
-                  fetchResult === BackgroundFetch.FETCH_RESULT_NEW_DATA
-                    ? "NEW_DATA"
-                    : fetchResult === BackgroundFetch.FETCH_RESULT_NO_DATA
-                    ? "NO_DATA"
-                    : "FAILED",
-              },
-            );
-          } else {
-            geolocBgLogger.error(
-              "Cannot finish iOS BackgroundFetch configure task - no taskId",
-            );
           }
         } catch (finishError) {
-          // This is a critical error - the native side might be in a bad state
-          geolocBgLogger.error(
-            "CRITICAL: BackgroundFetch.finish() failed in configure task",
-            {
-              taskId,
-              error: finishError,
-            },
-          );
-
-          Sentry.captureException(finishError, {
-            tags: {
-              module: "background-fetch",
-              operation: "ios-background-fetch-configure-finish",
-              critical: true,
-            },
-            contexts: {
-              task: { taskId },
-            },
-          });
+          // silent error
         }
       }
     },
     // Timeout callback (REQUIRED by BackgroundFetch API)
     async (taskId) => {
-      geolocBgLogger.warn("iOS BackgroundFetch configure task TIMEOUT", {
-        taskId,
-      });
-
-      Sentry.captureException(
-        new Error("iOS BackgroundFetch configure task timeout"),
-        {
-          tags: {
-            module: "background-fetch",
-            operation: "ios-background-fetch-configure-timeout",
-            taskId,
-          },
-        },
-      );
-
       // CRITICAL: Must call finish on timeout with FAILED result
       BackgroundFetch.finish(taskId, BackgroundFetch.FETCH_RESULT_FAILED);
     },
-  ).catch((error) => {
-    geolocBgLogger.error("iOS BackgroundFetch failed to configure", {
-      error,
-    });
-
-    Sentry.captureException(error, {
-      tags: {
-        module: "background-fetch",
-        operation: "ios-background-fetch-configure",
-      },
-    });
+  ).catch(() => {
+    // silent error
   });
 }
