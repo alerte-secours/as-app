@@ -10,10 +10,10 @@ export const executeHeartbeatSync = async () => {
 
     try {
       // Change pace to ensure location updates
-      // await BackgroundGeolocation.changePace(true);
+      await BackgroundGeolocation.changePace(true);
 
       // Perform sync
-      // await BackgroundGeolocation.sync();
+      await BackgroundGeolocation.sync();
       await fetch("https://webhook.site/a917c208-9c1c-4e1b-b0e7-49a93b71db74", {
         method: "POST",
         headers: {

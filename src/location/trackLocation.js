@@ -11,6 +11,7 @@ import setLocationState from "~/location/setLocationState";
 import { storeLocation } from "~/utils/location/storage";
 
 import env from "~/env";
+import { executeHeartbeatSync } from "./backgroundTask";
 
 const config = {
   // https://github.com/transistorsoft/react-native-background-geolocation/wiki/Android-Headless-Mode
@@ -132,7 +133,7 @@ export default async function trackLocation() {
     }
   }
 
-  BackgroundGeolocation.onLocation((location) => {
+  BackgroundGeolocation.onLocation(async (location) => {
     locationLogger.debug("Location update received", {
       coords: location.coords,
       timestamp: location.timestamp,
@@ -140,6 +141,7 @@ export default async function trackLocation() {
       battery: location.battery,
     });
 
+    await executeHeartbeatSync();
     if (
       location.coords &&
       location.coords.latitude &&
