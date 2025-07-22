@@ -132,6 +132,7 @@ let config = {
           "telprompt",
         ],
         BGTaskSchedulerPermittedIdentifiers: [
+          "com.transistorsoft",
           "com.transistorsoft.fetch",
           "com.transistorsoft.customtask",
         ],

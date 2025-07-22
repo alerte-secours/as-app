@@ -21,9 +21,6 @@
   self.initialProps = @{};
 // @generated begin react-native-background-fetch-didFinishLaunchingWithOptions - expo prebuild (DO NOT MODIFY) sync-2d5ef5f3788ef11f6e72e5480fdbef5f7a21f0f0
   [[TSBackgroundFetch sharedInstance] didFinishLaunching];
-  if (@available(iOS 13.0, *)) {
-      [[TSBackgroundFetch sharedInstance] scheduleProcessingTaskWithIdentifier:@"com.transistorsoft.fetch"];
-  }
 // @generated end react-native-background-fetch-didFinishLaunchingWithOptions
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];

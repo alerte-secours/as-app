@@ -15,7 +15,7 @@ import {
 import useMount from "~/hooks/useMount";
 import setActionCategories from "./setActionCategories";
 import onMessageReceived from "./onMessageReceived";
-import { useAutoCancelExpired } from "./autoCancelExpired";
+//import { useAutoCancelExpired } from "./autoCancelExpired";
 import { requestFcmPermission, setupFcm } from "./firebase";
 import {
   requestNotifeePermission,
@@ -205,5 +205,5 @@ export function useFcm() {
     });
   });
 
-  useAutoCancelExpired();
+  //useAutoCancelExpired();
 }
