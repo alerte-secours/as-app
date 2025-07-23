@@ -132,7 +132,7 @@ export default async function trackLocation() {
     }
   }
 
-  BackgroundGeolocation.onLocation((location) => {
+  BackgroundGeolocation.onLocation(async (location) => {
     locationLogger.debug("Location update received", {
       coords: location.coords,
       timestamp: location.timestamp,
