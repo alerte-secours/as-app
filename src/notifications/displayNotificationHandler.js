@@ -8,6 +8,7 @@ import notifSuggestKeepOpen from "./channels/notifSuggestKeepOpen";
 import notifRelativeAllowAsk from "./channels/notifRelativeAllowAsk";
 import notifRelativeInvitation from "./channels/notifRelativeInvitation";
 import notifBackgroundGeolocationLost from "./channels/notifBackgroundGeolocationLost";
+import notifGeolocationHeartbeatSync from "./channels/notifGeolocationHeartbeatSync";
 
 const displayLogger = createLogger({
   module: BACKGROUND_SCOPES.NOTIFICATIONS,
@@ -22,6 +23,7 @@ const SUPPORTED_ACTIONS = {
   "relative-allow-ask": notifRelativeAllowAsk,
   "relative-invitation": notifRelativeInvitation,
   "background-geolocation-lost": notifBackgroundGeolocationLost,
+  "geolocation-heartbeat-sync": notifGeolocationHeartbeatSync,
 };
 
 export default async function displayNotificationHandler(data) {
