@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.11.12](https://github.com/alerte-secours/as-app/compare/v1.11.2...v1.11.12) (2025-07-23)
+
+
+### Bug Fixes
+
+* **ios-headless:** big wip leap ([5461852](https://github.com/alerte-secours/as-app/commit/5461852adaac33511889d7a2466f435d953b4a7b))
+* **ios:** executeHeartbeatSync with silent push notification ([38e2f82](https://github.com/alerte-secours/as-app/commit/38e2f821ddeb5b2b4ad310bf2f32b23f5ca94ea7))
+
 ## [1.11.11](https://github.com/alerte-secours/as-app/compare/v1.11.10...v1.11.11) (2025-07-23)
 
 ## [1.11.10](https://github.com/alerte-secours/as-app/compare/v1.11.9...v1.11.10) (2025-07-22)
