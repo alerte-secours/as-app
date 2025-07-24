@@ -57,7 +57,11 @@ const HeadlessTask = async (event) => {
 if (Platform.OS === "android") {
   BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
 } else if (Platform.OS === "ios") {
-  BackgroundGeolocation.onLocation(async (_location) => {
+  BackgroundGeolocation.onLocation(async () => {
+    await executeHeartbeatSync();
+  });
+
+  BackgroundGeolocation.onMotionChange(async () => {
     await executeHeartbeatSync();
   });
 
