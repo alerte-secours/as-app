@@ -6,7 +6,6 @@ import "expo-splash-screen";
 import BackgroundGeolocation from "react-native-background-geolocation";
 
 import { Platform } from "react-native";
-import BackgroundFetch from "react-native-background-fetch";
 
 import notifee from "@notifee/react-native";
 import messaging from "@react-native-firebase/messaging";
@@ -56,62 +55,4 @@ const HeadlessTask = async (event) => {
 
 if (Platform.OS === "android") {
   BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
-} else if (Platform.OS === "ios") {
-  BackgroundGeolocation.onLocation(async () => {
-    await executeHeartbeatSync();
-  });
-
-  BackgroundGeolocation.onMotionChange(async () => {
-    await executeHeartbeatSync();
-  });
-
-  // Configure BackgroundFetch for iOS (iOS-specific configuration)
-  BackgroundFetch.configure(
-    {
-      minimumFetchInterval: 15, // Only valid option for iOS - gives best chance of execution
-    },
-    // Event callback
-    async (taskId) => {
-      let syncResult = null;
-
-      try {
-        // Execute the shared heartbeat logic and get result
-        syncResult = await executeHeartbeatSync();
-      } catch (error) {
-        // silent error
-      } finally {
-        // CRITICAL: Always call finish with appropriate result
-        try {
-          if (taskId) {
-            let fetchResult;
-
-            if (syncResult?.error || !syncResult?.syncSuccessful) {
-              // Task failed
-              fetchResult = BackgroundFetch.FETCH_RESULT_FAILED;
-            } else if (
-              syncResult?.syncPerformed &&
-              syncResult?.syncSuccessful
-            ) {
-              // Force sync was performed successfully - new data
-              fetchResult = BackgroundFetch.FETCH_RESULT_NEW_DATA;
-            } else {
-              // No sync was needed - no new data
-              fetchResult = BackgroundFetch.FETCH_RESULT_NO_DATA;
-            }
-
-            BackgroundFetch.finish(taskId, fetchResult);
-          }
-        } catch (finishError) {
-          // silent error
-        }
-      }
-    },
-    // Timeout callback (REQUIRED by BackgroundFetch API)
-    async (taskId) => {
-      // CRITICAL: Must call finish on timeout with FAILED result
-      BackgroundFetch.finish(taskId, BackgroundFetch.FETCH_RESULT_FAILED);
-    },
-  ).catch(() => {
-    // silent error
-  });
 }
