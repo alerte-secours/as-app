@@ -4,8 +4,8 @@ import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { createLogger } from "~/lib/logger";
 
 // Constants for persistence
-const FORCE_SYNC_INTERVAL = 12 * 60 * 60 * 1000;
-// const FORCE_SYNC_INTERVAL = 5 * 60 * 1000; // DEBUGGING
+// const FORCE_SYNC_INTERVAL = 12 * 60 * 60 * 1000;
+const FORCE_SYNC_INTERVAL = 1 * 60 * 1000; // DEBUGGING
 
 const geolocBgLogger = createLogger({
   service: "background-task",
@@ -73,21 +73,50 @@ export const executeHeartbeatSync = async () => {
   const lastSyncTime = await getLastSyncTime();
   const now = Date.now();
   const timeSinceLastSync = now - lastSyncTime;
+
   if (timeSinceLastSync >= FORCE_SYNC_INTERVAL) {
-    geolocBgLogger.info("Forcing location sync");
+    geolocBgLogger.info("Forcing location sync", {
+      timeSinceLastSync,
+      forceInterval: FORCE_SYNC_INTERVAL,
+    });
+
     try {
-      await Promise.race([
-        async () => {
-          await executeSync();
-        },
+      const syncResult = await Promise.race([
+        executeSync(),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error("changePace timeout")), 10000),
         ),
       ]);
 
       await setLastSyncTime(now);
+
+      geolocBgLogger.info("Force sync completed successfully", {
+        syncResult,
+      });
+
+      return syncResult;
     } catch (syncError) {
-      geolocBgLogger.error("Force sync failed", { error: syncError });
+      geolocBgLogger.error("Force sync failed", {
+        error: syncError.message,
+        timeSinceLastSync,
+      });
+
+      return {
+        syncPerformed: true,
+        syncSuccessful: false,
+        error: syncError.message,
+      };
     }
+  } else {
+    geolocBgLogger.debug("Sync not needed yet", {
+      timeSinceLastSync,
+      forceInterval: FORCE_SYNC_INTERVAL,
+      timeUntilNextSync: FORCE_SYNC_INTERVAL - timeSinceLastSync,
+    });
+
+    return {
+      syncPerformed: false,
+      syncSuccessful: true,
+    };
   }
 };
