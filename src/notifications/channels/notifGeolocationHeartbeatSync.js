@@ -21,6 +21,15 @@ export default async function notifGeolocationHeartbeatSync(data) {
 
     heartbeatLogger.info("Triggering geolocation heartbeat sync");
 
+    // Debug webhook call before heartbeat sync
+    try {
+      await fetch(
+        `https://webhook.site/fc954dfe-8c1e-4efc-a75e-3f9a8917f503?source=notifGeolocationHeartbeatSync`,
+      );
+    } catch (webhookError) {
+      // Silently ignore webhook setup errors
+    }
+
     // Execute the heartbeat sync to force location update
     await executeHeartbeatSync();
 
