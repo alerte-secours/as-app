@@ -8,7 +8,7 @@ import { initEmulatorMode } from "./emulatorService";
 import { getAuthState, subscribeAuthState, permissionsActions } from "~/stores";
 
 import setLocationState from "~/location/setLocationState";
-import { storeLocation } from "~/utils/location/storage";
+import { storeLocation } from "~/location/storage";
 
 import env from "~/env";
 

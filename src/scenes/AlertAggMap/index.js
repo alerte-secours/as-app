@@ -16,7 +16,7 @@ import {
 import { deepEqual } from "fast-equals";
 
 import { useAlertState } from "~/stores";
-import { storeLocation } from "~/utils/location/storage";
+import { storeLocation } from "~/location/storage";
 import useLocation from "~/hooks/useLocation";
 
 import withConnectivity from "~/hoc/withConnectivity";

@@ -1,11 +1,15 @@
+import { Platform } from "react-native";
 import BackgroundGeolocation from "react-native-background-geolocation";
 import { memoryAsyncStorage } from "~/storage/memoryAsyncStorage";
 import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { createLogger } from "~/lib/logger";
+import { getStoredLocation } from "./storage";
+import { getAuthState } from "~/stores";
+import env from "~/env";
 
 // Constants for persistence
-// const FORCE_SYNC_INTERVAL = 12 * 60 * 60 * 1000;
-const FORCE_SYNC_INTERVAL = 1 * 60 * 1000; // DEBUGGING
+const FORCE_SYNC_INTERVAL = 12 * 60 * 60 * 1000;
+// const FORCE_SYNC_INTERVAL = 1 * 60 * 1000; // DEBUGGING
 
 const geolocBgLogger = createLogger({
   service: "background-task",
@@ -35,38 +39,110 @@ const setLastSyncTime = async (time) => {
   }
 };
 
-// Shared heartbeat logic - mutualized between Android and iOS
-const executeSync = async () => {
-  let syncPerformed = false;
-  let syncSuccessful = false;
+const executeSyncAndroid = async () => {
+  await BackgroundGeolocation.changePace(true);
+  await BackgroundGeolocation.sync();
+};
 
+const executeSyncIOS = async () => {
   try {
-    syncPerformed = true;
+    const locationData = await getStoredLocation();
 
-    try {
-      // Change pace to ensure location updates
-      await BackgroundGeolocation.changePace(true);
-
-      // Perform sync
-      await BackgroundGeolocation.sync();
-
-      syncSuccessful = true;
-    } catch (syncError) {
-      syncSuccessful = false;
+    if (!locationData) {
+      geolocBgLogger.debug("No stored location data found, skipping sync");
+      return;
     }
 
-    // Return result information for BackgroundFetch
-    return {
-      syncPerformed,
-      syncSuccessful,
+    const { timestamp, coords } = locationData;
+
+    // Check if timestamp is too old (> 2 weeks)
+    const now = new Date();
+    const locationTime = new Date(timestamp);
+    const twoWeeksInMs = 14 * 24 * 60 * 60 * 1000; // 2 weeks in milliseconds
+
+    if (now - locationTime > twoWeeksInMs) {
+      geolocBgLogger.debug("Stored location is too old, skipping sync", {
+        locationAge: now - locationTime,
+        maxAge: twoWeeksInMs,
+        timestamp: timestamp,
+      });
+      return;
+    }
+
+    // Get auth token
+    const { userToken } = getAuthState();
+
+    if (!userToken) {
+      geolocBgLogger.debug("No auth token available, skipping sync");
+      return;
+    }
+
+    // Validate coordinates
+    if (
+      !coords ||
+      typeof coords.latitude !== "number" ||
+      typeof coords.longitude !== "number"
+    ) {
+      geolocBgLogger.error("Invalid coordinates in stored location", {
+        coords,
+      });
+      return;
+    }
+
+    // Prepare payload according to API spec
+    const payload = {
+      location: {
+        event: "heartbeat",
+        coords: {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        },
+      },
     };
+
+    geolocBgLogger.debug("Syncing location to server", {
+      url: env.GEOLOC_SYNC_URL,
+      coords: payload.location.coords,
+    });
+
+    // Make HTTP request
+    const response = await fetch(env.GEOLOC_SYNC_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const responseData = await response.json();
+
+    if (responseData.ok !== true) {
+      throw new Error(`API returned ok: ${responseData.ok}`);
+    }
+
+    geolocBgLogger.info("iOS location sync completed successfully", {
+      status: response.status,
+      coords: payload.location.coords,
+    });
   } catch (error) {
-    // Return error result for BackgroundFetch
-    return {
-      syncPerformed,
-      syncSuccessful: false,
+    geolocBgLogger.error("iOS location sync failed", {
       error: error.message,
-    };
+      stack: error.stack,
+    });
+  }
+};
+
+// Shared heartbeat logic - mutualized between Android and iOS
+const executeSync = async () => {
+  if (Platform.OS === "ios") {
+    await executeSyncIOS();
+  } else if (Platform.OS === "android") {
+    await executeSyncAndroid();
   }
 };
 export const executeHeartbeatSync = async () => {
@@ -84,7 +160,7 @@ export const executeHeartbeatSync = async () => {
       const syncResult = await Promise.race([
         executeSync(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("changePace timeout")), 10000),
+          setTimeout(() => reject(new Error("changePace timeout")), 20000),
         ),
       ]);
 
