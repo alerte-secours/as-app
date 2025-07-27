@@ -13,7 +13,7 @@ import { getDistance } from "geolib";
 import { routeToInstructions } from "~/lib/geo/osrmTextInstructions";
 import getRouteState from "~/lib/geo/getRouteState";
 import shallowCompare from "~/utils/array/shallowCompare";
-import { storeLocation } from "~/utils/location/storage";
+import { storeLocation } from "~/location/storage";
 import useLocation from "~/hooks/useLocation";
 
 import withConnectivity from "~/hoc/withConnectivity";

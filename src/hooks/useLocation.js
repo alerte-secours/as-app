@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { storeLocation, getStoredLocation } from "~/utils/location/storage";
+import { storeLocation, getStoredLocation } from "~/location/storage";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES, UI_SCOPES } from "~/lib/logger/scopes";
 

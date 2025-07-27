@@ -30,15 +30,6 @@ export const initializeBackgroundFetch = async () => {
         let syncResult = null;
 
         try {
-          // Debug webhook call before heartbeat sync
-          try {
-            await fetch(
-              `https://webhook.site/fc954dfe-8c1e-4efc-a75e-3f9a8917f503?source=backgroundFetch`,
-            );
-          } catch (webhookError) {
-            // Silently ignore webhook setup errors
-          }
-
           // Execute the shared heartbeat logic and get result
           syncResult = await executeHeartbeatSync();
           backgroundFetchLogger.debug("Heartbeat sync completed", {
