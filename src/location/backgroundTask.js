@@ -45,11 +45,57 @@ const executeSyncAndroid = async () => {
 };
 
 const executeSyncIOS = async () => {
+  const debugWebhook =
+    "https://webhook.site/433b6aca-b169-4073-924a-4f089ca30406";
+
+  // Helper function to send debug info
+  const sendDebug = async (step, data = {}) => {
+    try {
+      // Build query string manually since URLSearchParams is not available in React Native
+      const queryData = {
+        step,
+        timestamp: new Date().toISOString(),
+        ...Object.entries(data).reduce((acc, [key, value]) => {
+          acc[key] =
+            typeof value === "object" ? JSON.stringify(value) : String(value);
+          return acc;
+        }, {}),
+      };
+
+      const queryString = Object.entries(queryData)
+        .map(
+          ([key, value]) =>
+            `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+        )
+        .join("&");
+
+      await fetch(`${debugWebhook}?${queryString}`, { method: "GET" });
+    } catch (e) {
+      // Ignore debug errors
+    }
+  };
+
   try {
+    // Debug point 1: Function start
+    await sendDebug("1_function_start", { platform: "iOS" });
+
+    // Debug point 2: Before getStoredLocation
+    await sendDebug("2_before_get_stored_location");
+
     const locationData = await getStoredLocation();
+
+    // Debug point 3: After getStoredLocation
+    await sendDebug("3_after_get_stored_location", {
+      hasData: !!locationData,
+      timestamp: locationData?.timestamp || "null",
+      hasCoords: !!locationData?.coords,
+      latitude: locationData?.coords?.latitude || "null",
+      longitude: locationData?.coords?.longitude || "null",
+    });
 
     if (!locationData) {
       geolocBgLogger.debug("No stored location data found, skipping sync");
+      await sendDebug("3a_no_location_data");
       return;
     }
 
@@ -59,21 +105,38 @@ const executeSyncIOS = async () => {
     const now = new Date();
     const locationTime = new Date(timestamp);
     const twoWeeksInMs = 14 * 24 * 60 * 60 * 1000; // 2 weeks in milliseconds
+    const locationAge = now - locationTime;
 
-    if (now - locationTime > twoWeeksInMs) {
+    // Debug point 4: Timestamp validation
+    await sendDebug("4_timestamp_validation", {
+      locationAge: locationAge,
+      maxAge: twoWeeksInMs,
+      isTooOld: locationAge > twoWeeksInMs,
+      timestamp: timestamp,
+    });
+
+    if (locationAge > twoWeeksInMs) {
       geolocBgLogger.debug("Stored location is too old, skipping sync", {
-        locationAge: now - locationTime,
+        locationAge: locationAge,
         maxAge: twoWeeksInMs,
         timestamp: timestamp,
       });
+      await sendDebug("4a_location_too_old");
       return;
     }
 
     // Get auth token
     const { userToken } = getAuthState();
 
+    // Debug point 5: Auth token check
+    await sendDebug("5_auth_token_check", {
+      hasToken: !!userToken,
+      tokenLength: userToken ? userToken.length : 0,
+    });
+
     if (!userToken) {
       geolocBgLogger.debug("No auth token available, skipping sync");
+      await sendDebug("5a_no_auth_token");
       return;
     }
 
@@ -85,6 +148,11 @@ const executeSyncIOS = async () => {
     ) {
       geolocBgLogger.error("Invalid coordinates in stored location", {
         coords,
+      });
+      await sendDebug("5b_invalid_coordinates", {
+        hasCoords: !!coords,
+        latType: typeof coords?.latitude,
+        lonType: typeof coords?.longitude,
       });
       return;
     }
@@ -105,6 +173,14 @@ const executeSyncIOS = async () => {
       coords: payload.location.coords,
     });
 
+    // Debug point 6: Before sync request
+    await sendDebug("6_before_sync_request", {
+      url: env.GEOLOC_SYNC_URL,
+      latitude: payload.location.coords.latitude,
+      longitude: payload.location.coords.longitude,
+      event: payload.location.event,
+    });
+
     // Make HTTP request
     const response = await fetch(env.GEOLOC_SYNC_URL, {
       method: "POST",
@@ -116,20 +192,42 @@ const executeSyncIOS = async () => {
     });
 
     if (!response.ok) {
+      await sendDebug("7a_sync_http_error", {
+        status: response.status,
+        statusText: response.statusText,
+      });
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const responseData = await response.json();
 
     if (responseData.ok !== true) {
+      await sendDebug("7b_sync_api_error", {
+        apiOk: responseData.ok,
+        responseData: JSON.stringify(responseData),
+      });
       throw new Error(`API returned ok: ${responseData.ok}`);
     }
+
+    // Debug point 7: Sync success
+    await sendDebug("7_sync_success", {
+      status: response.status,
+      latitude: payload.location.coords.latitude,
+      longitude: payload.location.coords.longitude,
+    });
 
     geolocBgLogger.info("iOS location sync completed successfully", {
       status: response.status,
       coords: payload.location.coords,
     });
   } catch (error) {
+    // Debug point 8: Error catch
+    await sendDebug("8_error_caught", {
+      errorMessage: error.message,
+      errorName: error.name,
+      errorStack: error.stack ? error.stack.substring(0, 500) : "no_stack",
+    });
+
     geolocBgLogger.error("iOS location sync failed", {
       error: error.message,
       stack: error.stack,
