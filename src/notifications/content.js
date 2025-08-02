@@ -88,9 +88,9 @@ export const generateSuggestKeepOpenContent = (data) => {
 
 export const generateBackgroundGeolocationLostContent = (data) => {
   return {
-    title: `Alerte-Secours ne peut plus accéder à votre position`,
-    body: `Vous ne pouvez plus recevoir d'alertes de proximité. Vérifiez les paramètres.`,
-    bigText: `Alerte-Secours ne peut plus accéder à votre position en arrière-plan. Vous ne pouvez plus recevoir d'alertes de proximité. Causes possibles : permissions révoquées, optimisation de batterie active, ou actualisation désactivée. Accédez aux paramètres de l'application pour réactiver.`,
+    title: `Alerte-Secours ne reçoit plus de mises à jour de votre position`,
+    body: `Vous ne pourrez plus recevoir d'alertes de proximité. Vérifiez les paramètres.`,
+    bigText: `Alerte-Secours ne reçoit plus de mises à jour de votre position en arrière-plan. Vous ne pourrez plus recevoir d'alertes de proximité. Causes possibles : permissions révoquées, optimisation de batterie active, ou actualisation désactivée. Accédez aux paramètres de l'application pour réactiver.`,
   };
 };
 
