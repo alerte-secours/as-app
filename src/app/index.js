@@ -25,7 +25,7 @@ import { useUpdates } from "~/updates";
 import Error from "~/components/Error";
 
 import useTrackLocation from "~/hooks/useTrackLocation";
-import { initializeBackgroundFetch } from "~/services/backgroundFetch";
+// import { initializeBackgroundFetch } from "~/services/backgroundFetch";
 import useMount from "~/hooks/useMount";
 
 const appLogger = createLogger({
@@ -221,22 +221,22 @@ function AppContent() {
   useNetworkListener();
   useTrackLocation();
 
-  useMount(() => {
-    const setupBackgroundFetch = async () => {
-      try {
-        appLogger.info("Setting up BackgroundFetch");
-        await initializeBackgroundFetch();
-        appLogger.debug("BackgroundFetch setup completed");
-      } catch (error) {
-        lifecycleLogger.error("BackgroundFetch setup failed", {
-          error: error?.message,
-        });
-        errorHandler(error);
-      }
-    };
+  // useMount(() => {
+  //   const setupBackgroundFetch = async () => {
+  //     try {
+  //       appLogger.info("Setting up BackgroundFetch");
+  //       await initializeBackgroundFetch();
+  //       appLogger.debug("BackgroundFetch setup completed");
+  //     } catch (error) {
+  //       lifecycleLogger.error("BackgroundFetch setup failed", {
+  //         error: error?.message,
+  //       });
+  //       errorHandler(error);
+  //     }
+  //   };
 
-    setupBackgroundFetch();
-  });
+  //   setupBackgroundFetch();
+  // });
 
   // Handle deep links after app is initialized with error handling
   useEffect(() => {

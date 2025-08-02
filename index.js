@@ -20,7 +20,7 @@ import { onBackgroundEvent as notificationBackgroundEvent } from "~/notification
 import onMessageReceived from "~/notifications/onMessageReceived";
 
 import { createLogger } from "~/lib/logger";
-import { executeHeartbeatSync } from "~/location/backgroundTask";
+// import { executeHeartbeatSync } from "~/location/backgroundTask";
 
 // setup notification, this have to stay in index.js
 notifee.onBackgroundEvent(notificationBackgroundEvent);
@@ -36,23 +36,23 @@ const geolocBgLogger = createLogger({
   task: "headless",
 });
 
-const HeadlessTask = async (event) => {
-  try {
-    switch (event?.name) {
-      case "heartbeat":
-        await executeHeartbeatSync();
-        break;
-      default:
-        break;
-    }
-  } catch (error) {
-    geolocBgLogger.error("HeadlessTask error", {
-      error,
-      event,
-    });
-  }
-};
+// const HeadlessTask = async (event) => {
+//   try {
+//     switch (event?.name) {
+//       case "heartbeat":
+//         await executeHeartbeatSync();
+//         break;
+//       default:
+//         break;
+//     }
+//   } catch (error) {
+//     geolocBgLogger.error("HeadlessTask error", {
+//       error,
+//       event,
+//     });
+//   }
+// };
 
-if (Platform.OS === "android") {
-  BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
-}
+// if (Platform.OS === "android") {
+//   BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
+// }
