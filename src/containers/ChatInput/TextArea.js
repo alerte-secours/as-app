@@ -57,7 +57,7 @@ export default React.memo(function TextArea({
       autoFocus={autoFocus}
       showSoftInputOnFocus={keyboardEnabled} // controlled by state
       placeholder="Message"
-      placeholderTextColor={colors.onBackgroundDisabled}
+      placeholderTextColor={colors.placeholder}
       onTouchStart={() => {
         if (!keyboardEnabled) {
           setKeyboardEnabled(true);
