@@ -69,7 +69,10 @@ export default withConnectivity(function AlertAggListArchived() {
                 value={sortBy}
               >
                 <ToggleButton
-                  style={styles.sortByButton}
+                  style={[
+                    styles.sortByButton,
+                    sortBy === "createdAt" && styles.sortByButtonSelected,
+                  ]}
                   icon={() => (
                     // <MaterialIcons
                     //   name="access-time"
@@ -79,18 +82,29 @@ export default withConnectivity(function AlertAggListArchived() {
                     <MaterialCommunityIcons
                       name="clock-time-four-outline"
                       size={20}
-                      color={colors.surfaceSecondary}
+                      color={
+                        sortBy === "createdAt"
+                          ? colors.onPrimary
+                          : colors.onSurfaceVariant
+                      }
                     />
                   )}
                   value="createdAt"
                 />
                 <ToggleButton
-                  style={styles.sortByButton}
+                  style={[
+                    styles.sortByButton,
+                    sortBy === "alphabetical" && styles.sortByButtonSelected,
+                  ]}
                   icon={() => (
                     <MaterialCommunityIcons
                       name="alphabetical"
                       size={20}
-                      color={colors.surfaceSecondary}
+                      color={
+                        sortBy === "alphabetical"
+                          ? colors.onPrimary
+                          : colors.onSurfaceVariant
+                      }
                     />
                   )}
                   value="alphabetical"
@@ -156,6 +170,12 @@ const useStyles = createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
   sortByButton: {
     height: 32,
     width: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
+  },
+  sortByButtonSelected: {
+    backgroundColor: colors.primary,
   },
   title: {
     fontSize: 13,
