@@ -89,7 +89,9 @@ export default async function notifAlert(data) {
 
   // Generate notification content
   const { title, body, bigText } = generateAlertContent({
-    oneAlert: { alertTag, code, level },
+    alertTag,
+    code,
+    level,
     initialDistance,
     reason,
   });
