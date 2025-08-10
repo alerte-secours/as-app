@@ -86,6 +86,9 @@ mv ios/main.jsbundle.hbc ios/main.jsbundle
 
 cd ios
 
+# Create logs directory if it doesn't exist
+mkdir -p ../logs
+
 # Create archive using xcodebuild
 echo "Creating archive..."
 xcodebuild \
@@ -93,6 +96,6 @@ xcodebuild \
   -scheme AlerteSecours \
   -configuration Release \
   -archivePath AlerteSecours.xcarchive \
-  archive
+  archive 2>&1 | tee "../logs/ios-archive-$(date +%Y%m%d-%H%M%S).log"
 
 echo "Archive completed successfully at AlerteSecours.xcarchive"
