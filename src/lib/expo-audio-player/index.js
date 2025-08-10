@@ -110,6 +110,7 @@ class AudioSlider extends PureComponent {
   }
 
   mapAudioToCurrentTime = async () => {
+    if (!this.soundObject) return;
     await this.soundObject.setPositionAsync(this.state.currentTime);
   };
 
@@ -122,6 +123,7 @@ class AudioSlider extends PureComponent {
   };
 
   play = async () => {
+    if (!this.soundObject) return;
     if (this.registry && this.pauseAllBeforePlay) {
       const players = this.registry.getAll();
       await Promise.all(
@@ -134,12 +136,14 @@ class AudioSlider extends PureComponent {
   };
 
   pause = async () => {
+    if (!this.soundObject) return;
     await this.soundObject.pauseAsync();
     this.setState({ playing: false }); // This is for the play-button to go to pause
     Animated.timing(this.state.dotOffset, { useNativeDriver: false }).stop(); // Will also call animationPausedOrStopped()
   };
 
   startMovingDot = async () => {
+    if (!this.soundObject) return;
     const status = await this.soundObject.getStatusAsync();
     const durationLeft = status["durationMillis"] - status["positionMillis"];
 
@@ -156,12 +160,23 @@ class AudioSlider extends PureComponent {
       // Audio has been paused
       return;
     }
+    if (!this.soundObject) return;
     // Animation-duration is over (reset Animation and Audio):
     await sleep(200); // In case animation has finished, but audio has not
     this.setState({ playing: false });
     await this.state.dotOffset.setValue({ x: 0, y: 0 });
     // this.state.dotOffset.setValue(0);
     await this.soundObject.setPositionAsync(0);
+  };
+
+  handlePlaybackFinished = async () => {
+    // console.log(`[AudioSlider] Playback finished, resetting for replay`);
+    // Reset for replay instead of unloading
+    this.setState({ playing: false });
+    await this.state.dotOffset.setValue({ x: 0, y: 0 });
+    if (this.soundObject) {
+      await this.soundObject.stopAsync();
+    }
   };
 
   measureTrack = (event) => {
@@ -171,27 +186,92 @@ class AudioSlider extends PureComponent {
   async componentDidMount() {
     // https://github.com/olapiv/expo-audio-player/issues/13
 
-    const loadAudio = async () => {
-      try {
-        const { sound: newSound } = await Audio.Sound.createAsync({
-          uri: this.props.audio,
-        });
-        this.soundObject = newSound;
+    const audioUrl = this.props.audio;
 
-        // // https://github.com/expo/expo/issues/1873
+    const loadAudio = async () => {
+      const tryLoad = async (ext) => {
+        // console.log(`[AudioSlider] Attempting to load with extension: ${ext}`);
+        const { sound } = await Audio.Sound.createAsync({
+          uri: audioUrl,
+          overrideFileExtensionAndroid: ext,
+        });
+        return sound;
+      };
+
+      let lastError = null;
+
+      try {
+        // First try with m4a (preferred)
+        const sound = await tryLoad("m4a");
+        // console.log(`[AudioSlider] Successfully loaded with m4a extension`);
+        this.soundObject = sound;
+        await this.soundObject.setIsLoopingAsync(false);
         this.soundObject.setOnPlaybackStatusUpdate((status) => {
           if (!status.didJustFinish) return;
-          this.soundObject.unloadAsync().catch(() => {});
+          this.handlePlaybackFinished();
         });
-      } catch (error) {
-        console.log("Error loading audio:", error);
+        return;
+      } catch (err1) {
+        // console.log(`[AudioSlider] Failed to load with m4a:`, err1.message);
+        lastError = err1;
+        try {
+          // Fallback to mp4
+          const sound = await tryLoad("mp4");
+          // console.log(`[AudioSlider] Successfully loaded with mp4 extension`);
+          this.soundObject = sound;
+          await this.soundObject.setIsLoopingAsync(false);
+          this.soundObject.setOnPlaybackStatusUpdate((status) => {
+            if (!status.didJustFinish) return;
+            this.handlePlaybackFinished();
+          });
+          return;
+        } catch (err2) {
+          // console.log(`[AudioSlider] Failed to load with mp4:`, err2.message);
+          lastError = err2;
+          try {
+            // Last fallback to aac
+            const sound = await tryLoad("aac");
+            // console.log(`[AudioSlider] Successfully loaded with aac extension`);
+            this.soundObject = sound;
+            await this.soundObject.setIsLoopingAsync(false);
+            this.soundObject.setOnPlaybackStatusUpdate((status) => {
+              if (!status.didJustFinish) return;
+              this.handlePlaybackFinished();
+            });
+            return;
+          } catch (err3) {
+            // console.log(`[AudioSlider] Failed to load with aac:`, err3.message);
+            lastError = err3;
+          }
+        }
       }
+
+      // All attempts failed
+      console.error(
+        `[AudioSlider] All load attempts failed for ${audioUrl}. Last error:`,
+        lastError,
+      );
     };
 
     await loadAudio();
 
-    const status = await this.soundObject.getStatusAsync();
-    this.setState({ duration: status.durationMillis });
+    if (!this.soundObject) {
+      // Loading failed; avoid further calls and leave UI inert or show error
+      console.log(
+        `[AudioSlider] No sound object created, setting duration to 0`,
+      );
+      this.setState({ duration: 0 });
+      return;
+    }
+
+    try {
+      const status = await this.soundObject.getStatusAsync();
+      this.setState({ duration: status.durationMillis });
+    } catch (error) {
+      console.log("Error getting audio status:", error);
+      this.setState({ duration: 0 });
+      return;
+    }
 
     // This requires measureTrack to have been called.
     this.state.dotOffset.addListener(() => {
@@ -207,7 +287,9 @@ class AudioSlider extends PureComponent {
   }
 
   async componentWillUnmount() {
-    await this.soundObject.unloadAsync();
+    if (this.soundObject) {
+      await this.soundObject.unloadAsync();
+    }
     this.state.dotOffset.removeAllListeners();
     if (this.registry) {
       this.registry.unregister(this);

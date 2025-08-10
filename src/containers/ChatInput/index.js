@@ -38,16 +38,16 @@ const recordingSettings = {
     outputFormat: AndroidOutputFormat.MPEG_4,
     audioEncoder: AndroidAudioEncoder.AAC,
     sampleRate: 44100,
-    numberOfChannels: 2,
-    bitRate: 128000,
+    numberOfChannels: 1,
+    bitRate: 64000,
   },
   ios: {
     extension: ".m4a",
     outputFormat: IOSOutputFormat.MPEG4AAC,
     audioQuality: IOSAudioQuality.MAX,
     sampleRate: 44100,
-    numberOfChannels: 2,
-    bitRate: 128000,
+    numberOfChannels: 1,
+    bitRate: 64000,
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
@@ -194,7 +194,7 @@ export default React.memo(function ChatInput({
       staysActiveInBackground: true,
     });
     const { sound: _sound } = await recording.createNewLoadedSoundAsync({
-      isLooping: true,
+      isLooping: false,
       isMuted: false,
       volume: 1.0,
       rate: 1.0,
@@ -205,13 +205,12 @@ export default React.memo(function ChatInput({
 
   const uploadAudio = useCallback(async () => {
     const uri = recording.getURI();
-    const filetype = uri.split(".").pop();
     const fd = new FormData();
     fd.append("data[alertId]", alertId);
     fd.append("data[file]", {
       uri,
-      type: `audio/${filetype}`,
-      name: "audioRecord",
+      type: "audio/mp4",
+      name: "audioRecord.m4a",
     });
     await network.oaFilesKy.post("audio/upload", {
       body: fd,

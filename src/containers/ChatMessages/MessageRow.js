@@ -24,7 +24,13 @@ export default function MessageRow({
   const { contentType, text, audioFileUuid, userId, createdAt, username } = row;
 
   const audioFileUri =
-    contentType === "audio" ? `${env.MINIO_URL}/audio/${audioFileUuid}` : null;
+    contentType === "audio"
+      ? `${env.MINIO_URL}/audio/${audioFileUuid}.m4a`
+      : null;
+
+  // if (contentType === "audio" && __DEV__) {
+  //   console.log(`[MessageRow] Audio URL: ${audioFileUri}`);
+  // }
 
   const isMine = userId === sessionUserId;
 
