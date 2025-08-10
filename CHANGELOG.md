@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.12.1](https://github.com/alerte-secours/as-app/compare/v1.12.0...v1.12.1) (2025-08-10)
+
+
+### Bug Fixes
+
+* menu index typo ([8d8da91](https://github.com/alerte-secours/as-app/commit/8d8da916965c1dd7feaa8b011ea854591c859e03))
+* placeholder in dark theme for chat input ([d5ad23d](https://github.com/alerte-secours/as-app/commit/d5ad23d1dae521e4a99f757505adec3f23a7914c))
+* **push-notif:** label "undefined à " ([ef9b503](https://github.com/alerte-secours/as-app/commit/ef9b5037fbb97fa597194760a9d3a22a04eeeeda))
+* **theming:** alertes archivées buttons ([d6a3e94](https://github.com/alerte-secours/as-app/commit/d6a3e94ea710a494623a8636ccad71205094d9c6))
+* typo ([0b5e936](https://github.com/alerte-secours/as-app/commit/0b5e936714054fe8647b8520d6432ab29fe2ecb7))
+* **voice-message:** wip ([28b8b3d](https://github.com/alerte-secours/as-app/commit/28b8b3d826685de053ae5ff7f7931b24a64920b4))
+
 ## [1.12.0](https://github.com/alerte-secours/as-app/compare/v1.11.17...v1.12.0) (2025-08-02)
 
 
