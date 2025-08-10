@@ -84,6 +84,9 @@ DerivedData
 # aidigest
 codebase.md
 
+# Build logs
+logs/
+
 # Sensitive configuration files
 ios/GoogleService-Info.plist
 ios/AlerteSecours/GoogleService-Info.plist
