@@ -2,7 +2,7 @@ import { Platform, Linking } from "react-native";
 import RNImmediatePhoneCall from "react-native-immediate-phone-call";
 
 export function phoneCallEmergency() {
-  const emergencyNumber = "+112";
+  const emergencyNumber = "112";
 
   if (Platform.OS === "ios") {
     // Use telprompt URL scheme on iOS
