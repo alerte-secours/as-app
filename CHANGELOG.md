@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.12.2](https://github.com/alerte-secours/as-app/compare/v1.12.1...v1.12.2) (2025-08-24)
+
+
+### Bug Fixes
+
+* 112 ([8487573](https://github.com/alerte-secours/as-app/commit/8487573c0f8eb6656cd5825ff217efe046d65407))
+
 ## [1.12.1](https://github.com/alerte-secours/as-app/compare/v1.12.0...v1.12.1) (2025-08-10)
 
 
