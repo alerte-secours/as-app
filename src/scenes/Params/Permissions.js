@@ -10,9 +10,9 @@ import { Button, Title } from "react-native-paper";
 import { usePermissionsState, permissionsActions } from "~/stores";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  RequestDisableOptimization,
-  BatteryOptEnabled,
-} from "react-native-battery-optimization-check";
+  requestBatteryOptimizationExemption,
+  isBatteryOptimizationEnabled,
+} from "~/lib/native/batteryOptimization";
 import openSettings from "~/lib/native/openSettings";
 
 import requestPermissionFcm from "~/permissions/requestPermissionFcm";
@@ -26,23 +26,19 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as Contacts from "expo-contacts";
 
-// Battery optimization request handler
 const requestBatteryOptimizationDisable = async () => {
-  if (Platform.OS !== "android") {
-    return true; // iOS doesn't have battery optimization
-  }
+  if (Platform.OS !== "android") return true;
 
   try {
-    const isEnabled = await BatteryOptEnabled();
-    if (isEnabled) {
-      console.log("Battery optimization enabled, requesting to disable...");
-      RequestDisableOptimization();
-      // Return false as the user needs to interact with the system dialog
+    const enabled = await isBatteryOptimizationEnabled();
+    if (enabled) {
+      console.log("Battery optimization enabled, requesting exemption...");
+      await requestBatteryOptimizationExemption();
+      // User must interact in Settings; will re-check on AppState 'active'
       return false;
-    } else {
-      console.log("Battery optimization already disabled");
-      return true;
     }
+    console.log("Battery optimization already disabled");
+    return true;
   } catch (error) {
     console.error("Error handling battery optimization:", error);
     return false;
@@ -110,8 +106,8 @@ const checkPermissionStatus = async (permission) => {
           return true; // iOS doesn't have battery optimization
         }
         try {
-          const isEnabled = await BatteryOptEnabled();
-          return !isEnabled; // Return true if optimization is disabled
+          const enabled = await isBatteryOptimizationEnabled();
+          return !enabled; // true if optimization is disabled
         } catch (error) {
           console.error("Error checking battery optimization:", error);
           return false;
@@ -200,24 +196,33 @@ export default function Permissions() {
 
   const handleRequestPermission = async (permission) => {
     try {
-      const granted = await requestPermissions[permission]();
-      setPermissions[permission](granted);
+      let granted = false;
 
-      // For battery optimization, we need to handle the async nature differently
-      if (
-        permission === "batteryOptimizationDisabled" &&
-        Platform.OS === "android"
-      ) {
-        // Give a short delay for the system dialog to potentially complete
-        setTimeout(async () => {
-          const actualStatus = await checkPermissionStatus(permission);
-          setPermissions[permission](actualStatus);
-        }, 1000);
+      if (permission === "locationBackground") {
+        // Ensure foreground location is granted first
+        const fgGranted = await checkPermissionStatus("locationForeground");
+        if (!fgGranted) {
+          const fgReq = await requestPermissionLocationForeground();
+          setPermissions.locationForeground(fgReq);
+          if (!fgReq) {
+            granted = false;
+          } else {
+            granted = await requestPermissionLocationBackground();
+          }
+        } else {
+          granted = await requestPermissionLocationBackground();
+        }
+        setPermissions.locationBackground(granted);
       } else {
-        // Double-check the status to ensure UI is in sync
-        const actualStatus = await checkPermissionStatus(permission);
-        setPermissions[permission](actualStatus);
+        granted = await requestPermissions[permission]();
+        setPermissions[permission](granted);
       }
+
+      // Double-check the status to ensure UI is in sync.
+      // For battery optimization, this immediate check may still be 'enabled';
+      // we'll re-check again on AppState 'active' after returning from Settings.
+      const actualStatus = await checkPermissionStatus(permission);
+      setPermissions[permission](actualStatus);
     } catch (error) {
       console.error(`Error requesting ${permission} permission:`, error);
     }
