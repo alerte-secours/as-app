@@ -6,7 +6,7 @@ import { createStyles } from "~/theme";
 import Text from "~/components/Text";
 import { MaterialIcons } from "@expo/vector-icons";
 
-export default function NotificationsButton() {
+export default function NotificationsButton({ flex = 1 }) {
   const navigation = useNavigation();
   const { hasRegisteredRelatives } = useParamsState(["hasRegisteredRelatives"]);
   const { newCount } = useNotificationsState(["newCount"]);
@@ -50,9 +50,11 @@ export default function NotificationsButton() {
   const styles = useStyles();
 
   return (
-    <View>
+    <View style={{ flex }}>
       <TouchableOpacity
         style={styles.button}
+        accessibilityLabel={hasNewNotifications ? `Notifications - ${newCount} nouvelles notifications` : "Notifications"}
+        accessibilityRole="button"
         onPress={() => navigation.navigate("Notifications")}
       >
         <MaterialIcons
@@ -86,12 +88,13 @@ const useStyles = createStyles(({ theme: { colors } }) => ({
   button: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-end",
+    alignSelf: "stretch",
     marginTop: 10,
     marginBottom: 10,
     backgroundColor: colors.surface,
     borderRadius: 8,
-    width: "100%",
+    flex: 1,
+    minHeight: 48, // Consistent with RadarButton for accessibility
     paddingVertical: 12,
     paddingHorizontal: 16,
     shadowColor: colors.text,
