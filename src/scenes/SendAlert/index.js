@@ -13,6 +13,10 @@ import HelpBlock from "./HelpBlock";
 import RegisterRelativesButton from "./RegisterRelativesButton";
 import NotificationsButton from "./NotificationsButton";
 import ContributeButton from "./ContributeButton";
+import RadarButton from "./RadarButton";
+import RadarModal from "./RadarModal";
+import TopButtonsBar from "./TopButtonsBar";
+import useRadarData from "~/hooks/useRadarData";
 
 export default function SendAlert() {
   const navigation = useNavigation();
@@ -20,9 +24,34 @@ export default function SendAlert() {
   const styles = useStyles();
 
   const [helpVisible, setHelpVisible] = useState(false);
+  const [radarModalVisible, setRadarModalVisible] = useState(false);
+
+  const {
+    data: radarData,
+    isLoading: radarIsLoading,
+    error: radarError,
+    fetchRadarData,
+    reset: resetRadarData,
+    hasLocation,
+  } = useRadarData();
+
   function toggleHelp() {
     setHelpVisible(!helpVisible);
   }
+
+  const handleRadarPress = useCallback(() => {
+    if (!hasLocation) {
+      // Could show a location permission alert here
+      return;
+    }
+    setRadarModalVisible(true);
+    fetchRadarData();
+  }, [hasLocation, fetchRadarData]);
+
+  const handleRadarModalClose = useCallback(() => {
+    setRadarModalVisible(false);
+    resetRadarData();
+  }, [resetRadarData]);
 
   const navigateTo = useCallback(
     (navOpts) =>
@@ -70,7 +99,14 @@ export default function SendAlert() {
   return (
     <ScrollView>
       <View style={styles.container}>
-        <NotificationsButton />
+        <TopButtonsBar>
+          <NotificationsButton flex={0.78} />
+          <RadarButton
+            onPress={handleRadarPress}
+            isLoading={radarIsLoading}
+            flex={0.22}
+          />
+        </TopButtonsBar>
 
         <View style={styles.head}>
           <Title style={styles.title}>Quelle est votre situation ?</Title>
@@ -218,6 +254,14 @@ export default function SendAlert() {
         </View>
 
         <ContributeButton />
+
+        <RadarModal
+          visible={radarModalVisible}
+          onDismiss={handleRadarModalClose}
+          peopleCount={radarData?.count}
+          isLoading={radarIsLoading}
+          error={radarError}
+        />
       </View>
     </ScrollView>
   );
