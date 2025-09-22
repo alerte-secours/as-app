@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.0](https://github.com/alerte-secours/as-app/compare/v1.12.2...v1.13.0) (2025-09-22)
+
+
+### Features
+
+* people around radar ([becb619](https://github.com/alerte-secours/as-app/commit/becb61967cbf2b22d77e337677c8390481e3c9dd))
+
+
+### Bug Fixes
+
+* **android:** battery optimisation ([cbd1803](https://github.com/alerte-secours/as-app/commit/cbd1803dc0c6e57924ac54b76dde84987a4dab6d))
+* **wizard:** scrollview ([36ad5aa](https://github.com/alerte-secours/as-app/commit/36ad5aaf046a611e2d1b61a03ff362259951b04a))
+
 ## [1.12.3](https://github.com/alerte-secours/as-app/compare/v1.12.2...v1.12.3) (2025-09-05)
 
 ## [1.12.2](https://github.com/alerte-secours/as-app/compare/v1.12.1...v1.12.2) (2025-08-24)
