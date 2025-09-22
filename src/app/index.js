@@ -23,6 +23,10 @@ import AppLifecycleListener from "~/containers/AppLifecycleListener";
 
 import { useUpdates } from "~/updates";
 import Error from "~/components/Error";
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
 
 import useTrackLocation from "~/hooks/useTrackLocation";
 // import { initializeBackgroundFetch } from "~/services/backgroundFetch";
@@ -298,13 +302,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ErrorBoundary
-      onError={errorHandler}
-      FallbackComponent={Error}
-      // Add a buffer time before allowing reset to prevent immediate re-crashes
-      minTimeBetweenResets={1000}
-    >
-      <AppContent />
-    </ErrorBoundary>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <ErrorBoundary
+        onError={errorHandler}
+        FallbackComponent={Error}
+        // Add a buffer time before allowing reset to prevent immediate re-crashes
+        minTimeBetweenResets={1000}
+      >
+        <AppContent />
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

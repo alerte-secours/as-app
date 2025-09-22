@@ -1,7 +1,6 @@
 import React, { useRef, useState, useMemo } from "react";
 import { StatusBar } from "react-native";
 
-import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "~/theme";
 import { Provider as PaperProvider } from "react-native-paper";
 import { NavigationContainer } from "@react-navigation/native";
@@ -58,7 +57,6 @@ export default function LayoutProviders({ layoutKey, setLayoutKey, children }) {
       />
       <ComposeComponents
         components={[
-          SafeAreaProvider,
           [PaperProvider, { theme: dark ? PaperDarkTheme : PaperLightTheme }],
           [RootNavCtx.Provider, { value: navigationRef }],
           [DrawerStateCtx.Provider, { value: drawerStateCtxVal }],

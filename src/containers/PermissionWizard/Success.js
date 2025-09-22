@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { View, StyleSheet, Image, ScrollView } from "react-native";
 import { Button, Title } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { permissionWizardActions } from "~/stores";
 import { useTheme } from "~/theme";
@@ -9,6 +10,7 @@ import CustomButton from "~/components/CustomButton";
 
 const Success = () => {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleFinish = useCallback(() => {
     permissionWizardActions.setCompleted(true);
@@ -18,7 +20,12 @@ const Success = () => {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <Image
             source={require("~/assets/img/wizard-success.png")}
