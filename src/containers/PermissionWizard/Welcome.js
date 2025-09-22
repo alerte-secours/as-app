@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { View, StyleSheet, Image, ScrollView } from "react-native";
 import { Title } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   permissionsActions,
@@ -26,6 +27,7 @@ const Welcome = () => {
     "locationForeground",
   ]);
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleNext = useCallback(() => {
     permissionWizardActions.setCurrentStep("hero");
@@ -148,7 +150,12 @@ const Welcome = () => {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <Image
             source={require("~/assets/img/logo.png")}

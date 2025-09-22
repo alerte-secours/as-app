@@ -8,6 +8,7 @@ import {
   AppState,
 } from "react-native";
 import { Title } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, Entypo } from "@expo/vector-icons";
 import {
   permissionsActions,
@@ -55,6 +56,7 @@ const HeroMode = () => {
     "batteryOptimizationDisabled",
   ]);
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [skipMessage] = useState(() => {
     const randomIndex = Math.floor(Math.random() * skipMessages.length);
@@ -498,7 +500,12 @@ const HeroMode = () => {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <View style={styles.heroHeader}>
             <Image
