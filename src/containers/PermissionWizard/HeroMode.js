@@ -111,23 +111,22 @@ const HeroMode = () => {
       // Don't change step immediately to avoid race conditions
       console.log("Starting permission requests...");
 
-      // Request battery optimization FIRST (opens Android Settings)
-      // This prevents the bubbling issue by handling Settings-based permissions before in-app dialogs
-      const batteryOptDisabled = await handleBatteryOptimization();
-      console.log("Battery optimization disabled:", batteryOptDisabled);
+      // Request background location last (after user returns from Settings if needed)
+      const locationGranted = await requestPermissionLocationBackground();
+      permissionsActions.setLocationBackground(locationGranted);
+      console.log("Location background permission:", locationGranted);
 
       // Request motion permission second
       const motionGranted = await requestPermissionMotion.requestPermission();
       permissionsActions.setMotion(motionGranted);
       console.log("Motion permission:", motionGranted);
 
-      // Request background location last (after user returns from Settings if needed)
-      const locationGranted = await requestPermissionLocationBackground();
-      permissionsActions.setLocationBackground(locationGranted);
-      console.log("Location background permission:", locationGranted);
-
-      // Only set step to tracking after all permission requests are complete
       permissionWizardActions.setCurrentStep("tracking");
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const batteryOptDisabled = await handleBatteryOptimization();
+      console.log("Battery optimization disabled:", batteryOptDisabled);
 
       // Check if we should proceed to success immediately
       if (locationGranted && motionGranted && batteryOptDisabled) {
