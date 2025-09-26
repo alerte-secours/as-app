@@ -53,7 +53,11 @@ export default function NotificationsButton({ flex = 1 }) {
     <View style={{ flex }}>
       <TouchableOpacity
         style={styles.button}
-        accessibilityLabel={hasNewNotifications ? `Notifications - ${newCount} nouvelles notifications` : "Notifications"}
+        accessibilityLabel={
+          hasNewNotifications
+            ? `Notifications - ${newCount} nouvelles notifications`
+            : "Notifications"
+        }
         accessibilityRole="button"
         onPress={() => navigation.navigate("Notifications")}
       >

@@ -4,7 +4,11 @@ import { IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createStyles } from "~/theme";
 
-export default function RadarButton({ onPress, isLoading = false, flex = 0.22 }) {
+export default function RadarButton({
+  onPress,
+  isLoading = false,
+  flex = 0.22,
+}) {
   const styles = useStyles();
 
   return (
