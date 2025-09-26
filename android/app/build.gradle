@@ -86,8 +86,8 @@ android {
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a"
         }
-        versionCode 214
-        versionName "1.13.2"
+        versionCode 215
+        versionName "1.13.3"
         multiDexEnabled true
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
