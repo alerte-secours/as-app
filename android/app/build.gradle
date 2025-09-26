@@ -83,8 +83,8 @@ android {
         applicationId 'com.alertesecours'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 213
-        versionName "1.13.1"
+        versionCode 214
+        versionName "1.13.2"
         multiDexEnabled true
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
@@ -157,6 +157,16 @@ android {
             android.packagingOptions[prop] += it
         }
     }
+}
+
+configurations.all {
+    resolutionStrategy {
+        // Force non-native UCrop artifact (no .so), avoids 64KB page size issue from 2.2.6-native
+        force "com.github.yalantis:ucrop:2.2.6"
+    }
+    // Exclude Huawei UCS native credential libs from Play build (causes 64KB alignment)
+    exclude group: "com.huawei.hms", module: "ucs-credential"
+    exclude group: "com.huawei.hms", module: "ucs-credential-developers"
 }
 
 dependencies {
