@@ -65,3 +65,28 @@ allprojects {
          }
     }
 }
+
+/**
+ * Force 16KB page size at link time for all subprojects that build native code with CMake.
+ * Use projectsEvaluated to avoid afterEvaluate on already-evaluated projects.
+ */
+gradle.projectsEvaluated {
+    subprojects { proj ->
+        def androidExt = proj.extensions.findByName("android")
+        if (androidExt != null &&
+            androidExt.hasProperty("externalNativeBuild") &&
+            androidExt.externalNativeBuild?.cmake != null) {
+            try {
+                def flag = "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                def args = androidExt.externalNativeBuild.cmake.arguments
+                if (args == null || args.isEmpty()) {
+                    androidExt.externalNativeBuild.cmake.arguments = [flag]
+                } else if (!args.contains(flag)) {
+                    androidExt.externalNativeBuild.cmake.arguments += flag
+                }
+            } catch (Throwable ignored) {
+                // ignore if structure differs for a subproject
+            }
+        }
+    }
+}

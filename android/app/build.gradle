@@ -83,6 +83,9 @@ android {
         applicationId 'com.alertesecours'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
         versionCode 214
         versionName "1.13.2"
         multiDexEnabled true
@@ -163,6 +166,18 @@ configurations.all {
     resolutionStrategy {
         // Force non-native UCrop artifact (no .so), avoids 64KB page size issue from 2.2.6-native
         force "com.github.yalantis:ucrop:2.2.6"
+
+        // Force Fresco/FBJNI versions with 16KB page support (or newer)
+        force "com.facebook.fresco:fresco:3.3.0"
+        force "com.facebook.fresco:imagepipeline:3.3.0"
+        force "com.facebook.fresco:imagepipeline-native:3.3.0"
+        force "com.facebook.fresco:gifdecoder:3.3.0"
+        force "com.facebook.fresco:nativeimagetranscoder:3.3.0"
+        force "com.facebook.fresco:static-webp:3.3.0"
+        force "com.facebook.fresco:webpsupport:3.3.0"
+        force "com.facebook.fresco:animated-webp:3.3.0"
+        force "com.facebook.fresco:animated-gif:3.3.0"
+        force "com.facebook.fbjni:fbjni:0.6.0"
     }
     // Exclude Huawei UCS native credential libs from Play build (causes 64KB alignment)
     exclude group: "com.huawei.hms", module: "ucs-credential"
