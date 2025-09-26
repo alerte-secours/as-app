@@ -77,7 +77,7 @@ gradle.projectsEvaluated {
             androidExt.hasProperty("externalNativeBuild") &&
             androidExt.externalNativeBuild?.cmake != null) {
             try {
-                def flag = "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+                def flag = "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=4096"
                 def args = androidExt.externalNativeBuild.cmake.arguments
                 if (args == null || args.isEmpty()) {
                     androidExt.externalNativeBuild.cmake.arguments = [flag]
