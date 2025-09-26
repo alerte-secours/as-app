@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.1](https://github.com/alerte-secours/as-app/compare/v1.13.0...v1.13.1) (2025-09-26)
+
+
+### Bug Fixes
+
+* **android:** permissions wizard ([a29501b](https://github.com/alerte-secours/as-app/commit/a29501bb7c3c5a9a512a28caf8af31795b11d495))
+* rollback permissions flow ([b7a53dd](https://github.com/alerte-secours/as-app/commit/b7a53dd78bae1bfc8ea1abf985f63af04b858055))
+
 ## [1.13.0](https://github.com/alerte-secours/as-app/compare/v1.12.2...v1.13.0) (2025-09-22)
 
 
