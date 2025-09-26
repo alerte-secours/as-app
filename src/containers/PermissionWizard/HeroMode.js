@@ -18,13 +18,11 @@ import {
 import { createStyles, useTheme } from "~/theme";
 import openSettings from "~/lib/native/openSettings";
 import {
-  requestBatteryOptimizationExemption,
-  isBatteryOptimizationEnabled,
-  openBatteryOptimizationFallbacks,
-} from "~/lib/native/batteryOptimization";
+  RequestDisableOptimization,
+  BatteryOptEnabled,
+} from "react-native-battery-optimization-check";
 
 import requestPermissionLocationBackground from "~/permissions/requestPermissionLocationBackground";
-import requestPermissionLocationForeground from "~/permissions/requestPermissionLocationForeground";
 import requestPermissionMotion from "~/permissions/requestPermissionMotion";
 import CustomButton from "~/components/CustomButton";
 import Text from "~/components/Text";
@@ -48,8 +46,6 @@ const HeroMode = () => {
     useState(null);
   const [batteryOptAttempted, setBatteryOptAttempted] = useState(false);
   const [batteryOptInProgress, setBatteryOptInProgress] = useState(false);
-  const [batteryOptFallbackOpened, setBatteryOptFallbackOpened] =
-    useState(false);
   const permissions = usePermissionsState([
     "locationBackground",
     "motion",
@@ -81,14 +77,16 @@ const HeroMode = () => {
       setBatteryOptInProgress(true);
 
       // Check if battery optimization is enabled
-      const isEnabled = await isBatteryOptimizationEnabled();
+      const isEnabled = await BatteryOptEnabled();
       setBatteryOptimizationEnabled(isEnabled);
 
       if (isEnabled) {
-        console.log("Battery optimization is enabled, requesting exemption...");
+        console.log(
+          "Battery optimization is enabled, requesting to disable...",
+        );
 
         // Request to disable battery optimization (opens Android Settings)
-        await requestBatteryOptimizationExemption();
+        RequestDisableOptimization();
         setBatteryOptAttempted(true);
 
         // Return false to indicate user needs to complete action in Settings
@@ -110,45 +108,31 @@ const HeroMode = () => {
   const handleRequestPermissions = useCallback(async () => {
     setRequesting(true);
     try {
+      // Don't change step immediately to avoid race conditions
       console.log("Starting permission requests...");
 
-      // 1) Battery optimization (opens Settings)
+      // Request battery optimization FIRST (opens Android Settings)
+      // This prevents the bubbling issue by handling Settings-based permissions before in-app dialogs
       const batteryOptDisabled = await handleBatteryOptimization();
       console.log("Battery optimization disabled:", batteryOptDisabled);
-      if (!batteryOptDisabled) {
-        // Settings flow opened; wait for user to return before requesting in-app permissions
-        setRequesting(false);
-        setHasAttempted(true);
-        return;
-      }
 
-      // 2) Foreground location
-      let fgGranted = await requestPermissionLocationForeground();
-      permissionsActions.setLocationForeground(fgGranted);
-      console.log("Location foreground permission:", fgGranted);
-
-      // 3) Background location (only after FG granted)
-      let bgGranted = false;
-      if (fgGranted) {
-        bgGranted = await requestPermissionLocationBackground();
-        permissionsActions.setLocationBackground(bgGranted);
-      } else {
-        console.log(
-          "Skipping background location since foreground not granted",
-        );
-      }
-      console.log("Location background permission:", bgGranted);
-
-      // 4) Motion
+      // Request motion permission second
       const motionGranted = await requestPermissionMotion.requestPermission();
       permissionsActions.setMotion(motionGranted);
       console.log("Motion permission:", motionGranted);
 
-      // Step after all requests
+      // Request background location last (after user returns from Settings if needed)
+      const locationGranted = await requestPermissionLocationBackground();
+      permissionsActions.setLocationBackground(locationGranted);
+      console.log("Location background permission:", locationGranted);
+
+      // Only set step to tracking after all permission requests are complete
       permissionWizardActions.setCurrentStep("tracking");
 
-      if (fgGranted && bgGranted && motionGranted && batteryOptDisabled) {
+      // Check if we should proceed to success immediately
+      if (locationGranted && motionGranted && batteryOptDisabled) {
         permissionWizardActions.setHeroPermissionsGranted(true);
+        // Don't navigate immediately, let the useEffect handle it
       }
     } catch (error) {
       console.error("Error requesting permissions:", error);
@@ -161,7 +145,7 @@ const HeroMode = () => {
     // Re-check battery optimization status before retrying
     if (Platform.OS === "android") {
       try {
-        const isEnabled = await isBatteryOptimizationEnabled();
+        const isEnabled = await BatteryOptEnabled();
         setBatteryOptimizationEnabled(isEnabled);
 
         // If battery optimization is now disabled, update the store
@@ -197,7 +181,7 @@ const HeroMode = () => {
     const checkInitialBatteryOptimization = async () => {
       if (Platform.OS === "android") {
         try {
-          const isEnabled = await isBatteryOptimizationEnabled();
+          const isEnabled = await BatteryOptEnabled();
           setBatteryOptimizationEnabled(isEnabled);
 
           // If already disabled, update the store
@@ -226,7 +210,7 @@ const HeroMode = () => {
       ) {
         console.log("App became active, re-checking battery optimization...");
         try {
-          const isEnabled = await isBatteryOptimizationEnabled();
+          const isEnabled = await BatteryOptEnabled();
           setBatteryOptimizationEnabled(isEnabled);
 
           if (!isEnabled) {
@@ -234,19 +218,6 @@ const HeroMode = () => {
               "Battery optimization disabled after returning from settings",
             );
             permissionsActions.setBatteryOptimizationDisabled(true);
-          } else if (!batteryOptFallbackOpened) {
-            try {
-              console.log(
-                "Battery optimization still enabled; opening fallback settings...",
-              );
-              await openBatteryOptimizationFallbacks();
-              setBatteryOptFallbackOpened(true);
-            } catch (e) {
-              console.error(
-                "Error opening battery optimization fallback settings:",
-                e,
-              );
-            }
           }
         } catch (error) {
           console.error(
@@ -265,7 +236,7 @@ const HeroMode = () => {
     return () => {
       subscription?.remove();
     };
-  }, [batteryOptAttempted, batteryOptFallbackOpened]);
+  }, [batteryOptAttempted]);
 
   useEffect(() => {
     if (hasAttempted && allGranted) {
