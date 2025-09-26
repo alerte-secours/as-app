@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Check if DEVICE environment variable is set
 if [ -z "$DEVICE" ]; then
   echo "Error: DEVICE environment variable is not set."
@@ -15,7 +17,7 @@ java -jar /opt/bundletool-all-1.17.1.jar build-apks \
   --mode universal \
   --bundle ./app-release.aab \
   --output ./app.apks \
-  --ks $HOME/lab/alerte-secours/as-app/android/app/debug.keystore \
+  --ks $PWD/../../../../debug.keystore \
   --ks-pass pass:android \
   --ks-key-alias androiddebugkey \
   --key-pass pass:android
