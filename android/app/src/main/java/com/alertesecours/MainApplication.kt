@@ -35,6 +35,7 @@ class MainApplication : Application(), ReactApplication {
 
           override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
           override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
+
       }
   )
 
@@ -45,11 +46,6 @@ class MainApplication : Application(), ReactApplication {
     super.onCreate()
     SoLoader.init(this, OpenSourceMergedSoMapping)
 
-    // Initialize Fresco to avoid native memory chunk (no libimagepipeline.so load)
-    val builder = ImagePipelineConfig.newBuilder(this)
-    builder.experiment().setNativeCodeDisabled(true)
-    val frescoConfig = builder.build()
-    Fresco.initialize(this, frescoConfig)
 
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
