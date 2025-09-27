@@ -10,7 +10,7 @@ buildscript {
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '35')
-        kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
+        kotlinVersion = findProperty('android.kotlinVersion') ?: '2.0.21'
 
         ndkVersion = "27.2.12479018"
     }
@@ -22,7 +22,7 @@ buildscript {
         classpath 'com.google.gms:google-services:4.4.1'
         classpath('com.android.tools.build:gradle:8.6.0')
         classpath('com.facebook.react:react-native-gradle-plugin')
-        classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
 
@@ -77,7 +77,7 @@ gradle.projectsEvaluated {
             androidExt.hasProperty("externalNativeBuild") &&
             androidExt.externalNativeBuild?.cmake != null) {
             try {
-                def flag = "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=4096"
+                def flag = "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
                 def args = androidExt.externalNativeBuild.cmake.arguments
                 if (args == null || args.isEmpty()) {
                     androidExt.externalNativeBuild.cmake.arguments = [flag]

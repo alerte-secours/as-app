@@ -84,7 +84,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a"
+            abiFilters "arm64-v8a"
         }
         versionCode 217
         versionName "1.13.5"
@@ -168,20 +168,25 @@ configurations.all {
         force "com.github.yalantis:ucrop:2.2.6"
 
         // Force Fresco/FBJNI versions with 16KB page support (or newer)
-        force "com.facebook.fresco:fresco:3.3.0"
-        force "com.facebook.fresco:imagepipeline:3.3.0"
-        force "com.facebook.fresco:imagepipeline-native:3.3.0"
-        force "com.facebook.fresco:gifdecoder:3.3.0"
-        force "com.facebook.fresco:nativeimagetranscoder:3.3.0"
-        force "com.facebook.fresco:static-webp:3.3.0"
-        force "com.facebook.fresco:webpsupport:3.3.0"
-        force "com.facebook.fresco:animated-webp:3.3.0"
-        force "com.facebook.fresco:animated-gif:3.3.0"
+        force "com.facebook.fresco:fresco:3.6.0"
+        force "com.facebook.fresco:imagepipeline:3.6.0"
+        force "com.facebook.fresco:imagepipeline-native:3.6.0"
+        force "com.facebook.fresco:gifdecoder:3.6.0"
+        force "com.facebook.fresco:nativeimagetranscoder:3.6.0"
+        force "com.facebook.fresco:static-webp:3.6.0"
+        force "com.facebook.fresco:webpsupport:3.6.0"
+        force "com.facebook.fresco:animated-webp:3.6.0"
+        force "com.facebook.fresco:animated-gif:3.6.0"
         force "com.facebook.fbjni:fbjni:0.6.0"
     }
     // Exclude Huawei UCS native credential libs from Play build (causes 64KB alignment)
     exclude group: "com.huawei.hms", module: "ucs-credential"
     exclude group: "com.huawei.hms", module: "ucs-credential-developers"
+    exclude group: "com.huawei.hms.LocationLiteSdk", module: "core"
+    // Exclude Fresco native pipeline and webp natives to drop 0x1000 .so files
+    exclude group: "com.facebook.fresco", module: "imagepipeline-native"
+    exclude group: "com.facebook.fresco", module: "static-webp"
+    exclude group: "com.facebook.fresco", module: "nativeimagetranscoder"
 }
 
 dependencies {
