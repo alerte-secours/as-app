@@ -185,13 +185,14 @@ configurations.all {
     exclude group: "com.huawei.hms.LocationLiteSdk", module: "core"
     // Exclude Fresco native pipeline and webp natives to drop 0x1000 .so files
     exclude group: "com.facebook.fresco", module: "imagepipeline-native"
-    exclude group: "com.facebook.fresco", module: "static-webp"
-    exclude group: "com.facebook.fresco", module: "nativeimagetranscoder"
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    // Ensure Fresco core API available for app-level initialization (MainApplication)
+    implementation("com.facebook.fresco:fresco:3.6.0")
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
