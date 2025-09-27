@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.6](https://github.com/alerte-secours/as-app/compare/v1.13.5...v1.13.6) (2025-09-27)
+
+
+### Bug Fixes
+
+* **android:** 16k issue wip upgrading deps ([ea29f1f](https://github.com/alerte-secours/as-app/commit/ea29f1fd92a301e1e20516e2f9dc0410d681376c))
+
 ## [1.13.5](https://github.com/alerte-secours/as-app/compare/v1.13.4...v1.13.5) (2025-09-26)
 
 
