@@ -170,7 +170,7 @@ configurations.all {
         // Force Fresco/FBJNI versions with 16KB page support (or newer)
         force "com.facebook.fresco:fresco:3.6.0"
         force "com.facebook.fresco:imagepipeline:3.6.0"
-        force "com.facebook.fresco:imagepipeline-native:3.6.0"
+        force "com.facebook.fresco:imagepipeline-base:3.6.0"
         force "com.facebook.fresco:gifdecoder:3.6.0"
         force "com.facebook.fresco:nativeimagetranscoder:3.6.0"
         force "com.facebook.fresco:static-webp:3.6.0"
@@ -184,7 +184,6 @@ configurations.all {
     exclude group: "com.huawei.hms", module: "ucs-credential-developers"
     exclude group: "com.huawei.hms.LocationLiteSdk", module: "core"
     // Exclude Fresco native pipeline and webp natives to drop 0x1000 .so files
-    exclude group: "com.facebook.fresco", module: "imagepipeline-native"
 }
 
 dependencies {
@@ -193,6 +192,10 @@ dependencies {
 
     // Ensure Fresco core API available for app-level initialization (MainApplication)
     implementation("com.facebook.fresco:fresco:3.6.0")
+    // Ensure MemoryChunkType and related API are available
+    implementation("com.facebook.fresco:imagepipeline-base:3.6.0")
+    // Include native pipeline so libimagepipeline.so is present (3.6.0 expected 16KB aligned)
+    implementation("com.facebook.fresco:imagepipeline-native:3.6.0")
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
