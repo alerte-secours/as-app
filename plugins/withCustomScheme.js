@@ -1,4 +1,4 @@
-const { withInfoPlist } = require("expo/config-plugins");
+const { withInfoPlist } = require("@expo/config-plugins");
 
 module.exports = function withCustomScheme(config) {
   return withInfoPlist(config, (config) => {
