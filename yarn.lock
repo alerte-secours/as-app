@@ -7114,6 +7114,7 @@ __metadata:
     eslint-plugin-unused-imports: "npm:^3.0.0"
     eventemitter3: "npm:^5.0.1"
     expo: "npm:~53.0.23"
+    expo-audio: "npm:~0.4.9"
     expo-av: "npm:~15.1.7"
     expo-build-properties: "npm:~0.14.8"
     expo-constants: "npm:~17.1.7"
@@ -10627,6 +10628,17 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/c7851f3cf69ad2d8075908f719baf3a96660f262109374a563418912b7588a126f425225bc2126eca005873aa719c4683b99a467984e244d1931e6f1ba68655a
+  languageName: node
+  linkType: hard
+
+"expo-audio@npm:~0.4.9":
+  version: 0.4.9
+  resolution: "expo-audio@npm:0.4.9"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10/874527adcf03e044770fc64fa9d58f735528bd40ebe038635ebf5ef34a21cdbce0115c9b2b1406604b9622f665d27a3a7eda417275322f2506a77f74c359724f
   languageName: node
   linkType: hard
 

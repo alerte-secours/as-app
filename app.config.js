@@ -195,6 +195,7 @@ let config = {
           },
         },
       ],
+      "expo-audio",
       "./plugins/withXcode15Fix",
       "./plugins/withCustomScheme", // Preserve URL schemes during prebuild
     ],
