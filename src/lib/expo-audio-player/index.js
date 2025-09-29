@@ -1,14 +1,7 @@
-import React, { PureComponent } from "react";
-import {
-  TouchableOpacity,
-  Animated,
-  PanResponder,
-  View,
-  Easing,
-} from "react-native";
-import { Audio } from "expo-av";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { TouchableOpacity, Animated, PanResponder, View } from "react-native";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import sleep from "./sleep";
 import DigitalTimeString from "./DigitalTimeString";
 
 import useStyles from "./styles";
@@ -17,405 +10,319 @@ import withHooks from "~/hoc/withHooks";
 const TRACK_SIZE = 4;
 const THUMB_SIZE = 20;
 
-class AudioSlider extends PureComponent {
-  constructor(props) {
-    super(props);
-    this.state = {
-      playing: false,
-      currentTime: 0, // miliseconds; value interpolated by animation.
-      duration: 0,
-      trackLayout: {},
-      dotOffset: new Animated.ValueXY(),
-      xDotOffsetAtAnimationStart: 0,
-    };
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(n, max));
+}
 
-    this._updateProps();
+function AudioSlider(props) {
+  // Props mapping (kept compatible with previous class component)
+  const { audio: audioUrl, registry, style: styleProp } = props;
+  const pauseAllBeforePlay =
+    props.pauseAllBeforePlay === undefined ? true : props.pauseAllBeforePlay;
 
-    // Important:
-    // this.state.dotOffset.x is the actual offset
-    // this.state.dotOffset.x._value is the offset from the point where the animation started
-    // However, since this.state.dotOffset.x is an object and not a value, it is difficult
-    // to compare it with other numbers. Therefore, the const currentOffsetX is used.
-    // To print all attributes of the object see https://stackoverflow.com/questions/9209747/printing-all-the-hidden-properties-of-an-object
-    this._panResponder = PanResponder.create({
-      onMoveShouldSetResponderCapture: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderGrant: async (e, gestureState) => {
-        if (this.state.playing) {
-          await this.pause();
-        }
-        await this.setState({
-          xDotOffsetAtAnimationStart: this.state.dotOffset.x._value,
-        });
-        await this.state.dotOffset.setOffset({
-          x: this.state.dotOffset.x._value,
-        });
-        await this.state.dotOffset.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: (e, gestureState) => {
-        Animated.event([
-          null,
-          { dx: this.state.dotOffset.x, dy: this.state.dotOffset.y },
-        ])(e, gestureState);
-      },
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderTerminate: async (evt, gestureState) => {
-        // Another component has become the responder, so this gesture is cancelled.
+  // Styles injected by withHooks HOC
+  const styles = props.styles;
 
-        const currentOffsetX =
-          this.state.xDotOffsetAtAnimationStart + this.state.dotOffset.x._value;
-        if (
-          currentOffsetX < 0 ||
-          currentOffsetX > this.state.trackLayout.width
-        ) {
-          await this.state.dotOffset.setValue({
-            x: -this.state.xDotOffsetAtAnimationStart,
-            y: 0,
-          });
-        }
-        await this.state.dotOffset.flattenOffset();
-        await this.mapAudioToCurrentTime();
-      },
-      onPanResponderRelease: async (e, { vx }) => {
-        const currentOffsetX =
-          this.state.xDotOffsetAtAnimationStart + this.state.dotOffset.x._value;
-        if (
-          currentOffsetX < 0 ||
-          currentOffsetX > this.state.trackLayout.width
-        ) {
-          await this.state.dotOffset.setValue({
-            x: -this.state.xDotOffsetAtAnimationStart,
-            y: 0,
-          });
-        }
-        await this.state.dotOffset.flattenOffset();
-        await this.mapAudioToCurrentTime();
-      },
-    });
-  }
+  // Track layout (for computing pixel & time mappings)
+  const [trackLayout, setTrackLayout] = useState({ width: 0, height: 0 });
 
-  _updateProps() {
-    const props = this.props;
-    this.registry = props.registry;
-    this.style = props.style || {};
-    if (this.registry) {
-      this.registry.register(this);
-    }
-    const { pauseAllBeforePlay = true } = props;
-    this.pauseAllBeforePlay = pauseAllBeforePlay;
-  }
+  // Thumb X position (in pixels) — single Animated.Value used both for dragging and syncing to playback
+  const dotX = useRef(new Animated.Value(0)).current;
+  const isDraggingRef = useRef(false);
+  const xDotOffsetAtStartRef = useRef(0);
 
-  componentDidUpdate() {
-    this._updateProps();
-  }
+  // While dragging, we derive the current time from the thumb position for live display
+  const [dragTimeMs, setDragTimeMs] = useState(0);
 
-  mapAudioToCurrentTime = async () => {
-    if (!this.soundObject) return;
-    await this.soundObject.setPositionAsync(this.state.currentTime);
-  };
+  // Player using new expo-audio hook API
+  const player = useAudioPlayer(audioUrl, { updateInterval: 250 });
+  const status = useAudioPlayerStatus(player) || {};
 
-  onPressPlayPause = async () => {
-    if (this.state.playing) {
-      await this.pause();
-      return;
-    }
-    await this.play();
-  };
+  const durationSec = status.duration || 0;
+  const currentTimeSec = status.currentTime || 0;
 
-  play = async () => {
-    if (!this.soundObject) return;
-    if (this.registry && this.pauseAllBeforePlay) {
-      const players = this.registry.getAll();
-      await Promise.all(
-        players.filter((p) => this !== p).map((p) => p.pause()),
-      );
-    }
-    await this.soundObject.playAsync();
-    this.setState({ playing: true }); // This is for the play-button to go to play
-    this.startMovingDot();
-  };
-
-  pause = async () => {
-    if (!this.soundObject) return;
-    await this.soundObject.pauseAsync();
-    this.setState({ playing: false }); // This is for the play-button to go to pause
-    Animated.timing(this.state.dotOffset, { useNativeDriver: false }).stop(); // Will also call animationPausedOrStopped()
-  };
-
-  startMovingDot = async () => {
-    if (!this.soundObject) return;
-    const status = await this.soundObject.getStatusAsync();
-    const durationLeft = status["durationMillis"] - status["positionMillis"];
-
-    Animated.timing(this.state.dotOffset, {
-      toValue: { x: this.state.trackLayout.width, y: 0 },
-      duration: durationLeft,
-      easing: Easing.linear,
-      useNativeDriver: false,
-    }).start(() => this.animationPausedOrStopped());
-  };
-
-  animationPausedOrStopped = async () => {
-    if (!this.state.playing) {
-      // Audio has been paused
-      return;
-    }
-    if (!this.soundObject) return;
-    // Animation-duration is over (reset Animation and Audio):
-    await sleep(200); // In case animation has finished, but audio has not
-    this.setState({ playing: false });
-    await this.state.dotOffset.setValue({ x: 0, y: 0 });
-    // this.state.dotOffset.setValue(0);
-    await this.soundObject.setPositionAsync(0);
-  };
-
-  handlePlaybackFinished = async () => {
-    // console.log(`[AudioSlider] Playback finished, resetting for replay`);
-    // Reset for replay instead of unloading
-    this.setState({ playing: false });
-    await this.state.dotOffset.setValue({ x: 0, y: 0 });
-    if (this.soundObject) {
-      await this.soundObject.stopAsync();
-    }
-  };
-
-  measureTrack = (event) => {
-    this.setState({ trackLayout: event.nativeEvent.layout }); // {x, y, width, height}
-  };
-
-  async componentDidMount() {
-    // https://github.com/olapiv/expo-audio-player/issues/13
-
-    const audioUrl = this.props.audio;
-
-    const loadAudio = async () => {
-      const tryLoad = async (ext) => {
-        // console.log(`[AudioSlider] Attempting to load with extension: ${ext}`);
-        const { sound } = await Audio.Sound.createAsync({
-          uri: audioUrl,
-          overrideFileExtensionAndroid: ext,
-        });
-        return sound;
-      };
-
-      let lastError = null;
-
+  // Register in an optional registry to allow pausing other players before play
+  const selfRef = useRef({
+    pause: () => {
       try {
-        // First try with m4a (preferred)
-        const sound = await tryLoad("m4a");
-        // console.log(`[AudioSlider] Successfully loaded with m4a extension`);
-        this.soundObject = sound;
-        await this.soundObject.setIsLoopingAsync(false);
-        this.soundObject.setOnPlaybackStatusUpdate((status) => {
-          if (!status.didJustFinish) return;
-          this.handlePlaybackFinished();
-        });
-        return;
-      } catch (err1) {
-        // console.log(`[AudioSlider] Failed to load with m4a:`, err1.message);
-        lastError = err1;
-        try {
-          // Fallback to mp4
-          const sound = await tryLoad("mp4");
-          // console.log(`[AudioSlider] Successfully loaded with mp4 extension`);
-          this.soundObject = sound;
-          await this.soundObject.setIsLoopingAsync(false);
-          this.soundObject.setOnPlaybackStatusUpdate((status) => {
-            if (!status.didJustFinish) return;
-            this.handlePlaybackFinished();
-          });
-          return;
-        } catch (err2) {
-          // console.log(`[AudioSlider] Failed to load with mp4:`, err2.message);
-          lastError = err2;
-          try {
-            // Last fallback to aac
-            const sound = await tryLoad("aac");
-            // console.log(`[AudioSlider] Successfully loaded with aac extension`);
-            this.soundObject = sound;
-            await this.soundObject.setIsLoopingAsync(false);
-            this.soundObject.setOnPlaybackStatusUpdate((status) => {
-              if (!status.didJustFinish) return;
-              this.handlePlaybackFinished();
-            });
-            return;
-          } catch (err3) {
-            // console.log(`[AudioSlider] Failed to load with aac:`, err3.message);
-            lastError = err3;
-          }
-        }
-      }
+        player.pause();
+      } catch {}
+    },
+  });
 
-      // All attempts failed
-      console.error(
-        `[AudioSlider] All load attempts failed for ${audioUrl}. Last error:`,
-        lastError,
-      );
+  useEffect(() => {
+    selfRef.current.pause = () => {
+      try {
+        player.pause();
+      } catch {}
     };
+  }, [player]);
 
-    await loadAudio();
+  useEffect(() => {
+    if (!registry) return;
+    const self = selfRef.current;
+    registry.register(self);
+    return () => {
+      try {
+        registry.unregister(self);
+      } catch {}
+    };
+  }, [registry]);
 
-    if (!this.soundObject) {
-      // Loading failed; avoid further calls and leave UI inert or show error
-      console.log(
-        `[AudioSlider] No sound object created, setting duration to 0`,
-      );
-      this.setState({ duration: 0 });
+  // Ensure no looping (mimics the previous behavior)
+  useEffect(() => {
+    try {
+      player.loop = false;
+    } catch {}
+  }, [player]);
+
+  // When not dragging, keep the thumb in sync with the playback position
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      const w = trackLayout.width || 0;
+      const x = durationSec > 0 ? (currentTimeSec / durationSec) * w : 0;
+      dotX.setValue(x);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTimeSec, durationSec, trackLayout.width]);
+
+  // When playback finishes, reset to start (seek to 0 and move thumb to start)
+  useEffect(() => {
+    if (status.didJustFinish) {
+      try {
+        player.seekTo(0);
+      } catch {}
+      dotX.setValue(0);
+    }
+  }, [status.didJustFinish, player, dotX]);
+
+  const onPressPlayPause = async () => {
+    if (status.playing) {
+      try {
+        player.pause();
+      } catch {}
       return;
+    }
+
+    // Pause others first if asked
+    if (registry && pauseAllBeforePlay) {
+      try {
+        const players = registry.getAll ? registry.getAll() : [];
+        players
+          .filter((p) => p !== selfRef.current && typeof p.pause === "function")
+          .forEach((p) => p.pause());
+      } catch {}
     }
 
     try {
-      const status = await this.soundObject.getStatusAsync();
-      this.setState({ duration: status.durationMillis });
-    } catch (error) {
-      console.log("Error getting audio status:", error);
-      this.setState({ duration: 0 });
-      return;
-    }
+      player.play();
+    } catch {}
+  };
 
-    // This requires measureTrack to have been called.
-    this.state.dotOffset.addListener(() => {
-      const animatedCurrentTime = this.state.dotOffset.x
-        .interpolate({
-          inputRange: [0, this.state.trackLayout.width],
-          outputRange: [0, this.state.duration],
-          extrapolate: "clamp",
-        })
-        .__getValue();
-      this.setState({ currentTime: animatedCurrentTime });
-    });
-  }
+  // Pan handling for seeking
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetResponderCapture: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
 
-  async componentWillUnmount() {
-    if (this.soundObject) {
-      await this.soundObject.unloadAsync();
-    }
-    this.state.dotOffset.removeAllListeners();
-    if (this.registry) {
-      this.registry.unregister(this);
-    }
-  }
+        onPanResponderGrant: async () => {
+          // Pause if currently playing (mimic previous behavior)
+          if (status.playing) {
+            try {
+              player.pause();
+            } catch {}
+          }
 
-  render() {
-    return (
+          isDraggingRef.current = true;
+
+          // Initialize offset for drag
+          const currentX = dotX.__getValue();
+          xDotOffsetAtStartRef.current = currentX;
+          dotX.setOffset(currentX);
+          dotX.setValue(0);
+
+          // While dragging, update displayed time
+          dotX.addListener(({ value }) => {
+            const w = trackLayout.width || 1;
+            const currentOffset =
+              xDotOffsetAtStartRef.current +
+              (typeof value === "number" ? value : 0);
+            const clampedX = clamp(currentOffset, 0, w);
+            const percent = w > 0 ? clampedX / w : 0;
+            const ms = Math.round(percent * durationSec * 1000);
+            setDragTimeMs(ms);
+          });
+        },
+
+        onPanResponderMove: Animated.event([null, { dx: dotX }], {
+          useNativeDriver: false,
+        }),
+
+        onPanResponderTerminationRequest: () => false,
+
+        onPanResponderTerminate: async () => {
+          // Another component took the responder
+          dotX.removeAllListeners();
+
+          const w = trackLayout.width || 1;
+          const value = dotX.__getValue();
+          const currentOffset =
+            xDotOffsetAtStartRef.current +
+            (typeof value === "number" ? value : 0);
+
+          let clampedX = clamp(currentOffset, 0, w);
+          dotX.flattenOffset();
+          dotX.setValue(clampedX);
+
+          if (durationSec > 0) {
+            const targetSec = (clampedX / w) * durationSec;
+            try {
+              await player.seekTo(targetSec);
+            } catch {}
+          }
+
+          isDraggingRef.current = false;
+          setDragTimeMs(0);
+        },
+
+        onPanResponderRelease: async () => {
+          dotX.removeAllListeners();
+
+          const w = trackLayout.width || 1;
+          const value = dotX.__getValue();
+          const currentOffset =
+            xDotOffsetAtStartRef.current +
+            (typeof value === "number" ? value : 0);
+
+          let clampedX = clamp(currentOffset, 0, w);
+          dotX.flattenOffset();
+          dotX.setValue(clampedX);
+
+          if (durationSec > 0) {
+            const targetSec = (clampedX / w) * durationSec;
+            try {
+              await player.seekTo(targetSec);
+            } catch {}
+          }
+
+          isDraggingRef.current = false;
+          setDragTimeMs(0);
+        },
+      }),
+    [dotX, durationSec, player, status.playing, trackLayout.width],
+  );
+
+  const measureTrack = (event) => {
+    setTrackLayout(event.nativeEvent.layout || {});
+  };
+
+  // Times for display (DigitalTimeString expects milliseconds)
+  const durationMs = Math.round(durationSec * 1000);
+  const currentTimeMs = isDraggingRef.current
+    ? dragTimeMs
+    : Math.round(currentTimeSec * 1000);
+
+  return (
+    <View
+      style={{
+        flex: 0,
+        flexDirection: "column",
+        justifyContent: "flex-start",
+        alignItems: "stretch",
+        paddingLeft: 8,
+        paddingRight: 8,
+      }}
+    >
       <View
         style={{
           flex: 0,
-          flexDirection: "column",
-          justifyContent: "flex-start",
-          alignItems: "stretch",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
           paddingLeft: 8,
           paddingRight: 8,
+          height: 35,
         }}
       >
-        <View
+        <TouchableOpacity
           style={{
-            flex: 0,
+            flex: 1,
             flexDirection: "row",
-            justifyContent: "space-between",
+            justifyContent: "center",
             alignItems: "center",
-            paddingLeft: 8,
-            paddingRight: 8,
-            height: 35,
+            paddingRight: THUMB_SIZE,
+            zIndex: 2,
           }}
+          onPress={onPressPlayPause}
         >
-          <TouchableOpacity
+          {status.playing ? (
+            <MaterialCommunityIcons
+              name="pause-circle-outline"
+              size={30}
+              style={[styles.controlIcon, styleProp?.controlIcon]}
+            />
+          ) : (
+            <MaterialCommunityIcons
+              name="play-circle-outline"
+              size={30}
+              style={[styles.controlIcon, styleProp?.controlIcon]}
+            />
+          )}
+        </TouchableOpacity>
+
+        <Animated.View
+          onLayout={measureTrack}
+          style={[
+            styles.slideBar,
+            styleProp?.slideBar,
+            {
+              height: TRACK_SIZE,
+              borderRadius: TRACK_SIZE / 2,
+            },
+          ]}
+        >
+          <Animated.View
             style={{
-              flex: 1,
-              flexDirection: "row",
+              display: "flex",
+              flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
-              paddingRight: THUMB_SIZE,
-              zIndex: 2,
+              position: "absolute",
+              left: -((THUMB_SIZE * 4) / 2),
+              width: THUMB_SIZE * 4,
+              height: THUMB_SIZE * 4,
+              transform: [{ translateX: dotX }],
             }}
-            onPress={this.onPressPlayPause}
+            {...panResponder.panHandlers}
           >
-            {this.state.playing ? (
-              <MaterialCommunityIcons
-                name="pause-circle-outline"
-                size={30}
-                style={[this.props.styles.controlIcon, this.style.controlIcon]}
-              />
-            ) : (
-              <MaterialCommunityIcons
-                name="play-circle-outline"
-                size={30}
-                style={[this.props.styles.controlIcon, this.style.controlIcon]}
-              />
-            )}
-          </TouchableOpacity>
-
-          <Animated.View
-            onLayout={this.measureTrack}
-            style={[
-              this.props.styles.slideBar,
-              this.style.slideBar,
-              {
-                height: TRACK_SIZE,
-                borderRadius: TRACK_SIZE / 2,
-              },
-            ]}
-          >
-            <Animated.View
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                position: "absolute",
-                left: -((THUMB_SIZE * 4) / 2),
-                width: THUMB_SIZE * 4,
-                height: THUMB_SIZE * 4,
-                transform: [
-                  {
-                    translateX: this.state.dotOffset.x.interpolate({
-                      inputRange: [
-                        0,
-                        this.state.trackLayout.width != undefined
-                          ? this.state.trackLayout.width
-                          : 1,
-                      ],
-                      outputRange: [
-                        0,
-                        this.state.trackLayout.width != undefined
-                          ? this.state.trackLayout.width
-                          : 1,
-                      ],
-                      extrapolate: "clamp",
-                    }),
-                  },
-                ],
-              }}
-              {...this._panResponder.panHandlers}
-            >
-              <View
-                style={[
-                  this.props.styles.slideCursor,
-                  this.style.slideCursor,
-                  {
-                    width: THUMB_SIZE,
-                    height: THUMB_SIZE,
-                    borderRadius: THUMB_SIZE / 2,
-                  },
-                ]}
-              ></View>
-            </Animated.View>
+            <View
+              style={[
+                styles.slideCursor,
+                styleProp?.slideCursor,
+                {
+                  width: THUMB_SIZE,
+                  height: THUMB_SIZE,
+                  borderRadius: THUMB_SIZE / 2,
+                },
+              ]}
+            />
           </Animated.View>
-        </View>
-
-        <View
-          style={{
-            flex: 0,
-            flexDirection: "row",
-            justifyContent: "space-between",
-          }}
-        >
-          <DigitalTimeString time={this.state.currentTime} style={this.style} />
-          <DigitalTimeString time={this.state.duration} style={this.style} />
-        </View>
+        </Animated.View>
       </View>
-    );
-  }
+
+      <View
+        style={{
+          flex: 0,
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
+        <DigitalTimeString time={currentTimeMs} style={styleProp} />
+        <DigitalTimeString time={durationMs} style={styleProp} />
+      </View>
+    </View>
+  );
 }
 
 export default withHooks(AudioSlider, () => {
