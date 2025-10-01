@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
 import {
-  AndroidOutputFormat,
+  useAudioRecorder,
+  createAudioPlayer,
+  setAudioModeAsync,
+  requestRecordingPermissionsAsync,
+  RecordingPresets,
   IOSOutputFormat,
-  AndroidAudioEncoder,
-  IOSAudioQuality,
-} from "expo-av/build/Audio";
+  AudioQuality,
+} from "expo-audio";
 
 import Countdown from "react-countdown";
 
@@ -32,25 +34,41 @@ const rightButtonIconNames = {
 
 const RECORDING_TIMEOUT = 59;
 
-const recordingSettings = {
-  android: {
-    extension: ".m4a",
-    outputFormat: AndroidOutputFormat.MPEG_4,
-    audioEncoder: AndroidAudioEncoder.AAC,
-    sampleRate: 44100,
-    numberOfChannels: 1,
-    bitRate: 64000,
-  },
+// Speech-optimized profile (smaller files, good voice quality)
+const recordingOptionsSpeech = {
+  ...RecordingPresets.HIGH_QUALITY,
+  // Voice-friendly sample rate & bitrate
+  sampleRate: 22050,
+  numberOfChannels: 1,
+  bitRate: 24000,
   ios: {
-    extension: ".m4a",
+    ...RecordingPresets.HIGH_QUALITY.ios,
     outputFormat: IOSOutputFormat.MPEG4AAC,
-    audioQuality: IOSAudioQuality.MAX,
-    sampleRate: 44100,
-    numberOfChannels: 1,
-    bitRate: 64000,
-    linearPCMBitDepth: 16,
-    linearPCMIsBigEndian: false,
-    linearPCMIsFloat: false,
+    // Medium is enough for voice; final quality driven by bitRate above
+    audioQuality: AudioQuality.MEDIUM,
+  },
+  android: {
+    ...RecordingPresets.HIGH_QUALITY.android,
+    outputFormat: "mpeg4",
+    audioEncoder: "aac",
+  },
+};
+
+// Fallback profile (broader device compatibility if speech profile fails)
+const recordingOptionsFallback = {
+  ...RecordingPresets.HIGH_QUALITY,
+  sampleRate: 44100,
+  numberOfChannels: 1,
+  bitRate: 64000,
+  ios: {
+    ...RecordingPresets.HIGH_QUALITY.ios,
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.MAX,
+  },
+  android: {
+    ...RecordingPresets.HIGH_QUALITY.android,
+    outputFormat: "mpeg4",
+    audioEncoder: "aac",
   },
 };
 
@@ -79,19 +97,20 @@ export default React.memo(function ChatInput({
   const autoFocus = !hasMessages;
 
   const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState(null);
-  const [sound, setSound] = useState(null);
+  const recorder = useAudioRecorder(recordingOptionsSpeech);
+  const [player, setPlayer] = useState(null);
 
   const insertMessage = useInsertMessage(alertId);
 
   useEffect(() => {
-    return sound
+    return player
       ? () => {
-          console.log("Unloading Sound");
-          sound.unloadAsync();
+          try {
+            player.remove();
+          } catch (e) {}
         }
       : undefined;
-  }, [sound]);
+  }, [player]);
 
   const hasText = text.length > 0;
   const mode = isRecording ? MODE.RECORDING : hasText ? MODE.TEXT : MODE.EMPTY;
@@ -128,38 +147,42 @@ export default React.memo(function ChatInput({
   const startRecording = useCallback(async () => {
     try {
       console.log("Requesting permissions..");
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: true,
+      await requestRecordingPermissionsAsync();
+      await setAudioModeAsync({
+        allowsRecording: true,
+        interruptionMode: "doNotMix",
+        playsInSilentMode: true,
+        interruptionModeAndroid: "doNotMix",
+        shouldRouteThroughEarpiece: false,
+        shouldPlayInBackground: true,
       });
       // stop playback
-      if (sound !== null) {
-        await sound.unloadAsync();
-        sound.setOnPlaybackStatusUpdate(null);
-        setSound(null);
+      if (player !== null) {
+        try {
+          player.remove();
+        } catch (e) {}
+        setPlayer(null);
       }
 
       console.log("Starting recording..");
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        interruptionMode: "doNotMix",
+        playsInSilentMode: true,
+        interruptionModeAndroid: "doNotMix",
+        shouldRouteThroughEarpiece: false,
+        shouldPlayInBackground: true,
       });
-      const _recording = new Audio.Recording();
+
       try {
-        await _recording.prepareToRecordAsync(recordingSettings);
-        setRecording(_recording);
-        await _recording.startAsync();
+        // Try speech-optimized settings first
+        try {
+          await recorder.prepareToRecordAsync(recordingOptionsSpeech);
+        } catch (optErr) {
+          console.log("Speech-optimized profile failed, falling back:", optErr);
+          await recorder.prepareToRecordAsync(recordingOptionsFallback);
+        }
+        recorder.record();
         console.log("recording");
         setIsRecording(true);
       } catch (error) {
@@ -169,42 +192,42 @@ export default React.memo(function ChatInput({
     } catch (err) {
       console.log("Failed to start recording", err);
     }
-  }, [sound]);
+  }, [player, recorder]);
 
   const stopRecording = useCallback(async () => {
     try {
-      await recording.stopAndUnloadAsync();
+      await recorder.stop();
     } catch (_error) {
-      // Do nothing -- we are already unloaded.
+      // Do nothing -- already stopped/unloaded.
     }
     if (isRecording) {
       setIsRecording(false);
     }
-  }, [recording, isRecording]);
+  }, [recorder, isRecording]);
 
   const recordedToSound = useCallback(async () => {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      playsInSilentModeIOS: true,
-      playsInSilentLockedModeIOS: true,
-      shouldDuckAndroid: true,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: true,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      interruptionMode: "doNotMix",
+      playsInSilentMode: true,
+      interruptionModeAndroid: "doNotMix",
+      shouldRouteThroughEarpiece: false,
+      shouldPlayInBackground: true,
     });
-    const { sound: _sound } = await recording.createNewLoadedSoundAsync({
-      isLooping: false,
-      isMuted: false,
-      volume: 1.0,
-      rate: 1.0,
-      shouldCorrectPitch: true,
-    });
-    setSound(_sound);
-  }, [recording]);
+    const status = recorder.getStatus();
+    const url = status?.url;
+    if (url) {
+      const _player = createAudioPlayer(url);
+      setPlayer(_player);
+    }
+  }, [recorder]);
 
   const uploadAudio = useCallback(async () => {
-    const uri = recording.getURI();
+    const { url } = recorder.getStatus();
+    const uri = url;
+    if (!uri) {
+      throw new Error("No recording URL available");
+    }
     const fd = new FormData();
     fd.append("data[alertId]", alertId);
     fd.append("data[file]", {
@@ -215,7 +238,7 @@ export default React.memo(function ChatInput({
     await network.oaFilesKy.post("audio/upload", {
       body: fd,
     });
-  }, [alertId, recording]);
+  }, [alertId, recorder]);
 
   const sendRecording = useCallback(async () => {
     await stopRecording();
