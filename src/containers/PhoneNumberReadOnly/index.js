@@ -101,7 +101,12 @@ export default function PhoneNumberReadOnly({
           alignItems: "center",
         }}
       >
-        <Flag countryCode={phoneCountry} flagSize={20} />
+        <Flag
+          countryCode={phoneCountry}
+          flagSize={20}
+          withFlagButton
+          withEmoji
+        />
         {useCode && (
           <Text style={{ fontSize: 18, paddingRight: 5 }}>+{code}</Text>
         )}
