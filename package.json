@@ -11,7 +11,7 @@
     "android:prod": "dotenv --override -e .env.prod -- expo run:android",
     "bundle:android": "dotenv --override -e .env.prod -- bundle-android",
     "bundle:android:fastdev": "SENTRY_ALLOW_FAILURE=true SENTRY_AUTH_TOKEN='' yarn bundle:android",
-    "bundle:android:upload:internal": "fastlane supply --aab android/app/build/outputs/bundle/release/app-release.aab --track internal -j keys/alerte-secours-449609-469f820e5960.json -p com.alertesecours",
+    "bundle:android:upload:internal": "./scripts/upload-android-internal.sh",
     "bundle:ios:archive": "./scripts/ios-archive.sh",
     "bundle:ios:export": "./scripts/ios-export.sh",
     "bundle:ios:upload": "./scripts/ios-upload.sh",
