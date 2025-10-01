@@ -6,6 +6,10 @@ import ImagePicker from "react-native-image-crop-picker";
 import { createStyles, useTheme } from "~/theme";
 import { useFormContext } from "react-hook-form";
 import ImageResizer from "@bam.tech/react-native-image-resizer";
+import {
+  ensureCameraPermission,
+  ensurePhotoPermission,
+} from "~/permissions/mediaPermissions";
 
 import env from "~/env";
 
@@ -83,8 +87,12 @@ export default function AvatarModalEdit({ modalState, userId }) {
       try {
         let pickedImage;
         if (mode === "library") {
+          const granted = await ensurePhotoPermission();
+          if (!granted) return;
           pickedImage = await ImagePicker.openPicker(options);
         } else if (mode === "camera") {
+          const granted = await ensureCameraPermission();
+          if (!granted) return;
           pickedImage = await ImagePicker.openCamera({
             ...options,
             useFrontCamera: true,
