@@ -1,5 +1,4 @@
 // debug
-import "./wdyr"; // <--- first import
 import "./warnFilter";
 
 import "expo-splash-screen";

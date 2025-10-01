@@ -83,15 +83,26 @@ android {
         applicationId 'com.alertesecours'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        ndk {
-            abiFilters "arm64-v8a"
-        }
         versionCode 220
         versionName "1.13.8"
         multiDexEnabled true
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
+
+    // Define ABI flavors so we can install the right dev client on emulator vs device.
+    flavorDimensions 'abi'
+    productFlavors {
+        deviceArm64 {
+            dimension 'abi'
+            ndk { abiFilters 'arm64-v8a' }
+        }
+        emulatorX86_64 {
+            dimension 'abi'
+            ndk { abiFilters 'x86_64' }
+        }
+    }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')

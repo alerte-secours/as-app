@@ -6765,17 +6765,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@welldone-software/why-did-you-render@npm:^8.0.1":
-  version: 8.0.1
-  resolution: "@welldone-software/why-did-you-render@npm:8.0.1"
-  dependencies:
-    lodash: "npm:^4"
-  peerDependencies:
-    react: ^18
-  checksum: 10/bfa9ad79bd61d6d003733f21842eb79eda33f19354aed85a6bec860ace51d7276aff52a0947a982c00e992baef94b8c4dc63545713d5df72a7d014adaa74cc99
-  languageName: node
-  linkType: hard
-
 "@wry/caches@npm:^1.0.0":
   version: 1.0.1
   resolution: "@wry/caches@npm:1.0.1"
@@ -7076,7 +7065,6 @@ __metadata:
     "@types/lodash.kebabcase": "npm:^4"
     "@types/lodash.snakecase": "npm:^4"
     "@types/react": "npm:~19.0.10"
-    "@welldone-software/why-did-you-render": "npm:^8.0.1"
     ajv: "npm:^8.12.0"
     ajv-errors: "npm:^3.0.0"
     ajv-formats: "npm:^2.1.1"
@@ -14232,7 +14220,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:^4, lodash@npm:^4.17.11, lodash@npm:^4.17.15, lodash@npm:^4.17.21, lodash@npm:^4.17.4, lodash@npm:^4.3.0":
+"lodash@npm:^4.17.11, lodash@npm:^4.17.15, lodash@npm:^4.17.21, lodash@npm:^4.17.4, lodash@npm:^4.3.0":
   version: 4.17.21
   resolution: "lodash@npm:4.17.21"
   checksum: 10/c08619c038846ea6ac754abd6dd29d2568aa705feb69339e836dfa8d8b09abbb2f859371e86863eda41848221f9af43714491467b5b0299122431e202bb0c532
