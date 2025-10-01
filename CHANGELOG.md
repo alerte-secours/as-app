@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.9](https://github.com/alerte-secours/as-app/compare/v1.13.8...v1.13.9) (2025-10-01)
+
+
+### Bug Fixes
+
+* **android:** local dev + wip ([fd6ba1c](https://github.com/alerte-secours/as-app/commit/fd6ba1caab783b13bec45584a8db7f12adc1e9c3))
+* **android:** photo access ([35753e0](https://github.com/alerte-secours/as-app/commit/35753e0f53df88eceb958eca4eec0a55235cb8a7))
+* **flag:** react19 up ([10e2905](https://github.com/alerte-secours/as-app/commit/10e29055c50b62993df05581982f1d9585aaf776))
+* **prebuild:** up rn ([44d3ae4](https://github.com/alerte-secours/as-app/commit/44d3ae460fa2ec2d0f517fe142f34db138e7ccbc))
+* **prebuild:** wip ([cf46272](https://github.com/alerte-secours/as-app/commit/cf46272382c439eea374b3b7166c5f42ca07c3e3))
+* **up:** expo-audio ([4d726d3](https://github.com/alerte-secours/as-app/commit/4d726d3f1a5151b103a03a5ef227337c299e2bc5))
+
 ## [1.13.8](https://github.com/alerte-secours/as-app/compare/v1.13.7...v1.13.8) (2025-09-27)
 
 
