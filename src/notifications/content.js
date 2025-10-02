@@ -2,6 +2,8 @@ import humanizeDistance from "~/lib/geo/humanizeDistance";
 import levelLabel from "~/misc/levelLabel";
 import kebabCase from "lodash.kebabcase";
 
+const RELATIVE_PHONE_FALLBACK = "Numéro non disponible";
+
 export const generateAlertContent = (data) => {
   const { code, level, initialDistance, reason } = data;
 
@@ -41,10 +43,11 @@ export const generateAlertEmergencyInfoContent = (data) => {
   };
 };
 
-export const generateRelativeAllowAskContent = (data) => {
-  const { phoneNumber } = data;
-  const text = `${phoneNumber} souhaite que vous soyez son contact d'urgence`;
-  const bigText = `Un utilisateur souhaite que vous soyez son contact d'urgence, voici son numéro de téléphone: ${phoneNumber}`;
+export const generateRelativeAllowAskContent = (data = {}) => {
+  const { number, phoneNumber } = data;
+  const resolvedPhoneNumber = number ?? phoneNumber ?? RELATIVE_PHONE_FALLBACK;
+  const text = `${resolvedPhoneNumber} souhaite que vous soyez son contact d'urgence`;
+  const bigText = `Un utilisateur souhaite que vous soyez son contact d'urgence, voici son numéro de téléphone: ${resolvedPhoneNumber}`;
 
   return {
     title: `Autoriser contact d'urgence`,
@@ -53,11 +56,12 @@ export const generateRelativeAllowAskContent = (data) => {
   };
 };
 
-export const generateRelativeInvitationContent = (data) => {
-  const { phoneNumber } = data;
+export const generateRelativeInvitationContent = (data = {}) => {
+  const { number, phoneNumber } = data;
+  const resolvedPhoneNumber = number ?? phoneNumber ?? RELATIVE_PHONE_FALLBACK;
 
-  const text = `${phoneNumber} vous propose d'être votre contact d'urgence`;
-  const bigText = `Un utilisateur vous propose d'être votre contact d'urgence, voici son numéro de téléphone: ${phoneNumber}`;
+  const text = `${resolvedPhoneNumber} vous propose d'être votre contact d'urgence`;
+  const bigText = `Un utilisateur vous propose d'être votre contact d'urgence, voici son numéro de téléphone: ${resolvedPhoneNumber}`;
 
   return {
     title: `Accepter contact d'urgence`,

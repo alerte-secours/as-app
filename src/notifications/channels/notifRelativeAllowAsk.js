@@ -59,16 +59,21 @@ export default async function notifRelativeAllowAsk(data) {
 
   const [{ onePhoneNumber }] = relativeData.selectManyViewRelativePhoneNumber;
 
+  const { number } = onePhoneNumber || {};
+
   // Generate notification content
   const { title, body, bigText } = generateRelativeAllowAskContent({
-    onePhoneNumber,
+    number,
   });
 
   await displayNotification({
     channelId,
     title,
     body,
-    data,
+    data: {
+      ...data,
+      phoneNumber: number,
+    },
     color: colors.primary,
     bigText,
     android: {
