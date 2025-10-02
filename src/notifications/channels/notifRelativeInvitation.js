@@ -62,19 +62,24 @@ export default async function notifRelativeInvitation(data) {
 
   const oneUserPhoneNumberRelative =
     relativeData.selectOneRelativeInvitation.oneUserPhoneNumberRelative;
+  const { onePhoneNumber } = oneUserPhoneNumberRelative || {};
+  const { number } = onePhoneNumber || {};
 
   // Generate notification content
   const { title, body, bigText } = generateRelativeInvitationContent({
-    oneUserPhoneNumberRelative,
+    number,
   });
 
   await displayNotification({
     channelId,
     title,
     body,
+    data: {
+      ...data,
+      phoneNumber: number,
+    },
     color: colors.primary,
     bigText,
-    data,
     android: {
       pressAction: {
         id: "open-relatives",
