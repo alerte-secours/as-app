@@ -1,5 +1,5 @@
 import React from "react";
-import { View } from "react-native";
+import { View, Platform } from "react-native";
 import { IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createStyles } from "~/theme";
@@ -35,7 +35,7 @@ export default function RadarButton({
 
 const useStyles = createStyles(({ wp, hp, theme: { colors, custom } }) => ({
   container: {
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "center",
     marginTop: 10,
     marginBottom: 10,
@@ -52,8 +52,10 @@ const useStyles = createStyles(({ wp, hp, theme: { colors, custom } }) => ({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     minHeight: 48, // Match minimum touch target height
-    width: "100%",
-    maxWidth: 48, // Keep it square for radar button
+    height: "100%",
+    aspectRatio: 1,
+    borderRadius: 8,
+    overflow: Platform.select({ ios: "hidden", android: "visible" }),
   },
   icon: {
     color: colors.onPrimary,
