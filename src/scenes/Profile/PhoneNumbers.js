@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 
-import { View } from "react-native";
+import { View, Alert } from "react-native";
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -41,10 +41,18 @@ export default function PhoneNumbersView({ data, waitingSmsType }) {
 
   const registerPhoneNumber = useCallback(async () => {
     setIsLoading(true);
-    sendAuthSMS({
-      smsType: "R",
-      body: "S'enregistrer sur Alerte-Secours:\nCode: [CODE]\n💙", // must don't exceed 160 chars including replaced [CODE]
-    });
+    try {
+      await sendAuthSMS({
+        smsType: "R",
+        body: "S'enregistrer sur Alerte-Secours:\nCode: [CODE]\n💙", // must don't exceed 160 chars including replaced [CODE]
+      });
+    } catch (e) {
+      setIsLoading(false);
+      Alert.alert(
+        "Échec de l’ouverture des SMS",
+        "Impossible d’ouvrir l’application SMS. Réessayez.",
+      );
+    }
   }, [sendAuthSMS, setIsLoading]);
 
   // Clear loading state after 3 minutes
