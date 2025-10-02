@@ -52,8 +52,8 @@ const useStyles = createStyles(({ wp, hp, theme: { colors, custom } }) => ({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     minHeight: 48, // Match minimum touch target height
-    height: "100%",
-    aspectRatio: 1,
+    width: 48,
+    height: 48,
     borderRadius: 8,
     overflow: Platform.select({ ios: "hidden", android: "visible" }),
   },
