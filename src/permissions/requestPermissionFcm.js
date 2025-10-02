@@ -46,22 +46,27 @@ export default async () => {
 
     // Handle Android permissions
     permissionLogger.debug("Requesting Android notification permissions");
-    const { status } = await requestNotifications(["alert"]);
+    const { status } = await requestNotifications(["alert", "sound", "badge"]);
 
-    permissionLogger.debug(
-      "Requesting POST_NOTIFICATIONS permission (Android 13+)",
-    );
-    const postNotifications = await request(
-      PERMISSIONS.ANDROID.POST_NOTIFICATIONS,
-    );
+    let postNotifications = RESULTS.UNAVAILABLE;
+    if (Platform.Version >= 33) {
+      permissionLogger.debug(
+        "Requesting POST_NOTIFICATIONS permission (Android 13+)",
+      );
+      postNotifications = await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+    }
 
+    // Determine grant state:
+    // - Android 13+ requires POST_NOTIFICATIONS granted
+    // - Below 13, POST_NOTIFICATIONS is unavailable; use requestNotifications result
     const isGranted =
-      status === RESULTS.GRANTED &&
-      (postNotifications === "granted" || postNotifications === "unavailable");
+      (Platform.Version >= 33 && postNotifications === RESULTS.GRANTED) ||
+      (Platform.Version < 33 && status === RESULTS.GRANTED);
 
     permissionLogger.info("Android notification permission result", {
       notificationStatus: status,
       postNotificationsStatus: postNotifications,
+      osVersion: Platform.Version,
       granted: isGranted,
     });
 

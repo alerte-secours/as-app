@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Platform, Alert } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   useAudioRecorder,
@@ -10,6 +10,14 @@ import {
   IOSOutputFormat,
   AudioQuality,
 } from "expo-audio";
+
+import {
+  check,
+  request,
+  PERMISSIONS,
+  RESULTS,
+  openSettings,
+} from "react-native-permissions";
 
 import Countdown from "react-countdown";
 
@@ -73,6 +81,51 @@ const recordingOptionsFallback = {
 };
 
 const activeOpacity = 0.7;
+
+const withTimeout = (promise, ms = 10000) =>
+  new Promise((resolve, reject) => {
+    const id = setTimeout(
+      () => reject(new Error("Permission request timeout")),
+      ms,
+    );
+    promise
+      .then((v) => {
+        clearTimeout(id);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(id);
+        reject(e);
+      });
+  });
+
+const ensureMicPermission = async () => {
+  if (Platform.OS !== "android") {
+    return true;
+  }
+  try {
+    const status = await check(PERMISSIONS.ANDROID.RECORD_AUDIO);
+    if (status === RESULTS.GRANTED) return true;
+    if (status === RESULTS.BLOCKED) {
+      try {
+        Alert.alert(
+          "Autorisation micro bloquée",
+          "Veuillez autoriser le micro dans les paramètres de l'application.",
+          [
+            { text: "Annuler", style: "cancel" },
+            { text: "Ouvrir les paramètres", onPress: openSettings },
+          ],
+        );
+      } catch (_) {}
+      return false;
+    }
+    const res = await request(PERMISSIONS.ANDROID.RECORD_AUDIO);
+    return res === RESULTS.GRANTED;
+  } catch (e) {
+    console.log("Mic permission check failed", e);
+    return false;
+  }
+};
 
 export default React.memo(function ChatInput({
   style,
@@ -146,8 +199,30 @@ export default React.memo(function ChatInput({
 
   const startRecording = useCallback(async () => {
     try {
-      console.log("Requesting permissions..");
-      await requestRecordingPermissionsAsync();
+      console.log("Requesting microphone permission..");
+      const grantedPre = await ensureMicPermission();
+      if (!grantedPre) {
+        console.log("Microphone permission not granted or blocked");
+        return;
+      }
+      try {
+        await withTimeout(requestRecordingPermissionsAsync(), 10000);
+      } catch (permErr) {
+        console.log("Microphone permission request failed/timed out:", permErr);
+        if (Platform.OS === "android") {
+          try {
+            Alert.alert(
+              "Autorisation micro requise",
+              "Impossible d'obtenir l'autorisation du microphone. Ouvrir les paramètres pour l'accorder.",
+              [
+                { text: "Annuler", style: "cancel" },
+                { text: "Ouvrir les paramètres", onPress: openSettings },
+              ],
+            );
+          } catch (_) {}
+        }
+        return;
+      }
       await setAudioModeAsync({
         allowsRecording: true,
         interruptionMode: "doNotMix",
