@@ -101,29 +101,28 @@ const withTimeout = (promise, ms = 10000) =>
 
 const ensureMicPermission = async () => {
   if (Platform.OS !== "android") {
-    return true;
+    return { granted: true, status: RESULTS.UNAVAILABLE };
   }
   try {
     const status = await check(PERMISSIONS.ANDROID.RECORD_AUDIO);
-    if (status === RESULTS.GRANTED) return true;
-    if (status === RESULTS.BLOCKED) {
-      try {
-        Alert.alert(
-          "Autorisation micro bloquée",
-          "Veuillez autoriser le micro dans les paramètres de l'application.",
-          [
-            { text: "Annuler", style: "cancel" },
-            { text: "Ouvrir les paramètres", onPress: openSettings },
-          ],
-        );
-      } catch (_) {}
-      return false;
+    switch (status) {
+      case RESULTS.GRANTED:
+        return { granted: true, status };
+      case RESULTS.DENIED: {
+        const r = await request(PERMISSIONS.ANDROID.RECORD_AUDIO);
+        return { granted: r === RESULTS.GRANTED, status: r };
+      }
+      case RESULTS.BLOCKED:
+        return { granted: false, status };
+      // NOTE: RESULTS.LIMITED is not applicable to RECORD_AUDIO; treat as not granted.
+      case RESULTS.UNAVAILABLE:
+      case RESULTS.LIMITED:
+      default:
+        return { granted: false, status };
     }
-    const res = await request(PERMISSIONS.ANDROID.RECORD_AUDIO);
-    return res === RESULTS.GRANTED;
   } catch (e) {
     console.log("Mic permission check failed", e);
-    return false;
+    return { granted: false, status: undefined };
   }
 };
 
@@ -152,6 +151,7 @@ export default React.memo(function ChatInput({
   const [isRecording, setIsRecording] = useState(false);
   const recorder = useAudioRecorder(recordingOptionsSpeech);
   const [player, setPlayer] = useState(null);
+  const requestingMicRef = useRef(false);
 
   const insertMessage = useInsertMessage(alertId);
 
@@ -198,30 +198,41 @@ export default React.memo(function ChatInput({
   }, [insertMessage, text, setText, userId, username]);
 
   const startRecording = useCallback(async () => {
+    if (requestingMicRef.current) {
+      return;
+    }
+    requestingMicRef.current = true;
     try {
       console.log("Requesting microphone permission..");
-      const grantedPre = await ensureMicPermission();
-      if (!grantedPre) {
-        console.log("Microphone permission not granted or blocked");
-        return;
-      }
-      try {
-        await withTimeout(requestRecordingPermissionsAsync(), 10000);
-      } catch (permErr) {
-        console.log("Microphone permission request failed/timed out:", permErr);
-        if (Platform.OS === "android") {
-          try {
-            Alert.alert(
-              "Autorisation micro requise",
-              "Impossible d'obtenir l'autorisation du microphone. Ouvrir les paramètres pour l'accorder.",
-              [
-                { text: "Annuler", style: "cancel" },
-                { text: "Ouvrir les paramètres", onPress: openSettings },
-              ],
-            );
-          } catch (_) {}
+      if (Platform.OS === "android") {
+        const { granted, status } = await ensureMicPermission();
+        if (!granted) {
+          if (status === RESULTS.BLOCKED) {
+            try {
+              Alert.alert(
+                "Autorisation micro bloquée",
+                "Veuillez autoriser le micro dans les paramètres de l'application.",
+                [
+                  { text: "Annuler", style: "cancel" },
+                  { text: "Ouvrir les paramètres", onPress: openSettings },
+                ],
+              );
+            } catch (_) {}
+          } else {
+            console.log("Microphone permission not granted", status);
+          }
+          return;
         }
-        return;
+      } else {
+        try {
+          await withTimeout(requestRecordingPermissionsAsync(), 10000);
+        } catch (permErr) {
+          console.log(
+            "Microphone permission request failed/timed out:",
+            permErr,
+          );
+          return;
+        }
       }
       await setAudioModeAsync({
         allowsRecording: true,
@@ -266,6 +277,8 @@ export default React.memo(function ChatInput({
       console.log("Recording started");
     } catch (err) {
       console.log("Failed to start recording", err);
+    } finally {
+      requestingMicRef.current = false;
     }
   }, [player, recorder]);
 
