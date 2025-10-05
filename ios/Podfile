@@ -2,6 +2,7 @@ require File.join(File.dirname(`node --print "require.resolve('expo/package.json
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
+require 'fileutils'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '1' : '0'
@@ -15,6 +16,9 @@ prepare_react_native_project!
 
 target 'AlerteSecours' do
   use_expo_modules!
+  # Pin TOCropViewController to 2.x for compatibility with RNImageCropPicker 0.40.x
+  pod 'TOCropViewController', '~> 2.6'
+
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
@@ -63,6 +67,66 @@ target 'AlerteSecours' do
         resource_bundle_target.build_configurations.each do |config|
           config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
         end
+      end
+    end
+
+    # Ensure correct header destinations for ReactAppDependencyProvider to avoid CpHeader reversing into build/generated
+    installer.pods_project.targets.each do |t|
+      if t.name == 'ReactAppDependencyProvider'
+        t.build_configurations.each do |config|
+          # Public headers should live inside the framework product, not in the generated sources dir
+          config.build_settings['PUBLIC_HEADERS_FOLDER_PATH'] = '$(CONTENTS_FOLDER_PATH)/Headers'
+          # Ensure the generated headers can still be found during compilation
+          existing = config.build_settings['HEADER_SEARCH_PATHS']
+          inherited = '$(inherited)'
+          generated = '$(PROJECT_DIR)/build/generated/ios'
+          if existing.nil?
+            config.build_settings['HEADER_SEARCH_PATHS'] = "#{inherited} #{generated}"
+          elsif existing.is_a?(Array)
+            config.build_settings['HEADER_SEARCH_PATHS'] = (existing + [generated, inherited]).uniq
+          else
+            config.build_settings['HEADER_SEARCH_PATHS'] = "#{existing} #{generated} #{inherited}"
+          end
+        end
+      end
+    end
+
+    # Disable glass effect in TOCropViewController v3 to avoid iOS 18-only APIs at compile time
+    installer.pods_project.targets.each do |t|
+      if t.name == 'TOCropViewController'
+        t.build_configurations.each do |config|
+          defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+          unless defs.is_a?(Array)
+            defs = [defs, '$(inherited)']
+          end
+          defs << 'TOCROPVIEWCONTROLLER_ENABLE_GLASS_EFFECT=0'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs.uniq
+        end
+      end
+    end
+
+    # Patch TOCropViewController to import iOS 18-only UIKit headers when available.
+    crop_toolbar_path = File.join(__dir__, 'Pods', 'TOCropViewController', 'Objective-C', 'TOCropViewController', 'Views', 'TOCropToolbar.m')
+    if File.exist?(crop_toolbar_path)
+      contents = File.read(crop_toolbar_path)
+      needle = "#import \"TOCropToolbar.h\"\n"
+      injection = <<~'IMPORTS'
+        #if __has_include(<UIKit/UIGlassEffect.h>)
+        #import <UIKit/UIGlassEffect.h>
+        #endif
+        #if __has_include(<UIKit/UICornerConfiguration.h>)
+        #import <UIKit/UICornerConfiguration.h>
+        #endif
+        #if __has_include(<UIKit/UIButtonConfiguration.h>)
+        #import <UIKit/UIButtonConfiguration.h>
+        #endif
+
+      IMPORTS
+
+      unless contents.include?('<UIKit/UIGlassEffect.h>')
+        FileUtils.chmod('u+w', crop_toolbar_path) unless File.writable?(crop_toolbar_path)
+        contents = contents.sub(needle, needle + injection)
+        File.write(crop_toolbar_path, contents)
       end
     end
   end
