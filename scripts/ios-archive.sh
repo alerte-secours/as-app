@@ -12,6 +12,10 @@ export BUILD_TIME=$(date +%s000)
 # Clean previous bundle
 echo "Cleaning previous bundle..."
 rm -f ios/main.jsbundle*
+echo "Cleaning previous archive and stale IPA..."
+# Keep ios/build because RN 0.79+ stores codegen headers in ios/build/generated/ios needed for archive.
+rm -rf ios/AlerteSecours.xcarchive || true
+rm -f ios/build/AlerteSecours.ipa || true
 
 # Get version from Info.plist for release naming
 BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ios/AlerteSecours/Info.plist)
@@ -20,6 +24,9 @@ RELEASE_NAME="com.alertesecours.alertesecours@${PACKAGE_VERSION}+${BUNDLE_VERSIO
 
 # Generate the bundle and sourcemap
 echo "Generating bundle and sourcemap..."
+export METRO_DISABLE_FILE_WATCHER=${METRO_DISABLE_FILE_WATCHER:-1}
+export CI=${CI:-1}
+ulimit -n 4096 2>/dev/null || true
 yarn react-native bundle \
   --platform ios \
   --dev false \
@@ -86,6 +93,9 @@ mv ios/main.jsbundle.hbc ios/main.jsbundle
 
 cd ios
 
+# Ensure RN codegen headers path exists
+mkdir -p build/generated/ios
+
 # Create logs directory if it doesn't exist
 mkdir -p ../logs
 
@@ -97,5 +107,16 @@ xcodebuild \
   -configuration Release \
   -archivePath AlerteSecours.xcarchive \
   archive 2>&1 | tee "../logs/ios-archive-$(date +%Y%m%d-%H%M%S).log"
+
+# Verify archive version matches source Info.plist
+echo "Verifying archive version matches source Info.plist..."
+ARCHIVE_PLIST="AlerteSecours.xcarchive/Products/Applications/AlerteSecours.app/Info.plist"
+ARCHIVE_PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$ARCHIVE_PLIST")
+ARCHIVE_BUNDLE_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$ARCHIVE_PLIST")
+echo "Source: ${PACKAGE_VERSION} (${BUNDLE_VERSION}) | Archive: ${ARCHIVE_PKG_VERSION} (${ARCHIVE_BUNDLE_VERSION})"
+if [ "$PACKAGE_VERSION" != "$ARCHIVE_PKG_VERSION" ] || [ "$BUNDLE_VERSION" != "$ARCHIVE_BUNDLE_VERSION" ]; then
+  echo "Error: Archive version mismatch. Expected ${PACKAGE_VERSION} (${BUNDLE_VERSION}), got ${ARCHIVE_PKG_VERSION} (${ARCHIVE_BUNDLE_VERSION})."
+  exit 1
+fi
 
 echo "Archive completed successfully at AlerteSecours.xcarchive"
