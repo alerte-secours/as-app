@@ -22,6 +22,9 @@
 // @generated begin react-native-background-fetch-didFinishLaunchingWithOptions - expo prebuild (DO NOT MODIFY) sync-2d5ef5f3788ef11f6e72e5480fdbef5f7a21f0f0
   [[TSBackgroundFetch sharedInstance] didFinishLaunching];
 // @generated end react-native-background-fetch-didFinishLaunchingWithOptions
+// @generated begin react-native-background-fetch-didFinishLaunching - expo prebuild (DO NOT MODIFY) sync-2d5ef5f3788ef11f6e72e5480fdbef5f7a21f0f0
+  [[TSBackgroundFetch sharedInstance] didFinishLaunching];
+// @generated end react-native-background-fetch-didFinishLaunching
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
