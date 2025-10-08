@@ -1,6 +1,6 @@
 {
   "name": "alerte-secours",
-  "version": "1.13.0",
+  "version": "1.13.2025100800",
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client --private-key-path ./keys/private-key.pem",
@@ -51,7 +51,7 @@
   },
   "customExpoVersioning": {
     "versionCode": 212,
-    "buildNumber": 212
+    "buildNumber": 2025100800
   },
   "commit-and-tag-version": {
     "scripts": {
