@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.12](https://github.com/alerte-secours/as-app/compare/v1.13.9...v1.13.12) (2025-10-10)
+
+
+### Bug Fixes
+
+* notification `undefined souhaite que vous soyez son contact d'urgence` ([7670177](https://github.com/alerte-secours/as-app/commit/76701774d113b72aabdd54bb1117a3d655ffd499))
+* **up-wip:** ios bundle and upload ([7588a26](https://github.com/alerte-secours/as-app/commit/7588a26e5b49fa58e54ab3e996c341ceea2e6474))
+* **up-wip:** ios radar button design ([4dcf713](https://github.com/alerte-secours/as-app/commit/4dcf71379e2afc93f40c488d3ee03e7337ae2440))
+* **up-wip:** ios radar button design (android regression) ([74c3326](https://github.com/alerte-secours/as-app/commit/74c3326376d7e811977b485670f4601ad3519a04))
+* **up-wip:** recording permissions ([80f6d1d](https://github.com/alerte-secours/as-app/commit/80f6d1d20d4813343aab55bbc1a0b8c7fbd166f8))
+* **up-wip:** recording permissions ([749a09a](https://github.com/alerte-secours/as-app/commit/749a09aa5ebebc94b81cd2a9fdcb085c4bb886f2))
+* **up-wip:** register stucked loading ([c5ccfa8](https://github.com/alerte-secours/as-app/commit/c5ccfa8d08a1505cd25980dc6fbf436a59eb6386))
+* **up:** deps ([0140be7](https://github.com/alerte-secours/as-app/commit/0140be77c002014dfafbcb2d14d09a0fcb38ac8c))
+
 ## [1.13.11](https://github.com/alerte-secours/as-app/compare/v1.13.9...v1.13.11) (2025-10-06)
 
 
