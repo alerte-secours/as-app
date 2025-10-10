@@ -4,6 +4,7 @@ import {
   ScrollView,
   Linking,
   Alert,
+  Platform,
   TouchableOpacity,
 } from "react-native";
 import { MaterialIcons, AntDesign } from "@expo/vector-icons";
@@ -31,6 +32,8 @@ export default function Contribute() {
   const styles = useStyles();
   const { colors } = useTheme();
 
+  const donateAllowed = Platform.OS === "ios";
+
   return (
     <ScrollView style={{ flex: 1 }}>
       <View style={styles.container}>
@@ -42,80 +45,97 @@ export default function Contribute() {
 
         {/* Description */}
         <Text style={styles.description}>
-          Alerte-Secours est une application mobile citoyenne, gratuite, sans
-          publicité ni exploitation de données.
-          {"\n\n"}
-          Si vous souhaitez contribuer à son développement, sa maintenance et
-          son indépendance :
+          Alerte-Secours est une application citoyenne d'intérêt général, elle
+          est gratuite, sans publicité ni exploitation de données.
+          {"\n"}
+          {donateAllowed
+            ? `Si vous souhaitez contribuer à son développement, sa maintenance et son indépendance :`
+            : ""}
         </Text>
 
-        {/* Liberapay Button */}
-        <TouchableOpacity
-          style={[
-            styles.donationButton,
-            styles.buttonContent,
-            styles.liberapayButton,
-          ]}
-          onPress={() => openURL("https://liberapay.com/alerte-secours")}
-          activeOpacity={0.8}
-        >
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="circle" style={styles.iconDonation} />
-          </View>
-          <View style={styles.buttonTextContainer}>
-            <Text style={styles.buttonLabel}>Liberapay – Soutien régulier</Text>
-            <Text style={styles.buttonDescription}>
-              Pour un soutien récurrent et engagé. Chaque don contribue à
-              assurer la stabilité du service sur le long terme.
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.donationSection}>
+          {donateAllowed ? (
+            <>
+              <Text style={styles.sectionTitle}>Soutenir le projet</Text>
+              {/* Liberapay Button */}
+              <TouchableOpacity
+                style={[
+                  styles.donationButton,
+                  styles.buttonContent,
+                  styles.liberapayButton,
+                ]}
+                onPress={() => openURL("https://liberapay.com/alerte-secours")}
+                activeOpacity={0.8}
+              >
+                <View style={styles.iconContainer}>
+                  <MaterialIcons name="circle" style={styles.iconDonation} />
+                </View>
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonLabel}>
+                    Liberapay – Soutien régulier
+                  </Text>
+                  <Text style={styles.buttonDescription}>
+                    Pour un soutien récurrent et engagé. Chaque don contribue à
+                    assurer la stabilité du service sur le long terme.
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-        {/* Buy Me a Coffee Button */}
-        <TouchableOpacity
-          style={[
-            styles.donationButton,
-            styles.buttonContent,
-            styles.buymeacoffeeButton,
-          ]}
-          onPress={() => openURL("https://buymeacoffee.com/alertesecours")}
-          activeOpacity={0.8}
-        >
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="local-cafe" style={styles.iconDonation} />
-          </View>
-          <View style={styles.buttonTextContainer}>
-            <Text style={styles.buttonLabel}>
-              Buy Me a Coffee – Don ponctuel
-            </Text>
-            <Text style={styles.buttonDescription}>
-              Pour un coup de pouce ponctuel, un café virtuel pour encourager le
-              travail accompli !
-            </Text>
-          </View>
-        </TouchableOpacity>
+              {/* Buy Me a Coffee Button */}
+              <TouchableOpacity
+                style={[
+                  styles.donationButton,
+                  styles.buttonContent,
+                  styles.buymeacoffeeButton,
+                ]}
+                onPress={() =>
+                  openURL("https://buymeacoffee.com/alertesecours")
+                }
+                activeOpacity={0.8}
+              >
+                <View style={styles.iconContainer}>
+                  <MaterialIcons
+                    name="local-cafe"
+                    style={styles.iconDonation}
+                  />
+                </View>
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonLabel}>
+                    Buy Me a Coffee – Don ponctuel
+                  </Text>
+                  <Text style={styles.buttonDescription}>
+                    Pour un coup de pouce ponctuel, un café virtuel pour
+                    encourager le travail accompli !
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-        {/* GitHub Sponsors Button */}
-        <TouchableOpacity
-          style={[
-            styles.donationButton,
-            styles.buttonContent,
-            styles.githubButton,
-          ]}
-          onPress={() => openURL("https://github.com/sponsors/alerte-secours")}
-          activeOpacity={0.8}
-        >
-          <View style={styles.iconContainer}>
-            <AntDesign name="github" style={styles.iconDonation} />
-          </View>
-          <View style={styles.buttonTextContainer}>
-            <Text style={styles.buttonLabel}>GitHub Sponsors</Text>
-            <Text style={styles.buttonDescription}>
-              Pour les développeurs et utilisateurs de GitHub : soutenez le
-              projet directement via votre compte.
-            </Text>
-          </View>
-        </TouchableOpacity>
+              {/* GitHub Sponsors Button */}
+              <TouchableOpacity
+                style={[
+                  styles.donationButton,
+                  styles.buttonContent,
+                  styles.githubButton,
+                ]}
+                onPress={() =>
+                  openURL("https://github.com/sponsors/alerte-secours")
+                }
+                activeOpacity={0.8}
+              >
+                <View style={styles.iconContainer}>
+                  <AntDesign name="github" style={styles.iconDonation} />
+                </View>
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonLabel}>GitHub Sponsors</Text>
+                  <Text style={styles.buttonDescription}>
+                    Pour les développeurs et utilisateurs de GitHub : soutenez
+                    le projet directement via votre compte.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          ) : null}
+        </View>
 
         {/* Collaboration Section */}
         <View style={styles.collaborationSection}>
@@ -138,6 +158,18 @@ export default function Contribute() {
             <MaterialIcons name="email" style={styles.contactIcon} />
             <Text style={styles.contactText}>contact@alertesecours.fr</Text>
           </TouchableOpacity>
+          {!donateAllowed && (
+            <Text style={styles.supportFooterText}>
+              Vous pouvez aussi nous soutenir financièrement, pour en savoir
+              plus, rendez-vous sur notre site{" "}
+              <Text
+                style={styles.linkText}
+                onPress={() => openURL("https://alerte-secours.fr")}
+              >
+                alerte-secours.fr
+              </Text>
+            </Text>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -164,7 +196,7 @@ const useStyles = createStyles(({ theme: { colors, custom } }) => ({
     fontSize: 16,
     lineHeight: 26,
     color: colors.onBackground,
-    marginBottom: 36,
+    marginBottom: 0,
     textAlign: "left",
   },
   donationButton: {
@@ -229,9 +261,41 @@ const useStyles = createStyles(({ theme: { colors, custom } }) => ({
   githubButton: {
     backgroundColor: custom.donation.github,
   },
+  // Android support link (no CTA styling)
+  androidSupportContainer: {
+    marginVertical: 8,
+    marginBottom: 24,
+    paddingVertical: 8,
+  },
+  androidSupportText: {
+    fontSize: 15,
+    color: colors.primary,
+    textAlign: "left",
+  },
+  linkText: {
+    color: colors.primary,
+    textDecorationLine: "underline",
+  },
+  supportFooterText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: colors.onSurfaceVariant,
+    textAlign: "center",
+  },
+  // Donation section
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.primary,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  donationSection: {
+    marginBottom: 24,
+  },
   // Collaboration section styles
   collaborationSection: {
-    marginTop: 40,
+    marginTop: 32,
     padding: 20,
     backgroundColor: colors.surfaceVariant,
     borderRadius: 16,
