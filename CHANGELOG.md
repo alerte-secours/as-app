@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.13](https://github.com/alerte-secours/as-app/compare/v1.13.12...v1.13.13) (2025-10-23)
+
+
+### Bug Fixes
+
+* **android:** phone-call ([52fc3bc](https://github.com/alerte-secours/as-app/commit/52fc3bc24b2a2bf1fe5ae919cddca41d95b1053c))
+* connect loader ([cccb491](https://github.com/alerte-secours/as-app/commit/cccb49134f55faf5f5d536e91509eba2743f2af8))
+* **menu:** call emergency ([d755217](https://github.com/alerte-secours/as-app/commit/d7552171318cacb4a8df87add6462f49696b5d93))
+* phone call ([492904c](https://github.com/alerte-secours/as-app/commit/492904cbe8a5ceec35a79610ea59cf5eaed42735))
+
 ## [1.13.12](https://github.com/alerte-secours/as-app/compare/v1.13.9...v1.13.12) (2025-10-10)
 
 
