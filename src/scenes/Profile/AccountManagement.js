@@ -20,6 +20,7 @@ export default function AccountManagement({
   profileData,
   openAccountModal,
   waitingSmsType,
+  clearAuthWaitParams,
 }) {
   const { colors, custom } = useTheme();
   const isConnected = isConnectedProfile(profileData);
@@ -136,6 +137,7 @@ export default function AccountManagement({
         modalState={modalState}
         profileData={profileData}
         waitingSmsType={waitingSmsType}
+        clearAuthWaitParams={clearAuthWaitParams}
       />
     </View>
   );

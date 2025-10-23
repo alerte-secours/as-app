@@ -12,6 +12,7 @@ export default function AccountManagementModal({
   modalState,
   profileData,
   waitingSmsType,
+  clearAuthWaitParams,
 }) {
   const styles = useStyles();
   const [modal, setModal] = modalState;
@@ -38,6 +39,7 @@ export default function AccountManagementModal({
             authMethod={authMethod}
             setAuthMethod={setAuthMethod}
             waitingSmsType={waitingSmsType}
+            clearAuthWaitParams={clearAuthWaitParams}
           />
         )}
         {visible && component === "destroy" && (
