@@ -48,6 +48,7 @@ export default function Form({
   profileData,
   openAccountModal,
   waitingSmsType,
+  clearAuthWaitParams,
 }) {
   const { userId } = useSessionState(["userId"]);
 
@@ -153,7 +154,11 @@ export default function Form({
               borderBottomWidth: 1,
             }}
           >
-            <PhoneNumbers data={profileData} waitingSmsType={waitingSmsType} />
+            <PhoneNumbers
+              data={profileData}
+              waitingSmsType={waitingSmsType}
+              clearAuthWaitParams={clearAuthWaitParams}
+            />
           </View>
 
           <View
@@ -190,6 +195,7 @@ export default function Form({
             profileData={profileData}
             openAccountModal={openAccountModal}
             waitingSmsType={waitingSmsType}
+            clearAuthWaitParams={clearAuthWaitParams}
           />
         </View>
       </View>

@@ -26,7 +26,11 @@ import {
 
 import useSendAuthSMS from "~/hooks/useSendAuthSMS";
 
-export default function PhoneNumbersView({ data, waitingSmsType }) {
+export default function PhoneNumbersView({
+  data,
+  waitingSmsType,
+  clearAuthWaitParams,
+}) {
   const [isLoading, setIsLoading] = useState(waitingSmsType === "R" || false);
   const phoneNumberList = data.selectOneUser.manyPhoneNumber;
 
@@ -69,8 +73,16 @@ export default function PhoneNumbersView({ data, waitingSmsType }) {
   useEffect(() => {
     if (data.selectOneUser.oneUserLoginRequest) {
       setIsLoading(false);
+      clearAuthWaitParams?.();
     }
-  }, [data.selectOneUser.oneUserLoginRequest]);
+  }, [data.selectOneUser.oneUserLoginRequest, clearAuthWaitParams]);
+
+  // Defensive cleanup on unmount to ensure no lingering loader
+  useEffect(() => {
+    return () => {
+      setIsLoading(false);
+    };
+  }, []);
 
   const deletePhoneNumberModalStatePair = useState({ visible: false });
   const [deletePhoneNumberModalState, setDeletePhoneNumberModalState] =

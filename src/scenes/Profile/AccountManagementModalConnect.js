@@ -29,6 +29,7 @@ export default function AccountManagementModalConnect({
   authMethod,
   setAuthMethod,
   waitingSmsType,
+  clearAuthWaitParams,
 }) {
   const styles = useStyles();
   const { colors, custom } = useTheme();
@@ -92,20 +93,39 @@ export default function AccountManagementModalConnect({
   const [loginConfirmRequest] = useMutation(LOGIN_CONFIRM_MUTATION);
 
   const confirmLoginRequest = useCallback(async () => {
-    const deviceUuid = await getDeviceUuid();
-    const {
-      data: {
-        doAuthLoginConfimLoginRequest: { authTokenJwt },
-      },
-    } = await loginConfirmRequest({
-      variables: { loginRequestId: loginRequest.id, deviceUuid },
-    });
-    await authActions.confirmLoginRequest({ authTokenJwt, isConnected });
-  }, [loginConfirmRequest, loginRequest?.id, isConnected]);
+    try {
+      const deviceUuid = await getDeviceUuid();
+      const {
+        data: {
+          doAuthLoginConfimLoginRequest: { authTokenJwt },
+        },
+      } = await loginConfirmRequest({
+        variables: { loginRequestId: loginRequest.id, deviceUuid },
+      });
+      await authActions.confirmLoginRequest({ authTokenJwt, isConnected });
+      setIsLoading(false);
+      clearAuthWaitParams?.();
+      closeModal();
+    } catch (e) {
+      setIsLoading(false);
+    }
+  }, [
+    loginConfirmRequest,
+    loginRequest?.id,
+    isConnected,
+    clearAuthWaitParams,
+    closeModal,
+  ]);
 
   const rejectLoginRequest = useCallback(async () => {
-    await deleteLoginRequest({ variables: { id: loginRequest.id } });
-  }, [deleteLoginRequest, loginRequest]);
+    try {
+      await deleteLoginRequest({ variables: { id: loginRequest.id } });
+    } finally {
+      setIsLoading(false);
+      clearAuthWaitParams?.();
+      closeModal();
+    }
+  }, [deleteLoginRequest, loginRequest?.id, clearAuthWaitParams, closeModal]);
 
   return (
     <View

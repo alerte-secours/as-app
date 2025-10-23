@@ -37,6 +37,13 @@ export default withConnectivity(function Profile({ navigation, route }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  const clearAuthWaitParams = React.useCallback(() => {
+    navigation.setParams({
+      waitingSmsType: undefined,
+      openAccountModal: undefined,
+    });
+  }, [navigation]);
+
   if (loading || !data?.selectOneUser) {
     return <Loader />;
   }
@@ -53,6 +60,7 @@ export default withConnectivity(function Profile({ navigation, route }) {
         profileData={data}
         openAccountModal={route.params?.openAccountModal}
         waitingSmsType={route.params?.waitingSmsType}
+        clearAuthWaitParams={clearAuthWaitParams}
       />
     </ScrollView>
   );
