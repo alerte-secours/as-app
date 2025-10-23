@@ -245,7 +245,7 @@ export default React.memo(function DrawerNav() {
           ),
           onItemPress: () => {
             navigation.navigate("SendAlertConfirm", {
-              level: "yellow",
+              level: "red",
               confirmed: true,
               forceCallEmergency: true,
             });
