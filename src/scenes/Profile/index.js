@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 
-import { ScrollView, View, AppState } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import Loader from "~/components/Loader";
 import { useSubscription } from "@apollo/client";
@@ -12,7 +12,6 @@ import { createLogger } from "~/lib/logger";
 import { FEATURE_SCOPES } from "~/lib/logger/scopes";
 
 import withConnectivity from "~/hoc/withConnectivity";
-import { useFocusEffect } from "@react-navigation/native";
 
 import Form from "./Form";
 
@@ -37,39 +36,6 @@ export default withConnectivity(function Profile({ navigation, route }) {
     restart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      restart();
-    }, [restart]),
-  );
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        restart();
-      }
-    });
-    return () => {
-      sub?.remove?.();
-    };
-  }, [restart]);
-
-  useEffect(() => {
-    if (
-      route.params?.waitingSmsType &&
-      data?.selectOneUser?.oneUserLoginRequest
-    ) {
-      navigation.setParams({
-        waitingSmsType: undefined,
-        openAccountModal: true,
-      });
-    }
-  }, [
-    route.params?.waitingSmsType,
-    data?.selectOneUser?.oneUserLoginRequest,
-    navigation,
-  ]);
 
   if (loading || !data?.selectOneUser) {
     return <Loader />;

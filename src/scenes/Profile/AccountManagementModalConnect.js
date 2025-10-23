@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 
-import { View, Alert } from "react-native";
+import { View } from "react-native";
 import LittleLoader from "~/components/LittleLoader";
 import { Button } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -70,20 +70,12 @@ export default function AccountManagementModalConnect({
     };
   }, [isLoading, loginRequest]);
 
-  const connectUsingPhoneNumber = async () => {
+  const connectUsingPhoneNumber = () => {
     setIsLoading(true);
-    try {
-      await sendAuthSMS({
-        smsType: "C",
-        body: "Se connecter sur Alerte-Secours:\nCode: [CODE]\n💙", // must don't exceed 160 chars including replaced [CODE]
-      });
-    } catch (e) {
-      setIsLoading(false);
-      Alert.alert(
-        "Échec de l’ouverture des SMS",
-        "Impossible d’ouvrir l’application SMS. Réessayez.",
-      );
-    }
+    sendAuthSMS({
+      smsType: "C",
+      body: "Se connecter sur Alerte-Secours:\nCode: [CODE]\n💙", // must don't exceed 160 chars including replaced [CODE]
+    });
   };
 
   const smsDisclaimerModalStatePair = useState({ visible: false });
