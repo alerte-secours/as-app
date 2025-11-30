@@ -1,4 +1,5 @@
 #import "AppDelegate.h"
+#import <Firebase/Firebase.h>
 
 @implementation LegacyAppDelegate
 
