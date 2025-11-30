@@ -156,7 +156,6 @@ let config = {
           appCompatVersion: "1.4.2",
         },
       ],
-      "react-native-background-fetch",
       "@maplibre/maplibre-react-native",
       "expo-location",
       "react-native-map-link",
