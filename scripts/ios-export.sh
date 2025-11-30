@@ -22,6 +22,9 @@ echo "Auth key file exists at: $ASC_API_KEY_PATH"
 echo "File permissions:"
 ls -l "$ASC_API_KEY_PATH"
 
+echo "Available code signing identities (security find-identity -v -p codesigning):"
+xcrun security find-identity -v -p codesigning || echo "No code signing identities found or security tool error"
+
 # Execute xcodebuild with the environment variables
 cd ios && xcodebuild -exportArchive \
     -archivePath AlerteSecours.xcarchive \

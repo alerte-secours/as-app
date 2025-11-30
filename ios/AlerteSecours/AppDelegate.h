@@ -1,7 +1,10 @@
-#import <RCTAppDelegate.h>
 #import <UIKit/UIKit.h>
-#import <Expo/Expo.h>
 
-@interface AppDelegate : EXAppDelegateWrapper
+// Legacy Objective-C AppDelegate left in place for compatibility.
+// The actual application delegate is implemented in Swift as `AppDelegate`
+// (subclassing ExpoAppDelegate).
+@interface LegacyAppDelegate : UIResponder <UIApplicationDelegate>
+
+@property (nonatomic, strong) UIWindow *window;
 
 @end
