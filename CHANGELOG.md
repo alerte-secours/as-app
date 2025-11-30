@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.14.0](https://github.com/alerte-secours/as-app/compare/v1.13.11...v1.14.0) (2025-11-30)
+
+
+### Bug Fixes
+
+* **android:** phone-call ([52fc3bc](https://github.com/alerte-secours/as-app/commit/52fc3bc24b2a2bf1fe5ae919cddca41d95b1053c))
+* connect loader ([cccb491](https://github.com/alerte-secours/as-app/commit/cccb49134f55faf5f5d536e91509eba2743f2af8))
+* **ios:** bundle export scipt ([457b9f3](https://github.com/alerte-secours/as-app/commit/457b9f3d5cb884551758df09bf69d09a179610db))
+* **ios:** expo 53 upgrade crash and black screen ([bf09f96](https://github.com/alerte-secours/as-app/commit/bf09f968a7937ccfd90171cb12b74cd66d482466))
+* **menu:** call emergency ([d755217](https://github.com/alerte-secours/as-app/commit/d7552171318cacb4a8df87add6462f49696b5d93))
+* phone call ([492904c](https://github.com/alerte-secours/as-app/commit/492904cbe8a5ceec35a79610ea59cf5eaed42735))
+
 ## [1.13.13](https://github.com/alerte-secours/as-app/compare/v1.13.12...v1.13.13) (2025-10-23)
 
 
