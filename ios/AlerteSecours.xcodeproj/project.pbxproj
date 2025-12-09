@@ -12,6 +12,7 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		14D5B34E2ED75B470019B7A4 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 190140CCA04FF5320B13EF02 /* MapLibre */; };
 		1BBEED8C23934E2FB66E5E99 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA27B437DADB447888114546 /* noop-file.swift */; };
+		C0F27A011234567800000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0F27A001234567800000001 /* AppDelegate.swift */; };
 		35CD05A718E2ABA5E9E4C339 /* Pods_AlerteSecours.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E5BBA8AFAF4DDE1BA21D931 /* Pods_AlerteSecours.framework */; };
 		3D137242100D4373995DC4E1 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7ECA2CAAE2DA44D8B2037DD1 /* GoogleService-Info.plist */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
@@ -34,6 +35,7 @@
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = AlerteSecours/SplashScreen.storyboard; sourceTree = "<group>"; };
 		ABCB8E07F9F748F9B1CF7AF4 /* AlerteSecours-Bridging-Header.h */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.c.h; name = "AlerteSecours-Bridging-Header.h"; path = "AlerteSecours/AlerteSecours-Bridging-Header.h"; sourceTree = "<group>"; };
 		BA27B437DADB447888114546 /* noop-file.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = "noop-file.swift"; path = "AlerteSecours/noop-file.swift"; sourceTree = "<group>"; };
+		C0F27A001234567800000001 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = AlerteSecours/AppDelegate.swift; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1755F69573E34927548F1C6 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = AlerteSecours/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -65,6 +67,7 @@
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				7ECA2CAAE2DA44D8B2037DD1 /* GoogleService-Info.plist */,
 				BA27B437DADB447888114546 /* noop-file.swift */,
+				C0F27A001234567800000001 /* AppDelegate.swift */,
 				ABCB8E07F9F748F9B1CF7AF4 /* AlerteSecours-Bridging-Header.h */,
 				F1755F69573E34927548F1C6 /* PrivacyInfo.xcprivacy */,
 			);
@@ -191,9 +194,11 @@
 				C81C81F52B15447FABB43839 /* Fix Xcode 15 Bug */,
 				CF366B2D9A42438884440324 /* Fix Xcode 15 Bug */,
 				BAD00DBFD7D44CD2956A18DF /* Fix Xcode 15 Bug */,
-				13769CCD78FE49A199BF8B6D /* Remove signature files (Xcode workaround) */,
 				9E6F0A1338934BA5AD468D4B /* Fix Xcode 15 Bug */,
-				55D4C23AA23142E9AE24042B /* Remove signature files (Xcode workaround) */,
+				229987488EA44E69AA932D58 /* Fix Xcode 15 Bug */,
+				1B0B11FFE0884C2B9A75B09D /* Remove signature files (Xcode workaround) */,
+				A891237ADBD54747890A99FB /* Fix Xcode 15 Bug */,
+				B700EE07E2A24654A0953D3B /* Remove signature files (Xcode workaround) */,
 			);
 			buildRules = (
 			);
@@ -960,6 +965,74 @@ fi";
     rm -rf \"$CONFIGURATION_BUILD_DIR/MapLibre.xcframework-ios.signature\";
   ";
 		};
+		229987488EA44E69AA932D58 /* Fix Xcode 15 Bug */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Fix Xcode 15 Bug";
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$XCODE_VERSION_MAJOR\" = \"1500\" ]; then
+  echo \"Remove signature files (Xcode 15 workaround)\"
+  find \"$BUILD_DIR/${CONFIGURATION}-iphoneos\" -name \"*.signature\" -type f | xargs -r rm
+fi";
+		};
+		1B0B11FFE0884C2B9A75B09D /* Remove signature files (Xcode workaround) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Remove signature files (Xcode workaround)";
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "
+    echo \"Remove signature files (Xcode workaround)\";
+    rm -rf \"$CONFIGURATION_BUILD_DIR/MapLibre.xcframework-ios.signature\";
+  ";
+		};
+		A891237ADBD54747890A99FB /* Fix Xcode 15 Bug */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Fix Xcode 15 Bug";
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$XCODE_VERSION_MAJOR\" = \"1500\" ]; then
+  echo \"Remove signature files (Xcode 15 workaround)\"
+  find \"$BUILD_DIR/${CONFIGURATION}-iphoneos\" -name \"*.signature\" -type f | xargs -r rm
+fi";
+		};
+		B700EE07E2A24654A0953D3B /* Remove signature files (Xcode workaround) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Remove signature files (Xcode workaround)";
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "
+    echo \"Remove signature files (Xcode workaround)\";
+    rm -rf \"$CONFIGURATION_BUILD_DIR/MapLibre.xcframework-ios.signature\";
+  ";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -971,6 +1044,7 @@ fi";
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */,
 				1BBEED8C23934E2FB66E5E99 /* noop-file.swift in Sources */,
+				C0F27A011234567800000002 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
