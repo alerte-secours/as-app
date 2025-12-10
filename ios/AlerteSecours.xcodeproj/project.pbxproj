@@ -196,9 +196,10 @@
 				BAD00DBFD7D44CD2956A18DF /* Fix Xcode 15 Bug */,
 				9E6F0A1338934BA5AD468D4B /* Fix Xcode 15 Bug */,
 				229987488EA44E69AA932D58 /* Fix Xcode 15 Bug */,
-				1B0B11FFE0884C2B9A75B09D /* Remove signature files (Xcode workaround) */,
 				A891237ADBD54747890A99FB /* Fix Xcode 15 Bug */,
 				B700EE07E2A24654A0953D3B /* Remove signature files (Xcode workaround) */,
+				9E272D599E42446BB8DFD8D0 /* Fix Xcode 15 Bug */,
+				CBAD4F53ADB04F499371D5DE /* Remove signature files (Xcode workaround) */,
 			);
 			buildRules = (
 			);
@@ -1017,6 +1018,40 @@ fi";
 fi";
 		};
 		B700EE07E2A24654A0953D3B /* Remove signature files (Xcode workaround) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Remove signature files (Xcode workaround)";
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "
+    echo \"Remove signature files (Xcode workaround)\";
+    rm -rf \"$CONFIGURATION_BUILD_DIR/MapLibre.xcframework-ios.signature\";
+  ";
+		};
+		9E272D599E42446BB8DFD8D0 /* Fix Xcode 15 Bug */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Fix Xcode 15 Bug";
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$XCODE_VERSION_MAJOR\" = \"1500\" ]; then
+  echo \"Remove signature files (Xcode 15 workaround)\"
+  find \"$BUILD_DIR/${CONFIGURATION}-iphoneos\" -name \"*.signature\" -type f | xargs -r rm
+fi";
+		};
+		CBAD4F53ADB04F499371D5DE /* Remove signature files (Xcode workaround) */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
