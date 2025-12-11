@@ -4,11 +4,12 @@ import { TouchableRipple } from "react-native-paper";
 import { createStyles } from "~/theme";
 import Text from "~/components/Text";
 
-export default function AppButton({
+export default function WebButton({
   logo,
   label,
   description,
   url,
+  tel,
   style,
   buttonStyle,
   labelTextStyle,
@@ -17,8 +18,17 @@ export default function AppButton({
   const styles = useStyles();
 
   const openPress = useCallback(async () => {
-    Linking.openURL(url);
-  }, [url]);
+    if (tel) {
+      const cleanTel = tel.replace(/\s+/g, "");
+      const target = cleanTel.startsWith("tel:") ? cleanTel : `tel:${cleanTel}`;
+      await Linking.openURL(target);
+      return;
+    }
+
+    if (url) {
+      await Linking.openURL(url);
+    }
+  }, [tel, url]);
 
   return (
     <View style={[styles.container, style]}>
