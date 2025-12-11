@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.15.0](https://github.com/alerte-secours/as-app/compare/v1.13.13...v1.15.0) (2025-12-11)
+
+
+### Features
+
+* **links:** add appui soutien ([43bc7f6](https://github.com/alerte-secours/as-app/commit/43bc7f6f63f5034359eb0f4598386215889a35fe))
+
+
+### Bug Fixes
+
+* **ios:** bundle export scipt ([457b9f3](https://github.com/alerte-secours/as-app/commit/457b9f3d5cb884551758df09bf69d09a179610db))
+* **ios:** expo 53 upgrade crash and black screen ([bf09f96](https://github.com/alerte-secours/as-app/commit/bf09f968a7937ccfd90171cb12b74cd66d482466))
+* **ios:** ok ([c228569](https://github.com/alerte-secours/as-app/commit/c2285691a75591bfa9e17bf20f710cab66c241ac))
+* **ios:** wip ([2da80b0](https://github.com/alerte-secours/as-app/commit/2da80b0ca963efdc6df3cc6f3d1c8c86fd4f5c50))
+
 ## [1.14.3](https://github.com/alerte-secours/as-app/compare/v1.14.2...v1.14.3) (2025-12-10)
 
 
