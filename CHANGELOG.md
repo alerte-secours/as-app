@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.0](https://github.com/alerte-secours/as-app/compare/v1.14.3...v1.16.0) (2026-01-04)
+
+
+### Features
+
+* **links:** add appui soutien ([43bc7f6](https://github.com/alerte-secours/as-app/commit/43bc7f6f63f5034359eb0f4598386215889a35fe))
+
+
+### Bug Fixes
+
+* **ios:** wip ([c5c5703](https://github.com/alerte-secours/as-app/commit/c5c570392ba52a56dd35d77f13844c2acf9bce7f))
+* yarn ios:staging ([c11b05a](https://github.com/alerte-secours/as-app/commit/c11b05a1082489eb8596567036329b142fb0b0b9))
+
 ## [1.15.0](https://github.com/alerte-secours/as-app/compare/v1.13.13...v1.15.0) (2025-12-11)
 
 
