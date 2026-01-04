@@ -1,9 +1,12 @@
 import React from "react";
-import { View, ScrollView, StyleSheet, Platform } from "react-native";
+import { View, ScrollView, StyleSheet, Platform, Modal } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "~/storage/memoryAsyncStorage";
 import { STORAGE_KEYS } from "~/storage/storageKeys";
+import { useTheme } from "~/theme";
 
-import Text from "../Text";
+import CustomButton from "~/components/CustomButton";
+import Text from "~/components/Text";
 
 const EULA_TEXT = `Contrat de Licence Utilisateur Final (CLUF)
 
@@ -66,6 +69,9 @@ Si vous avez des questions concernant ce Contrat, veuillez nous contacter à :
 Email : contact@alertesecours.fr`;
 
 const EULA = ({ onAccept, visible = true }) => {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+
   if (!visible || Platform.OS !== "ios") return null;
 
   const handleAccept = async () => {
@@ -78,63 +84,84 @@ const EULA = ({ onAccept, visible = true }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Conditions Générales</Text>
-        <ScrollView style={styles.scrollView}>
-          <Text style={styles.text}>{EULA_TEXT}</Text>
-        </ScrollView>
-        <View style={styles.buttonContainer}>
-          <Text onPress={handleAccept} style={styles.acceptButton}>
-            Accepter
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      onRequestClose={() => {}}
+    >
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor:
+              theme.colors.backdrop || theme.colors.scrim || "rgba(0,0,0,0.5)",
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
+        ]}
+      >
+        <View
+          style={[styles.content, { backgroundColor: theme.colors.surface }]}
+        >
+          <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+            Conditions Générales
           </Text>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator
+          >
+            <Text style={[styles.text, { color: theme.colors.onSurface }]}>
+              {EULA_TEXT}
+            </Text>
+          </ScrollView>
+          <View style={styles.buttonContainer}>
+            <CustomButton mode="contained" onPress={handleAccept}>
+              Accepter
+            </CustomButton>
+          </View>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1000,
+    paddingHorizontal: 16,
   },
   content: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    width: "90%",
-    maxHeight: "80%",
-    padding: 20,
+    borderRadius: 12,
+    width: "100%",
+    maxWidth: 520,
+    maxHeight: "85%",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    flexShrink: 1,
   },
   title: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "600",
     marginBottom: 15,
     textAlign: "center",
   },
   scrollView: {
-    maxHeight: "80%",
+    flexGrow: 0,
+  },
+  scrollViewContent: {
+    paddingBottom: 8,
   },
   text: {
     fontSize: 14,
     lineHeight: 20,
   },
   buttonContainer: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  acceptButton: {
-    color: "#007AFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    padding: 10,
+    marginTop: 12,
   },
 });
 
