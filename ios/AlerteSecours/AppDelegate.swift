@@ -21,7 +21,13 @@ class AppDelegate: RCTAppDelegate {
 
     // Initialize expo-updates controller so AppController.sharedInstance can be used safely.
     AppController.initializeWithoutStarting()
-    AppController.sharedInstance.start()
+
+    let updatesController = AppController.sharedInstance
+    if updatesController.isActiveController {
+      updatesController.start()
+    } else {
+      NSLog("[AppDelegate] Skipping AppController.start(): isActiveController is false (dev client or disabled updates)")
+    }
 
     // Configure React Native root module.
     self.moduleName = "main"
