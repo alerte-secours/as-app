@@ -39,6 +39,14 @@ import MapLinksPopup from "~/containers/MapLinksPopup";
 import ControlButtons from "./ControlButtons";
 import MapHeadRouting from "./MapHeadRouting.js";
 
+import {
+  announceForA11yIfScreenReaderEnabled,
+  setA11yFocusAfterInteractions,
+} from "~/lib/a11y";
+import IconTouchTarget from "~/components/IconTouchTarget";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTheme } from "~/theme";
+
 import useFeatures from "./useFeatures";
 
 import useOnRegionDidChange from "./useOnRegionDidChange";
@@ -64,6 +72,7 @@ const compassViewPosition = 2; // 0: TopLeft, 1: TopRight, 2: BottomLeft, 3: Bot
 const compassViewMargin = { x: 2, y: 100 };
 
 function AlertCurMap() {
+  const { colors } = useTheme();
   const [userCoords, setUserCoords] = useState({
     latitude: null,
     longitude: null,
@@ -478,24 +487,41 @@ function AlertCurMap() {
 
   const [stepperIsOpened, setStepperIsOpened] = useState(false);
 
-  const openStepper = useCallback(() => {
-    setStepperIsOpened(true);
-  }, [setStepperIsOpened]);
+  const routingSheetTitleA11yRef = useRef(null);
+  const a11yStepsEntryRef = useRef(null);
+  const mapHeadOpenRef = useRef(null);
+  const mapHeadSeeAllRef = useRef(null);
+  const lastStepsTriggerRef = useRef(null);
+
+  const openStepper = useCallback(
+    (triggerRef) => {
+      if (triggerRef) {
+        lastStepsTriggerRef.current = triggerRef;
+      }
+      setStepperIsOpened(true);
+    },
+    [setStepperIsOpened],
+  );
 
   const closeStepper = useCallback(() => {
     setStepperIsOpened(false);
+    setA11yFocusAfterInteractions(lastStepsTriggerRef.current);
   }, [setStepperIsOpened]);
 
   const stepperOnOpen = useCallback(() => {
     if (!stepperIsOpened) {
       setStepperIsOpened(true);
     }
+    setA11yFocusAfterInteractions(routingSheetTitleA11yRef);
+    announceForA11yIfScreenReaderEnabled("Liste des étapes ouverte");
   }, [stepperIsOpened, setStepperIsOpened]);
 
   const stepperOnClose = useCallback(() => {
     if (stepperIsOpened) {
       setStepperIsOpened(false);
     }
+    announceForA11yIfScreenReaderEnabled("Liste des étapes fermée");
+    setA11yFocusAfterInteractions(lastStepsTriggerRef.current);
   }, [stepperIsOpened, setStepperIsOpened]);
 
   const [externalGeoIsVisible, setExternalGeoIsVisible] = useState(false);
@@ -526,6 +552,7 @@ function AlertCurMap() {
             duration={duration}
             instructions={instructions}
             calculatingState={calculating}
+            titleA11yRef={routingSheetTitleA11yRef}
           />
         }
       >
@@ -535,6 +562,28 @@ function AlertCurMap() {
             alignItems: "stretch",
           }}
         >
+          {/* A11y-first entry point to routing information (before the map in focus order) */}
+          <IconTouchTarget
+            ref={a11yStepsEntryRef}
+            accessibilityLabel="Ouvrir la liste des étapes de l'itinéraire"
+            accessibilityHint="Affiche la destination, la distance, la durée et toutes les étapes sans utiliser la carte."
+            onPress={() => openStepper(a11yStepsEntryRef)}
+            style={({ pressed }) => ({
+              position: "absolute",
+              top: 4,
+              left: 4,
+              zIndex: 10,
+              backgroundColor: colors.surface,
+              borderRadius: 8,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <MaterialCommunityIcons
+              name="format-list-bulleted"
+              size={24}
+              color={colors.onSurface}
+            />
+          </IconTouchTarget>
           <MapView
             mapRef={mapRef}
             onRegionDidChange={onRegionDidChange}
@@ -590,6 +639,8 @@ function AlertCurMap() {
             instructions={instructions}
             distance={distance}
             openStepper={openStepper}
+            openStepperTriggerRef={mapHeadOpenRef}
+            seeAllStepsTriggerRef={mapHeadSeeAllRef}
             calculatingState={calculating}
           />
         </View>

@@ -65,6 +65,9 @@ export default function RegisterRelativesButton() {
   return (
     <Animated.View style={{ opacity: fadeAnim }}>
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Enregistrez vos contacts d'urgence"
+        accessibilityHint="Ouvre l'écran pour enregistrer vos contacts d'urgence."
         style={styles.button}
         onPress={() => navigation.navigate("Relatives")}
       >

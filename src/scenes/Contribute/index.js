@@ -59,6 +59,7 @@ export default function Contribute() {
               <Text style={styles.sectionTitle}>Soutenir le projet</Text>
               {/* Liberapay Button */}
               <TouchableOpacity
+                accessibilityRole="button"
                 style={[
                   styles.donationButton,
                   styles.buttonContent,
@@ -83,6 +84,7 @@ export default function Contribute() {
 
               {/* Buy Me a Coffee Button */}
               <TouchableOpacity
+                accessibilityRole="button"
                 style={[
                   styles.donationButton,
                   styles.buttonContent,
@@ -112,6 +114,7 @@ export default function Contribute() {
 
               {/* GitHub Sponsors Button */}
               <TouchableOpacity
+                accessibilityRole="button"
                 style={[
                   styles.donationButton,
                   styles.buttonContent,
@@ -151,6 +154,7 @@ export default function Contribute() {
             faire partie de l'aventure.
           </Text>
           <TouchableOpacity
+            accessibilityRole="button"
             style={styles.contactButton}
             onPress={() => openURL("mailto:contact@alertesecours.fr")}
             activeOpacity={0.8}

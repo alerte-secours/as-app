@@ -46,6 +46,9 @@ export default function StepZoomButtonGroup({
         <ToggleButton
           style={[styles.zoomButton, styles.zoomInButton]}
           onPress={zoomIn}
+          accessibilityRole="button"
+          accessibilityLabel="Zoom avant"
+          accessibilityHint="Augmente le niveau de zoom de la carte."
           icon={() => (
             <Feather name="zoom-in" size={24} style={styles.zoomIcon} />
           )}
@@ -53,6 +56,9 @@ export default function StepZoomButtonGroup({
         <ToggleButton
           style={[styles.zoomButton, styles.zoomOutButton]}
           onPress={zoomOut}
+          accessibilityRole="button"
+          accessibilityLabel="Zoom arrière"
+          accessibilityHint="Diminue le niveau de zoom de la carte."
           icon={() => (
             <Feather name="zoom-out" size={24} style={styles.zoomIcon} />
           )}

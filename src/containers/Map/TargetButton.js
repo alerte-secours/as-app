@@ -22,6 +22,13 @@ export default function TargetButton({
       <View style={styles.labelToggleButtonContainer}>
         <Button
           labelStyle={styles.labelButton}
+          accessibilityRole="button"
+          accessibilityLabel={
+            boundType === BoundType.NAVIGATION
+              ? "Recentrer sur l'itinéraire"
+              : "Passer en mode navigation"
+          }
+          accessibilityHint="Replace la carte sur votre position et l'itinéraire."
           onPress={() => {
             setBoundType(BoundType.NAVIGATION);
             if (boundType === BoundType.NAVIGATION) {

@@ -141,6 +141,7 @@ export default withConnectivity(function Notifications() {
 
     return (
       <TouchableOpacity
+        accessibilityRole="button"
         style={styles.loadMoreButton}
         onPress={loadMoreNotifications}
         disabled={loadingMore}

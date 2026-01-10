@@ -58,7 +58,9 @@ export default function NotificationsButton({ flex = 1 }) {
             ? `Notifications - ${newCount} nouvelles notifications`
             : "Notifications"
         }
+        accessibilityHint="Ouvre l'écran des notifications."
         accessibilityRole="button"
+        accessibilityState={{ selected: hasNewNotifications }}
         onPress={() => navigation.navigate("Notifications")}
       >
         <MaterialIcons

@@ -35,7 +35,9 @@ export default function ParamsEmergencyCall({ data }) {
 
   return (
     <>
-      <Title style={styles.title}>Préférences d'accessibilité</Title>
+      <Title accessibilityRole="header" style={styles.title}>
+        Préférences d'accessibilité
+      </Title>
       <View style={styles.box}>
         <Text style={styles.label}>
           Lors des appels aux services de secours

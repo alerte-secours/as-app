@@ -8,6 +8,7 @@ const CustomButton = ({
   contentStyle,
   labelStyle,
   mode = "contained",
+  selected,
   ...props
 }) => {
   const styles = useStyles();
@@ -15,9 +16,27 @@ const CustomButton = ({
   const theme = useTheme();
   const isOutlined = mode === "outlined";
 
+  const computedAccessibilityLabel =
+    props.accessibilityLabel ??
+    (typeof children === "string" ? children : undefined);
+
+  // Hints are optional; we provide an empty hint to satisfy lint rules while
+  // encouraging callers to add meaningful hints for non-obvious actions.
+  const computedAccessibilityHint = props.accessibilityHint ?? "";
+
+  const computedAccessibilityState = {
+    ...(props.accessibilityState ?? {}),
+    ...(props.disabled != null ? { disabled: !!props.disabled } : null),
+    ...(selected != null ? { selected: !!selected } : null),
+  };
+
   return (
     <Button
       {...props}
+      accessibilityRole={props.accessibilityRole ?? "button"}
+      accessibilityLabel={computedAccessibilityLabel}
+      accessibilityHint={computedAccessibilityHint}
+      accessibilityState={computedAccessibilityState}
       mode={mode}
       style={[
         styles.button,

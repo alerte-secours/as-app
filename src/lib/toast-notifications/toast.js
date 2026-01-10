@@ -214,6 +214,7 @@ function Toast(props) {
         props.renderToast(props)
       ) : (
         <TouchableWithoutFeedback
+          accessibilityRole="button"
           disabled={!(onPress || hideOnPress)}
           onPress={() => {
             onPress && onPress(id);

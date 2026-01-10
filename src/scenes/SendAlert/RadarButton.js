@@ -1,20 +1,23 @@
-import React from "react";
+import React, { forwardRef } from "react";
 import { View, Platform } from "react-native";
 import { IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createStyles } from "~/theme";
 
-export default function RadarButton({
-  onPress,
-  isLoading = false,
-  flex = 0.22,
-}) {
+const RadarButton = forwardRef(function RadarButton(
+  { onPress, isLoading = false, isExpanded = false, flex = 0.22 },
+  ref,
+) {
   const styles = useStyles();
 
   return (
     <View style={[styles.container, { flex }]}>
       <IconButton
+        ref={ref}
         accessibilityLabel="Radar - Voir les utilisateurs Alerte-Secours prêts à porter secours aux alentours"
+        accessibilityHint="Affiche les utilisateurs prêts à porter secours à proximité."
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isLoading, expanded: isExpanded }}
         mode="contained"
         size={24}
         style={styles.button}
@@ -31,7 +34,9 @@ export default function RadarButton({
       />
     </View>
   );
-}
+});
+
+export default RadarButton;
 
 const useStyles = createStyles(({ wp, hp, theme: { colors, custom } }) => ({
   container: {

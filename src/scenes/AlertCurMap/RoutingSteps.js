@@ -1,4 +1,4 @@
-import { View, ScrollView } from "react-native";
+import { View, ScrollView, Text as RNText } from "react-native";
 import { Button, ToggleButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -11,6 +11,7 @@ import humanizeDuration from "~/utils/time/humanizeDuration";
 
 import RoutingStep from "./RoutingStep";
 import Text from "~/components/Text";
+import IconTouchTarget from "~/components/IconTouchTarget";
 
 import { STATE_CALCULATING_LOADED } from "./constants";
 
@@ -25,6 +26,7 @@ export default function RoutingSteps({
   distance,
   duration,
   calculatingState,
+  titleA11yRef,
 }) {
   const { colors, custom } = useTheme();
   const profileDefaultMode = profileDefaultModes[profile];
@@ -38,6 +40,8 @@ export default function RoutingSteps({
   return (
     <>
       <ScrollView
+        accessibilityLabel="Liste des étapes de l'itinéraire"
+        accessibilityHint="Contient la destination, la distance, la durée et les étapes."
         style={{
           flex: 1,
           backgroundColor: colors.surface,
@@ -50,6 +54,19 @@ export default function RoutingSteps({
           borderBottomRightRadius: 8,
         }}
       >
+        <RNText
+          ref={titleA11yRef}
+          accessibilityRole="header"
+          style={{
+            paddingTop: 10,
+            paddingBottom: 6,
+            fontSize: 18,
+            fontWeight: "700",
+            color: colors.primary,
+          }}
+        >
+          Itinéraire
+        </RNText>
         <View
           style={{
             flex: 1,
@@ -60,6 +77,11 @@ export default function RoutingSteps({
           <ToggleButton.Group onValueChange={setProfile} value={profile}>
             <ToggleButton
               value="car"
+              accessibilityRole="radio"
+              accessibilityLabel="Itinéraire en voiture"
+              accessibilityHint="Sélectionne le mode voiture pour recalculer l'itinéraire."
+              accessibilityState={{ selected: profile === "car" }}
+              style={{ width: 44, height: 44 }}
               icon={() => {
                 return (
                   <MaterialCommunityIcons
@@ -72,6 +94,11 @@ export default function RoutingSteps({
             />
             <ToggleButton
               value="foot"
+              accessibilityRole="radio"
+              accessibilityLabel="Itinéraire à pied"
+              accessibilityHint="Sélectionne le mode à pied pour recalculer l'itinéraire."
+              accessibilityState={{ selected: profile === "foot" }}
+              style={{ width: 44, height: 44 }}
               icon={() => {
                 return (
                   <MaterialCommunityIcons
@@ -84,6 +111,11 @@ export default function RoutingSteps({
             />
             <ToggleButton
               value="bicycle"
+              accessibilityRole="radio"
+              accessibilityLabel="Itinéraire à vélo"
+              accessibilityHint="Sélectionne le mode vélo pour recalculer l'itinéraire."
+              accessibilityState={{ selected: profile === "bicycle" }}
+              style={{ width: 44, height: 44 }}
               icon={() => {
                 return (
                   <MaterialCommunityIcons
@@ -158,36 +190,25 @@ export default function RoutingSteps({
           />
         )}
       </ScrollView>
-      <View
-        style={{
+      <IconTouchTarget
+        accessibilityLabel="Fermer la liste des étapes"
+        accessibilityHint="Ferme la liste et revient à la carte."
+        onPress={closeStepper}
+        style={({ pressed }) => ({
           position: "absolute",
-          overflow: "hidden",
           top: 4,
           right: 0,
-          flex: 1,
-          width: 26,
-          height: 26,
           backgroundColor: colors.surface,
           borderRadius: 8,
-        }}
+          opacity: pressed ? 0.7 : 1,
+        })}
       >
-        <Button
-          style={{
-            flex: 1,
-            borderRadius: 0,
-            alignSelf: "center",
-            left: 5,
-          }}
-          onPress={closeStepper}
-          icon={() => (
-            <MaterialCommunityIcons
-              name="close"
-              size={26}
-              style={{ flex: 1 }}
-            />
-          )}
+        <MaterialCommunityIcons
+          name="close"
+          size={26}
+          color={colors.onSurface}
         />
-      </View>
+      </IconTouchTarget>
     </>
   );
 }

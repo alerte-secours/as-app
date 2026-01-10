@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Maplibre from "@maplibre/maplibre-react-native";
 
 import env from "~/env";
@@ -24,6 +24,11 @@ export default function MapView({
   return (
     <Maplibre.MapView
       style={styles.mapView}
+      // A11y: the map surface should not become a focus trap and should not
+      // expose internal native nodes to screen readers.
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       attributionEnabled={false}
       logoEnabled={false}
       styleURL={`${mapStyleUrl}?cache=123456789`}
