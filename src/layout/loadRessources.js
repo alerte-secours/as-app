@@ -1,4 +1,4 @@
-import * as Font from "expo-font";
+import { loadAsync } from "expo-font";
 
 const fonts = {
   "OpenSans-Regular": require("~/assets/fonts/OpenSans-Regular.ttf"),
@@ -10,5 +10,5 @@ const fonts = {
 
 export default async function loadRessources() {
   // await new Promise(resolve => setTimeout(resolve, 2000))
-  await Font.loadAsync(fonts);
+  await loadAsync(fonts);
 }
