@@ -5,27 +5,40 @@ import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
 import { initEmulatorMode } from "./emulatorService";
 
-import { getAuthState, subscribeAuthState, permissionsActions } from "~/stores";
+import {
+  getAlertState,
+  getAuthState,
+  getSessionState,
+  subscribeAlertState,
+  subscribeAuthState,
+  subscribeSessionState,
+  permissionsActions,
+} from "~/stores";
 
 import setLocationState from "~/location/setLocationState";
 import { storeLocation } from "~/location/storage";
 
 import env from "~/env";
 
-const config = {
+// Common config: keep always-on tracking enabled, but default to an IDLE low-power profile.
+// High-accuracy and "moving" mode are only enabled when an active alert is open.
+const baseConfig = {
   // https://github.com/transistorsoft/react-native-background-geolocation/wiki/Android-Headless-Mode
   enableHeadless: true,
   disableProviderChangeRecord: true,
   // disableMotionActivityUpdates: true,
-  desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
-  distanceFilter: TRACK_MOVE,
+  // Default to low-power (idle) profile; will be overridden when needed.
+  desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
+  // Larger distance filter in idle mode to prevent frequent GPS wakes.
+  distanceFilter: 200,
   // debug: true, // Enable debug mode for more detailed logs
   logLevel: BackgroundGeolocation.LOG_LEVEL_VERBOSE,
   // Disable automatic permission requests
   locationAuthorizationRequest: "Always",
   stopOnTerminate: false,
   startOnBoot: true,
-  heartbeatInterval: 900,
+  // Keep heartbeat very infrequent in idle mode.
+  heartbeatInterval: 3600,
   // Force the plugin to start aggressively
   foregroundService: true,
   notification: {
@@ -53,13 +66,85 @@ const config = {
   autoSync: true,
   reset: true,
 };
-const defaultConfig = config;
+
+const TRACKING_PROFILES = {
+  idle: {
+    desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
+    distanceFilter: 200,
+    heartbeatInterval: 3600,
+  },
+  active: {
+    desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
+    distanceFilter: TRACK_MOVE,
+    heartbeatInterval: 900,
+  },
+};
 
 export default async function trackLocation() {
   const locationLogger = createLogger({
     module: BACKGROUND_SCOPES.GEOLOCATION,
     feature: "tracking",
   });
+
+  let currentProfile = null;
+  let authReady = false;
+  let stopAlertSubscription = null;
+  let stopSessionSubscription = null;
+
+  const computeHasOwnOpenAlert = () => {
+    try {
+      const { userId } = getSessionState();
+      const { alertingList } = getAlertState();
+      if (!userId || !Array.isArray(alertingList)) return false;
+      return alertingList.some(
+        ({ oneAlert }) =>
+          oneAlert?.state === "open" && oneAlert?.userId === userId,
+      );
+    } catch (e) {
+      locationLogger.warn("Failed to compute active-alert state", {
+        error: e?.message,
+      });
+      return false;
+    }
+  };
+
+  const applyProfile = async (profileName) => {
+    if (!authReady) {
+      // We only apply profile once auth headers are configured.
+      return;
+    }
+    if (currentProfile === profileName) return;
+
+    const profile = TRACKING_PROFILES[profileName];
+    if (!profile) {
+      locationLogger.warn("Unknown tracking profile", { profileName });
+      return;
+    }
+
+    locationLogger.info("Applying tracking profile", {
+      profileName,
+      desiredAccuracy: profile.desiredAccuracy,
+      distanceFilter: profile.distanceFilter,
+      heartbeatInterval: profile.heartbeatInterval,
+    });
+
+    try {
+      await BackgroundGeolocation.setConfig(profile);
+
+      // Key battery fix:
+      // - IDLE profile forces stationary mode
+      // - ACTIVE profile forces moving mode
+      await BackgroundGeolocation.changePace(profileName === "active");
+
+      currentProfile = profileName;
+    } catch (error) {
+      locationLogger.error("Failed to apply tracking profile", {
+        profileName,
+        error: error?.message,
+        stack: error?.stack,
+      });
+    }
+  };
 
   // Log the geolocation sync URL for debugging
   locationLogger.info("Geolocation sync URL configuration", {
@@ -76,6 +161,18 @@ export default async function trackLocation() {
       locationLogger.info("No auth token, stopping location tracking");
       await BackgroundGeolocation.stop();
       locationLogger.debug("Location tracking stopped");
+
+      // Cleanup subscriptions when logged out.
+      try {
+        stopAlertSubscription && stopAlertSubscription();
+        stopSessionSubscription && stopSessionSubscription();
+      } finally {
+        stopAlertSubscription = null;
+        stopSessionSubscription = null;
+      }
+
+      authReady = false;
+      currentProfile = null;
       return;
     }
     // unsub();
@@ -86,6 +183,8 @@ export default async function trackLocation() {
         Authorization: `Bearer ${userToken}`,
       },
     });
+
+    authReady = true;
 
     // Log the authorization header that was set
     locationLogger.debug(
@@ -106,19 +205,7 @@ export default async function trackLocation() {
       });
     }
 
-    if (state.enabled) {
-      locationLogger.info("Syncing location data");
-      try {
-        await BackgroundGeolocation.changePace(true);
-        await BackgroundGeolocation.sync();
-        locationLogger.debug("Sync initiated successfully");
-      } catch (error) {
-        locationLogger.error("Failed to sync location data", {
-          error: error.message,
-          stack: error.stack,
-        });
-      }
-    } else {
+    if (!state.enabled) {
       locationLogger.info("Starting location tracking");
       try {
         await BackgroundGeolocation.start();
@@ -129,6 +216,31 @@ export default async function trackLocation() {
           stack: error.stack,
         });
       }
+    }
+
+    // Ensure we are NOT forcing "moving" mode by default.
+    // Default profile is idle unless an active alert requires higher accuracy.
+    const shouldBeActive = computeHasOwnOpenAlert();
+    await applyProfile(shouldBeActive ? "active" : "idle");
+
+    // Subscribe to changes that may require switching profiles.
+    if (!stopSessionSubscription) {
+      stopSessionSubscription = subscribeSessionState(
+        (s) => s?.userId,
+        () => {
+          const active = computeHasOwnOpenAlert();
+          applyProfile(active ? "active" : "idle");
+        },
+      );
+    }
+    if (!stopAlertSubscription) {
+      stopAlertSubscription = subscribeAlertState(
+        (s) => s?.alertingList,
+        () => {
+          const active = computeHasOwnOpenAlert();
+          applyProfile(active ? "active" : "idle");
+        },
+      );
     }
   }
 
@@ -161,8 +273,8 @@ export default async function trackLocation() {
 
   try {
     locationLogger.info("Initializing background geolocation");
-    await BackgroundGeolocation.ready(defaultConfig);
-    await BackgroundGeolocation.setConfig(config);
+    await BackgroundGeolocation.ready(baseConfig);
+    await BackgroundGeolocation.setConfig(baseConfig);
 
     // Only set the permission state if we already have the permission
     const state = await BackgroundGeolocation.getState();
@@ -203,6 +315,9 @@ export default async function trackLocation() {
   subscribeAuthState(({ userToken }) => userToken, handleAuth);
   locationLogger.debug("Performing initial auth handling");
   handleAuth(userToken);
-  // Initialize emulator mode if previously enabled
-  initEmulatorMode();
+
+  // Initialize emulator mode only in dev/staging to avoid accidental production battery drain.
+  if (__DEV__ || env.IS_STAGING) {
+    initEmulatorMode();
+  }
 }
