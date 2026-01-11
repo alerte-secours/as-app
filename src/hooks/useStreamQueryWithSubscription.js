@@ -2,7 +2,14 @@ import { useRef, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
 import * as Sentry from "@sentry/react-native";
 import { useNetworkState } from "~/stores";
+import { createLogger } from "~/lib/logger";
+import { UI_SCOPES } from "~/lib/logger/scopes";
 import useShallowMemo from "./useShallowMemo";
+
+const hookLogger = createLogger({
+  module: UI_SCOPES.HOOKS,
+  feature: "useStreamQueryWithSubscription",
+});
 
 // Constants for retry configuration
 const MAX_RETRIES = 5;
@@ -40,14 +47,16 @@ export default function useStreamQueryWithSubscription(
   const retryCountRef = useRef(0);
   const subscriptionErrorRef = useRef(null);
   const timeoutIdRef = useRef(null);
+  const unsubscribeRef = useRef(null);
+  const lastWsClosedDateRef = useRef(null);
 
   useEffect(() => {
     const currentVarsHash = JSON.stringify(variables);
     if (currentVarsHash !== variableHashRef.current) {
-      console.log(
-        `[${subscriptionKey}] Variables changed, resetting cursor to initial value:`,
+      hookLogger.debug("Variables changed; resetting cursor", {
+        subscriptionKey,
         initialCursor,
-      );
+      });
       lastCursorRef.current = initialCursor;
       variableHashRef.current = currentVarsHash;
       initialSetupDoneRef.current = false;
@@ -99,10 +108,10 @@ export default function useStreamQueryWithSubscription(
       const newCursor = lastItem[cursorKey];
 
       lastCursorRef.current = newCursor;
-      console.log(
-        `[${subscriptionKey}] Updated subscription cursor:`,
-        newCursor,
-      );
+      hookLogger.debug("Updated subscription cursor", {
+        subscriptionKey,
+        cursor: newCursor,
+      });
     }
   }, [queryData, cursorKey, subscriptionKey]);
 
@@ -124,12 +133,20 @@ export default function useStreamQueryWithSubscription(
     if (skip) return; // If skipping, do nothing
     if (!subscribeToMore) return;
 
+    // Track WS close events so we only react when wsClosedDate actually changes
+    const wsClosedDateChanged =
+      !!wsClosedDate && wsClosedDate !== lastWsClosedDateRef.current;
+    if (wsClosedDateChanged) {
+      lastWsClosedDateRef.current = wsClosedDate;
+    }
+
     // Check if max retries reached and we have an error - this check must be done regardless of other conditions
     if (retryCountRef.current >= maxRetries && subscriptionErrorRef.current) {
-      console.error(
-        `[${subscriptionKey}] Max retries (${maxRetries}) reached. Stopping subscription attempts.`,
-        subscriptionErrorRef.current,
-      );
+      hookLogger.error("Max retries reached; stopping subscription attempts", {
+        subscriptionKey,
+        maxRetries,
+        error: subscriptionErrorRef.current,
+      });
 
       // Report to Sentry when max retries are reached
       try {
@@ -145,17 +162,24 @@ export default function useStreamQueryWithSubscription(
           },
         });
       } catch (sentryError) {
-        console.error("Failed to report to Sentry:", sentryError);
+        hookLogger.error("Failed to report max-retries to Sentry", {
+          subscriptionKey,
+          error: sentryError,
+        });
       }
 
       return;
     }
 
     // Wait for:
-    //  - either initial setup not done yet
-    //  - or a new wsClosedDate (WS reconnect)
-    //  - or a retry trigger
-    if (initialSetupDoneRef.current && !wsClosedDate && retryTrigger === 0) {
+    //  - initial setup not done yet
+    //  - OR a new wsClosedDate (WS reconnect)
+    //  - OR a retry trigger
+    if (
+      initialSetupDoneRef.current &&
+      !wsClosedDateChanged &&
+      retryTrigger === 0
+    ) {
       return;
     }
 
@@ -168,6 +192,16 @@ export default function useStreamQueryWithSubscription(
       timeoutIdRef.current = null;
     }
 
+    // Always cleanup any existing subscription before creating a new one
+    if (unsubscribeRef.current) {
+      try {
+        unsubscribeRef.current();
+      } catch (_error) {
+        // ignore
+      }
+      unsubscribeRef.current = null;
+    }
+
     // Calculate backoff delay if this is a retry
     const backoffDelay =
       retryCountRef.current > 0
@@ -177,15 +211,13 @@ export default function useStreamQueryWithSubscription(
           )
         : 0;
 
-    const retryMessage =
-      retryCountRef.current > 0
-        ? ` Retry attempt ${retryCountRef.current}/${maxRetries} after ${backoffDelay}ms delay`
-        : "";
-
-    console.log(
-      `[${subscriptionKey}] Setting up subscription${retryMessage} with cursor:`,
-      lastCursorRef.current,
-    );
+    hookLogger.debug("Setting up subscription", {
+      subscriptionKey,
+      retryCount: retryCountRef.current,
+      maxRetries,
+      backoffDelay,
+      cursor: lastCursorRef.current,
+    });
 
     // Use timeout for backoff
     timeoutIdRef.current = setTimeout(() => {
@@ -212,10 +244,12 @@ export default function useStreamQueryWithSubscription(
               maxRetries,
             );
 
-            console.error(
-              `[${subscriptionKey}] Subscription error (attempt ${retryCountRef.current}/${maxRetries}):`,
+            hookLogger.warn("Subscription error", {
+              subscriptionKey,
+              attempt: retryCountRef.current,
+              maxRetries,
               error,
-            );
+            });
 
             // If we haven't reached max retries, trigger a retry
             if (retryCountRef.current < maxRetries) {
@@ -263,10 +297,10 @@ export default function useStreamQueryWithSubscription(
                 newItemCursor > lastCursorRef.current
               ) {
                 lastCursorRef.current = newItemCursor;
-                console.log(
-                  `[${subscriptionKey}] New message received with cursor:`,
-                  lastCursorRef.current,
-                );
+                hookLogger.debug("Received item; cursor advanced", {
+                  subscriptionKey,
+                  cursor: lastCursorRef.current,
+                });
               }
 
               const existing = itemMap.get(item[uniqKey]);
@@ -289,30 +323,27 @@ export default function useStreamQueryWithSubscription(
           },
         });
 
-        // Cleanup on unmount or re-run
-        return () => {
-          console.log(`[${subscriptionKey}] Cleaning up subscription`);
-          if (timeoutIdRef.current) {
-            clearTimeout(timeoutIdRef.current);
-            timeoutIdRef.current = null;
-          }
-          unsubscribe();
-        };
+        // Save unsubscribe for cleanup on reruns/unmount
+        unsubscribeRef.current = unsubscribe;
+
+        // Note: cleanup is handled by the effect cleanup below.
       } catch (error) {
         // Handle setup errors (like malformed queries)
-        console.error(
-          `[${subscriptionKey}] Error setting up subscription:`,
+        hookLogger.error("Error setting up subscription", {
+          subscriptionKey,
           error,
-        );
+        });
         subscriptionErrorRef.current = error;
 
         // Increment retry counter but don't exceed maxRetries
         retryCountRef.current = Math.min(retryCountRef.current + 1, maxRetries);
 
-        console.error(
-          `[${subscriptionKey}] Subscription setup error (attempt ${retryCountRef.current}/${maxRetries}):`,
+        hookLogger.warn("Subscription setup error", {
+          subscriptionKey,
+          attempt: retryCountRef.current,
+          maxRetries,
           error,
-        );
+        });
 
         // If we haven't reached max retries, trigger a retry
         if (retryCountRef.current < maxRetries) {
@@ -334,16 +365,14 @@ export default function useStreamQueryWithSubscription(
               },
             });
           } catch (sentryError) {
-            console.error("Failed to report to Sentry:", sentryError);
+            hookLogger.error("Failed to report setup error to Sentry", {
+              subscriptionKey,
+              error: sentryError,
+            });
           }
         }
 
-        return () => {
-          if (timeoutIdRef.current) {
-            clearTimeout(timeoutIdRef.current);
-            timeoutIdRef.current = null;
-          }
-        };
+        // Cleanup is handled by the effect cleanup below.
       }
     }, backoffDelay);
 
@@ -352,6 +381,16 @@ export default function useStreamQueryWithSubscription(
       if (timeoutIdRef.current) {
         clearTimeout(timeoutIdRef.current);
         timeoutIdRef.current = null;
+      }
+
+      if (unsubscribeRef.current) {
+        try {
+          hookLogger.debug("Cleaning up subscription", { subscriptionKey });
+          unsubscribeRef.current();
+        } catch (_error) {
+          // ignore
+        }
+        unsubscribeRef.current = null;
       }
     };
   }, [

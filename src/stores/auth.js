@@ -202,6 +202,7 @@ export default createAtom(({ get, merge, getActions }) => {
   };
   const confirmLoginRequest = async ({ authTokenJwt, isConnected }) => {
     authLogger.info("Confirming login request", { isConnected });
+    const reloadId = Date.now();
     if (!isConnected) {
       // backup anon tokens
       const [anonAuthToken, anonUserToken] = await Promise.all([
@@ -213,7 +214,7 @@ export default createAtom(({ get, merge, getActions }) => {
         secureStore.setItemAsync(STORAGE_KEYS.ANON_USER_TOKEN, anonUserToken),
       ]);
     }
-    merge({ onReloadAuthToken: authTokenJwt });
+    merge({ onReloadAuthToken: authTokenJwt, reloadId });
     triggerReload();
   };
 
@@ -308,6 +309,7 @@ export default createAtom(({ get, merge, getActions }) => {
       initialized: false,
       onReload: false,
       onReloadAuthToken: null,
+      reloadId: null,
       userOffMode: false,
       isReloading: false,
       lastReloadTime: 0,
