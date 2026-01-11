@@ -7,6 +7,8 @@ import { NETWORK_SCOPES } from "~/lib/logger/scopes";
 import getStatusCode from "./getStatusCode";
 import isAbortError from "./isAbortError";
 
+import { getSessionState } from "~/stores";
+
 let pendingRequests = [];
 
 const resolvePendingRequests = () => {
@@ -127,10 +129,31 @@ export default function createErrorLink({ store }) {
 
         // Capture all other errors in Sentry
         const errorMessage = `apollo error: ${getErrorMessage(error)}`;
-        Sentry.captureException(new Error(errorMessage), {
-          extra: {
-            errorObject: error,
+
+        const authState = getAuthState();
+        const sessionState = getSessionState() || {};
+
+        // Keep Sentry context useful but avoid high-volume/PII payloads.
+        // - Don't attach the raw Apollo error object (can contain request details)
+        // - Don't attach identifiers (userId/deviceId)
+        // - Keep role info since it's relevant to the incident class
+        const safeExtras = {
+          operationName: operation.operationName,
+          statusCode,
+          reloadId: authState?.reloadId,
+          hasUserToken: !!authState?.userToken,
+          authLoading: !!authState?.loading,
+          session: {
+            initialized: !!sessionState.initialized,
+            defaultRole: sessionState.defaultRole,
+            allowedRolesCount: Array.isArray(sessionState.allowedRoles)
+              ? sessionState.allowedRoles.length
+              : 0,
           },
+        };
+
+        Sentry.captureException(new Error(errorMessage), {
+          extra: safeExtras,
         });
     }
   });

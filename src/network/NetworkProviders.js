@@ -18,7 +18,15 @@ import * as store from "~/stores";
 
 import getRetryMaxAttempts from "./getRetryMaxAttemps";
 
+import { createLogger } from "~/lib/logger";
+import { NETWORK_SCOPES } from "~/lib/logger/scopes";
+
 const { useNetworkState, networkActions } = store;
+
+const networkProvidersLogger = createLogger({
+  module: NETWORK_SCOPES.APOLLO,
+  feature: "NetworkProviders",
+});
 
 const initializeNewApolloClient = (reload) => {
   if (reload) {
@@ -47,6 +55,10 @@ export default function NetworkProviders({ children }) {
   const networkState = useNetworkState(["initialized", "triggerReload"]);
   useEffect(() => {
     if (networkState.triggerReload) {
+      networkProvidersLogger.debug("Network triggerReload received", {
+        reloadId: store.getAuthState()?.reloadId,
+        hasUserToken: !!store.getAuthState()?.userToken,
+      });
       initializeNewApolloClient(true);
       setKey((prevKey) => prevKey + 1);
     }
@@ -54,6 +66,10 @@ export default function NetworkProviders({ children }) {
 
   useEffect(() => {
     if (key > 0) {
+      networkProvidersLogger.debug("Network reloaded", {
+        reloadId: store.getAuthState()?.reloadId,
+        hasUserToken: !!store.getAuthState()?.userToken,
+      });
       networkActions.onReload();
     }
   }, [key]);
