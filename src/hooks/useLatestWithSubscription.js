@@ -2,14 +2,7 @@ import { useRef, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
 import * as Sentry from "@sentry/react-native";
 import { useNetworkState } from "~/stores";
-import { createLogger } from "~/lib/logger";
-import { UI_SCOPES } from "~/lib/logger/scopes";
 import useShallowMemo from "./useShallowMemo";
-
-const hookLogger = createLogger({
-  module: UI_SCOPES.HOOKS,
-  feature: "useLatestWithSubscription",
-});
 
 // Constants for retry configuration
 const MAX_RETRIES = 5;
@@ -54,15 +47,13 @@ export default function useLatestWithSubscription(
   const retryCountRef = useRef(0);
   const subscriptionErrorRef = useRef(null);
   const timeoutIdRef = useRef(null);
-  const unsubscribeRef = useRef(null);
-  const lastWsClosedDateRef = useRef(null);
 
   useEffect(() => {
     const currentVarsHash = JSON.stringify(variables);
     if (currentVarsHash !== variableHashRef.current) {
-      hookLogger.debug("Variables changed; resetting subscription setup", {
-        subscriptionKey,
-      });
+      console.log(
+        `[${subscriptionKey}] Variables changed, resetting subscription setup`,
+      );
       highestIdRef.current = null;
       variableHashRef.current = currentVarsHash;
       initialSetupDoneRef.current = false;
@@ -107,19 +98,19 @@ export default function useLatestWithSubscription(
         (highestIdRef.current === null || highestId > highestIdRef.current)
       ) {
         highestIdRef.current = highestId;
-        hookLogger.debug("Updated subscription cursor to highest ID", {
-          subscriptionKey,
+        console.log(
+          `[${subscriptionKey}] Updated subscription cursor to highest ID:`,
           highestId,
-        });
+        );
       }
     } else {
       // Handle empty results case - initialize with 0 to allow subscription for first item
       if (highestIdRef.current === null) {
         highestIdRef.current = 0;
-        hookLogger.debug("No initial items; setting subscription cursor", {
-          subscriptionKey,
-          highestId: 0,
-        });
+        console.log(
+          `[${subscriptionKey}] No initial items, setting subscription cursor to:`,
+          0,
+        );
       }
     }
   }, [queryData, cursorKey, subscriptionKey]);
@@ -143,20 +134,12 @@ export default function useLatestWithSubscription(
     if (!subscribeToMore) return;
     if (highestIdRef.current === null) return; // Wait until we have the highest ID
 
-    // Track WS close events so we only react when wsClosedDate actually changes
-    const wsClosedDateChanged =
-      !!wsClosedDate && wsClosedDate !== lastWsClosedDateRef.current;
-    if (wsClosedDateChanged) {
-      lastWsClosedDateRef.current = wsClosedDate;
-    }
-
     // Check if max retries reached and we have an error
     if (retryCountRef.current >= maxRetries && subscriptionErrorRef.current) {
-      hookLogger.error("Max retries reached; stopping subscription attempts", {
-        subscriptionKey,
-        maxRetries,
-        error: subscriptionErrorRef.current,
-      });
+      console.error(
+        `[${subscriptionKey}] Max retries (${maxRetries}) reached. Stopping subscription attempts.`,
+        subscriptionErrorRef.current,
+      );
 
       // Report to Sentry when max retries are reached
       try {
@@ -172,24 +155,17 @@ export default function useLatestWithSubscription(
           },
         });
       } catch (sentryError) {
-        hookLogger.error("Failed to report max-retries to Sentry", {
-          subscriptionKey,
-          error: sentryError,
-        });
+        console.error("Failed to report to Sentry:", sentryError);
       }
 
       return;
     }
 
     // Wait for:
-    // - initial setup not done yet
-    // - OR a new wsClosedDate (WS reconnect)
-    // - OR a retry trigger
-    if (
-      initialSetupDoneRef.current &&
-      !wsClosedDateChanged &&
-      retryTrigger === 0
-    ) {
+    // - either initial setup not done yet
+    // - or a new wsClosedDate (WS reconnect)
+    // - or a retry trigger
+    if (initialSetupDoneRef.current && !wsClosedDate && retryTrigger === 0) {
       return;
     }
 
@@ -202,16 +178,6 @@ export default function useLatestWithSubscription(
       timeoutIdRef.current = null;
     }
 
-    // Always cleanup any existing subscription before creating a new one
-    if (unsubscribeRef.current) {
-      try {
-        unsubscribeRef.current();
-      } catch (_error) {
-        // ignore
-      }
-      unsubscribeRef.current = null;
-    }
-
     // Calculate backoff delay if this is a retry
     const backoffDelay =
       retryCountRef.current > 0
@@ -221,13 +187,15 @@ export default function useLatestWithSubscription(
           )
         : 0;
 
-    hookLogger.debug("Setting up subscription", {
-      subscriptionKey,
-      retryCount: retryCountRef.current,
-      maxRetries,
-      backoffDelay,
-      highestId: highestIdRef.current,
-    });
+    const retryMessage =
+      retryCountRef.current > 0
+        ? ` Retry attempt ${retryCountRef.current}/${maxRetries} after ${backoffDelay}ms delay`
+        : "";
+
+    console.log(
+      `[${subscriptionKey}] Setting up subscription${retryMessage} with highestId:`,
+      highestIdRef.current,
+    );
 
     // Use timeout for backoff
     timeoutIdRef.current = setTimeout(() => {
@@ -254,12 +222,10 @@ export default function useLatestWithSubscription(
               maxRetries,
             );
 
-            hookLogger.warn("Subscription error", {
-              subscriptionKey,
-              attempt: retryCountRef.current,
-              maxRetries,
+            console.error(
+              `[${subscriptionKey}] Subscription error (attempt ${retryCountRef.current}/${maxRetries}):`,
               error,
-            });
+            );
 
             // If we haven't reached max retries, trigger a retry
             if (retryCountRef.current < maxRetries) {
@@ -304,11 +270,10 @@ export default function useLatestWithSubscription(
               }
             });
 
-            hookLogger.debug("Received new items", {
-              subscriptionKey,
-              receivedCount: filteredNewItems.length,
-              highestId: highestIdRef.current,
-            });
+            console.log(
+              `[${subscriptionKey}] Received ${filteredNewItems.length} new items, updated highestId:`,
+              highestIdRef.current,
+            );
 
             // For latest items pattern, we prepend new items (DESC order in UI)
             return {
@@ -318,27 +283,30 @@ export default function useLatestWithSubscription(
           },
         });
 
-        // Save unsubscribe for cleanup on reruns/unmount
-        unsubscribeRef.current = unsubscribe;
-
-        // Note: cleanup is handled by the effect cleanup below.
+        // Cleanup on unmount or re-run
+        return () => {
+          console.log(`[${subscriptionKey}] Cleaning up subscription`);
+          if (timeoutIdRef.current) {
+            clearTimeout(timeoutIdRef.current);
+            timeoutIdRef.current = null;
+          }
+          unsubscribe();
+        };
       } catch (error) {
         // Handle setup errors (like malformed queries)
-        hookLogger.error("Error setting up subscription", {
-          subscriptionKey,
+        console.error(
+          `[${subscriptionKey}] Error setting up subscription:`,
           error,
-        });
+        );
         subscriptionErrorRef.current = error;
 
         // Increment retry counter but don't exceed maxRetries
         retryCountRef.current = Math.min(retryCountRef.current + 1, maxRetries);
 
-        hookLogger.warn("Subscription setup error", {
-          subscriptionKey,
-          attempt: retryCountRef.current,
-          maxRetries,
+        console.error(
+          `[${subscriptionKey}] Subscription setup error (attempt ${retryCountRef.current}/${maxRetries}):`,
           error,
-        });
+        );
 
         // If we haven't reached max retries, trigger a retry
         if (retryCountRef.current < maxRetries) {
@@ -360,14 +328,16 @@ export default function useLatestWithSubscription(
               },
             });
           } catch (sentryError) {
-            hookLogger.error("Failed to report setup error to Sentry", {
-              subscriptionKey,
-              error: sentryError,
-            });
+            console.error("Failed to report to Sentry:", sentryError);
           }
         }
 
-        // Cleanup is handled by the effect cleanup below.
+        return () => {
+          if (timeoutIdRef.current) {
+            clearTimeout(timeoutIdRef.current);
+            timeoutIdRef.current = null;
+          }
+        };
       }
     }, backoffDelay);
 
@@ -376,16 +346,6 @@ export default function useLatestWithSubscription(
       if (timeoutIdRef.current) {
         clearTimeout(timeoutIdRef.current);
         timeoutIdRef.current = null;
-      }
-
-      if (unsubscribeRef.current) {
-        try {
-          hookLogger.debug("Cleaning up subscription", { subscriptionKey });
-          unsubscribeRef.current();
-        } catch (_error) {
-          // ignore
-        }
-        unsubscribeRef.current = null;
       }
     };
   }, [
