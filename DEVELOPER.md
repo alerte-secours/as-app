@@ -137,15 +137,25 @@ If you need to install the app manually, you can examine the `install-android.sh
 
 #### Building and Running
 
-To build and run the iOS app:
+  To build and run the iOS app:
 
-```bash
-# Run in development mode with staging environment
-yarn ios:staging
+  ```bash
+  # Run in development mode with staging environment
+  yarn ios:staging
 
-# Build for production (uses scripts/ios-archive.sh and scripts/ios-export.sh)
-yarn bundle:ios
-```
+  # Build for production (version + clean + archive + export)
+  yarn bundle:ios:build
+
+  # Upload the last build to App Store Connect
+  yarn bundle:ios:upload
+
+  # Build + upload
+  yarn bundle:ios:release
+  ```
+
+  Notes on versioning:
+  - `yarn bundle:ios:build` updates iOS `CFBundleShortVersionString` and `CFBundleVersion` to a timestamp in `Europe/Paris` timezone (format `YYYYMMDDHHMM`) before archiving/exporting.
+  - `yarn bundle:ios` is an alias of `yarn bundle:ios:build`.
 
 The `bundle:ios` command uses the scripts in the `scripts` directory:
 - `ios-archive.sh` - Archives the iOS app
