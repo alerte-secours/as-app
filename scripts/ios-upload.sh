@@ -52,19 +52,30 @@ fi
 IPA_PLIST_TMP=$(mktemp -t as_ipa_Info.plist)
 unzip -p "$IPA_PATH" "Payload/AlerteSecours.app/Info.plist" > "$IPA_PLIST_TMP" 2>/dev/null || true
 
-if [ -s "$IPA_PLIST_TMP" ]; then
-  IPA_PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$IPA_PLIST_TMP" 2>/dev/null || echo "")
-  IPA_BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$IPA_PLIST_TMP" 2>/dev/null || echo "")
-  echo "  IPA Info.plist (from payload): ${IPA_PKG_VERSION:-unknown} (${IPA_BUILD_NUMBER:-unknown})"
-  if [ -n "$IPA_PKG_VERSION" ] && [ -n "$IPA_BUILD_NUMBER" ]; then
-    if [ "$SRC_PKG_VERSION" != "$IPA_PKG_VERSION" ] || [ "$SRC_BUILD_NUMBER" != "$IPA_BUILD_NUMBER" ]; then
-      echo "Error: IPA version mismatch with source Info.plist."
-      echo "Hint: Run 'yarn bundle:ios' to export a fresh IPA aligned with current versions."
-      rm -f "$IPA_PLIST_TMP"
-      exit 1
+  if [ -s "$IPA_PLIST_TMP" ]; then
+    IPA_PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$IPA_PLIST_TMP" 2>/dev/null || echo "")
+    IPA_BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$IPA_PLIST_TMP" 2>/dev/null || echo "")
+    echo "  IPA Info.plist (from payload): ${IPA_PKG_VERSION:-unknown} (${IPA_BUILD_NUMBER:-unknown})"
+    if [ -n "$IPA_PKG_VERSION" ] && [ -n "$IPA_BUILD_NUMBER" ]; then
+      # Enforce that CFBundleShortVersionString matches exactly between source and IPA.
+      if [ "$SRC_PKG_VERSION" != "$IPA_PKG_VERSION" ]; then
+        echo "Error: IPA CFBundleShortVersionString mismatch with source Info.plist."
+        echo "Hint: Run 'yarn bundle:ios' to export a fresh IPA aligned with current versions."
+        rm -f "$IPA_PLIST_TMP"
+        exit 1
+      fi
+
+      # Allow IPA CFBundleVersion to be greater than or equal to the source
+      # (Xcode may auto-increment it), but reject if it is lower, which
+      # indicates a stale IPA.
+      if [ "$IPA_BUILD_NUMBER" -lt "$SRC_BUILD_NUMBER" ]; then
+        echo "Error: IPA CFBundleVersion ($IPA_BUILD_NUMBER) is lower than source build number ($SRC_BUILD_NUMBER)."
+        echo "Hint: Run 'yarn bundle:ios' to export a fresh IPA aligned with current versions."
+        rm -f "$IPA_PLIST_TMP"
+        exit 1
+      fi
     fi
-  fi
-else
+  else
   echo "Warning: Could not read Info.plist from IPA payload for verification. Continuing."
 fi
 rm -f "$IPA_PLIST_TMP"
