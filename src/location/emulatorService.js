@@ -4,6 +4,9 @@ import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 
+import { ensureBackgroundGeolocationReady } from "~/location/backgroundGeolocationService";
+import { BASE_GEOLOCATION_CONFIG } from "~/location/backgroundGeolocationConfig";
+
 // Global variables
 let emulatorIntervalId = null;
 let isEmulatorModeEnabled = false;
@@ -43,6 +46,8 @@ export const enableEmulatorMode = async () => {
   }
 
   try {
+    await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+
     // Call immediately once
     await BackgroundGeolocation.changePace(true);
     emulatorLogger.debug("Initial changePace call successful");

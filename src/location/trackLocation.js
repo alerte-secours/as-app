@@ -1,5 +1,4 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
-import { TRACK_MOVE } from "~/misc/devicePrefs";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
@@ -20,304 +19,406 @@ import { storeLocation } from "~/location/storage";
 
 import env from "~/env";
 
-// Common config: keep always-on tracking enabled, but default to an IDLE low-power profile.
-// High-accuracy and "moving" mode are only enabled when an active alert is open.
-const baseConfig = {
-  // https://github.com/transistorsoft/react-native-background-geolocation/wiki/Android-Headless-Mode
-  enableHeadless: true,
-  disableProviderChangeRecord: true,
-  // disableMotionActivityUpdates: true,
-  // Default to low-power (idle) profile; will be overridden when needed.
-  desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
-  // Larger distance filter in idle mode to prevent frequent GPS wakes.
-  distanceFilter: 200,
-  // debug: true, // Enable debug mode for more detailed logs
-  logLevel: BackgroundGeolocation.LOG_LEVEL_VERBOSE,
-  // Disable automatic permission requests
-  locationAuthorizationRequest: "Always",
-  stopOnTerminate: false,
-  startOnBoot: true,
-  // Keep heartbeat very infrequent in idle mode.
-  heartbeatInterval: 3600,
-  // Force the plugin to start aggressively
-  foregroundService: true,
-  notification: {
-    title: "Alerte Secours",
-    text: "Suivi de localisation actif",
-    channelName: "Location tracking",
-    priority: BackgroundGeolocation.NOTIFICATION_PRIORITY_HIGH,
-  },
-  backgroundPermissionRationale: {
-    title:
-      "Autoriser Alerte-Secours à accéder à la localisation en arrière-plan",
-    message:
-      "Alerte-Secours nécessite la localisation en arrière-plan pour vous alerter en temps réel lorsqu'une personne à proximité a besoin d'aide urgente. Cette fonction est essentielle pour permettre une intervention rapide et efficace en cas d'urgence.",
-    positiveAction: "Autoriser",
-    negativeAction: "Désactiver",
-  },
-  // Enhanced HTTP configuration
-  url: env.GEOLOC_SYNC_URL,
-  method: "POST", // Explicitly set HTTP method
-  httpRootProperty: "location", // Specify the root property for the locations array
-  // Configure persistence
-  maxRecordsToPersist: 1, // Limit the number of records to store
-  maxDaysToPersist: 7, // Limit the age of records to persist
-  batchSync: false,
-  autoSync: true,
-  reset: true,
-};
+import {
+  BASE_GEOLOCATION_CONFIG,
+  TRACKING_PROFILES,
+} from "~/location/backgroundGeolocationConfig";
+import {
+  ensureBackgroundGeolocationReady,
+  setBackgroundGeolocationEventHandlers,
+} from "~/location/backgroundGeolocationService";
 
-const TRACKING_PROFILES = {
-  idle: {
-    desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
-    distanceFilter: 200,
-    heartbeatInterval: 3600,
-  },
-  active: {
-    desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
-    distanceFilter: TRACK_MOVE,
-    heartbeatInterval: 900,
-  },
-};
+let trackLocationStartPromise = null;
 
-export default async function trackLocation() {
-  const locationLogger = createLogger({
-    module: BACKGROUND_SCOPES.GEOLOCATION,
-    feature: "tracking",
-  });
+export default function trackLocation() {
+  if (trackLocationStartPromise) return trackLocationStartPromise;
 
-  let currentProfile = null;
-  let authReady = false;
-  let stopAlertSubscription = null;
-  let stopSessionSubscription = null;
-
-  const computeHasOwnOpenAlert = () => {
-    try {
-      const { userId } = getSessionState();
-      const { alertingList } = getAlertState();
-      if (!userId || !Array.isArray(alertingList)) return false;
-      return alertingList.some(
-        ({ oneAlert }) =>
-          oneAlert?.state === "open" && oneAlert?.userId === userId,
-      );
-    } catch (e) {
-      locationLogger.warn("Failed to compute active-alert state", {
-        error: e?.message,
-      });
-      return false;
-    }
-  };
-
-  const applyProfile = async (profileName) => {
-    if (!authReady) {
-      // We only apply profile once auth headers are configured.
-      return;
-    }
-    if (currentProfile === profileName) return;
-
-    const profile = TRACKING_PROFILES[profileName];
-    if (!profile) {
-      locationLogger.warn("Unknown tracking profile", { profileName });
-      return;
-    }
-
-    locationLogger.info("Applying tracking profile", {
-      profileName,
-      desiredAccuracy: profile.desiredAccuracy,
-      distanceFilter: profile.distanceFilter,
-      heartbeatInterval: profile.heartbeatInterval,
+  trackLocationStartPromise = (async () => {
+    const locationLogger = createLogger({
+      module: BACKGROUND_SCOPES.GEOLOCATION,
+      feature: "tracking",
     });
 
-    try {
-      await BackgroundGeolocation.setConfig(profile);
+    let currentProfile = null;
+    let authReady = false;
+    let stopAlertSubscription = null;
+    let stopSessionSubscription = null;
 
-      // Key battery fix:
-      // - IDLE profile forces stationary mode
-      // - ACTIVE profile forces moving mode
-      await BackgroundGeolocation.changePace(profileName === "active");
+    // One-off startup refresh: when tracking is enabled at app launch, fetch a fresh fix once.
+    // This follows Transistorsoft docs guidance to use getCurrentPosition rather than forcing
+    // the SDK into moving mode with changePace(true).
+    let didRequestStartupFix = false;
+    let startupFixInFlight = null;
 
-      currentProfile = profileName;
-    } catch (error) {
-      locationLogger.error("Failed to apply tracking profile", {
-        profileName,
-        error: error?.message,
-        stack: error?.stack,
-      });
-    }
-  };
+    // When auth changes, we want a fresh persisted point for the newly effective identity.
+    // Debounced to avoid spamming `getCurrentPosition` if auth updates quickly (refresh/renew).
+    let authFixDebounceTimerId = null;
+    let authFixInFlight = null;
+    const AUTH_FIX_DEBOUNCE_MS = 1500;
 
-  // Log the geolocation sync URL for debugging
-  locationLogger.info("Geolocation sync URL configuration", {
-    url: env.GEOLOC_SYNC_URL,
-    isStaging: env.IS_STAGING,
-  });
-
-  // Handle auth function - no throttling or cooldown
-  async function handleAuth(userToken) {
-    locationLogger.info("Handling auth token update", {
-      hasToken: !!userToken,
-    });
-    if (!userToken) {
-      locationLogger.info("No auth token, stopping location tracking");
-      await BackgroundGeolocation.stop();
-      locationLogger.debug("Location tracking stopped");
-
-      // Cleanup subscriptions when logged out.
-      try {
-        stopAlertSubscription && stopAlertSubscription();
-        stopSessionSubscription && stopSessionSubscription();
-      } finally {
-        stopAlertSubscription = null;
-        stopSessionSubscription = null;
+    const scheduleAuthFreshFix = () => {
+      if (authFixDebounceTimerId) {
+        clearTimeout(authFixDebounceTimerId);
+        authFixDebounceTimerId = null;
       }
 
-      authReady = false;
-      currentProfile = null;
-      return;
-    }
-    // unsub();
-    locationLogger.debug("Updating background geolocation config");
-    await BackgroundGeolocation.setConfig({
-      url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
-      headers: {
-        Authorization: `Bearer ${userToken}`,
-      },
-    });
+      authFixInFlight = new Promise((resolve) => {
+        authFixDebounceTimerId = setTimeout(resolve, AUTH_FIX_DEBOUNCE_MS);
+      }).then(async () => {
+        try {
+          const before = await BackgroundGeolocation.getState();
+          locationLogger.info("Requesting auth-change location fix", {
+            enabled: before.enabled,
+            trackingMode: before.trackingMode,
+            isMoving: before.isMoving,
+          });
 
-    authReady = true;
+          const location = await BackgroundGeolocation.getCurrentPosition({
+            samples: 3,
+            persist: true,
+            timeout: 30,
+            maximumAge: 5000,
+            desiredAccuracy: 50,
+            extras: {
+              auth_token_update: true,
+            },
+          });
 
-    // Log the authorization header that was set
-    locationLogger.debug(
-      "Set Authorization header for background geolocation",
-      {
-        headerSet: true,
-        tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
-      },
-    );
-
-    const state = await BackgroundGeolocation.getState();
-    try {
-      const decodedToken = jwtDecode(userToken);
-      locationLogger.debug("Decoded JWT token", { decodedToken });
-    } catch (error) {
-      locationLogger.error("Failed to decode JWT token", {
-        error: error.message,
+          locationLogger.info("Auth-change location fix acquired", {
+            accuracy: location?.coords?.accuracy,
+            latitude: location?.coords?.latitude,
+            longitude: location?.coords?.longitude,
+            timestamp: location?.timestamp,
+          });
+        } catch (error) {
+          locationLogger.warn("Auth-change location fix failed", {
+            error: error?.message,
+            code: error?.code,
+            stack: error?.stack,
+          });
+        } finally {
+          authFixDebounceTimerId = null;
+          authFixInFlight = null;
+        }
       });
-    }
 
-    if (!state.enabled) {
-      locationLogger.info("Starting location tracking");
+      return authFixInFlight;
+    };
+
+    const computeHasOwnOpenAlert = () => {
       try {
-        await BackgroundGeolocation.start();
-        locationLogger.debug("Location tracking started successfully");
+        const { userId } = getSessionState();
+        const { alertingList } = getAlertState();
+        if (!userId || !Array.isArray(alertingList)) return false;
+        return alertingList.some(
+          ({ oneAlert }) =>
+            oneAlert?.state === "open" && oneAlert?.userId === userId,
+        );
+      } catch (e) {
+        locationLogger.warn("Failed to compute active-alert state", {
+          error: e?.message,
+        });
+        return false;
+      }
+    };
+
+    const applyProfile = async (profileName) => {
+      if (!authReady) {
+        // We only apply profile once auth headers are configured.
+        return;
+      }
+      if (currentProfile === profileName) return;
+
+      const profile = TRACKING_PROFILES[profileName];
+      if (!profile) {
+        locationLogger.warn("Unknown tracking profile", { profileName });
+        return;
+      }
+
+      locationLogger.info("Applying tracking profile", {
+        profileName,
+        desiredAccuracy: profile.desiredAccuracy,
+        distanceFilter: profile.distanceFilter,
+        heartbeatInterval: profile.heartbeatInterval,
+      });
+
+      try {
+        await BackgroundGeolocation.setConfig(profile);
+
+        // Motion state strategy:
+        // - ACTIVE: force moving to begin aggressive tracking immediately.
+        // - IDLE: do NOT force stationary.  Let the SDK's motion detection manage
+        //   moving/stationary transitions so we still get distance-based updates
+        //   (target: new point when moved ~50m+ even without an open alert).
+        if (profileName === "active") {
+          await BackgroundGeolocation.changePace(true);
+        }
+
+        currentProfile = profileName;
       } catch (error) {
-        locationLogger.error("Failed to start location tracking", {
-          error: error.message,
-          stack: error.stack,
+        locationLogger.error("Failed to apply tracking profile", {
+          profileName,
+          error: error?.message,
+          stack: error?.stack,
         });
       }
-    }
+    };
 
-    // Ensure we are NOT forcing "moving" mode by default.
-    // Default profile is idle unless an active alert requires higher accuracy.
-    const shouldBeActive = computeHasOwnOpenAlert();
-    await applyProfile(shouldBeActive ? "active" : "idle");
+    // Log the geolocation sync URL for debugging
+    locationLogger.info("Geolocation sync URL configuration", {
+      url: env.GEOLOC_SYNC_URL,
+      isStaging: env.IS_STAGING,
+    });
 
-    // Subscribe to changes that may require switching profiles.
-    if (!stopSessionSubscription) {
-      stopSessionSubscription = subscribeSessionState(
-        (s) => s?.userId,
-        () => {
-          const active = computeHasOwnOpenAlert();
-          applyProfile(active ? "active" : "idle");
+    // Handle auth function - no throttling or cooldown
+    async function handleAuth(userToken) {
+      // Defensive: ensure `.ready()` is resolved before any API call.
+      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+
+      locationLogger.info("Handling auth token update", {
+        hasToken: !!userToken,
+      });
+      if (!userToken) {
+        locationLogger.info("No auth token, stopping location tracking");
+
+        // Prevent any further uploads before stopping.
+        // This guards against persisted HTTP config continuing to flush queued records.
+        try {
+          await BackgroundGeolocation.setConfig({
+            url: "",
+            autoSync: false,
+            headers: {},
+          });
+        } catch (e) {
+          locationLogger.warn("Failed to clear BGGeo HTTP config on logout", {
+            error: e?.message,
+          });
+        }
+
+        await BackgroundGeolocation.stop();
+        locationLogger.debug("Location tracking stopped");
+
+        // Cleanup subscriptions when logged out.
+        try {
+          stopAlertSubscription && stopAlertSubscription();
+          stopSessionSubscription && stopSessionSubscription();
+        } finally {
+          stopAlertSubscription = null;
+          stopSessionSubscription = null;
+        }
+
+        authReady = false;
+        currentProfile = null;
+
+        if (authFixDebounceTimerId) {
+          clearTimeout(authFixDebounceTimerId);
+          authFixDebounceTimerId = null;
+        }
+        authFixInFlight = null;
+        return;
+      }
+      // unsub();
+      locationLogger.debug("Updating background geolocation config");
+      await BackgroundGeolocation.setConfig({
+        url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
+
+      authReady = true;
+
+      // Log the authorization header that was set
+      locationLogger.debug(
+        "Set Authorization header for background geolocation",
+        {
+          headerSet: true,
+          tokenPrefix: userToken ? userToken.substring(0, 10) + "..." : null,
         },
       );
-    }
-    if (!stopAlertSubscription) {
-      stopAlertSubscription = subscribeAlertState(
-        (s) => s?.alertingList,
-        () => {
-          const active = computeHasOwnOpenAlert();
-          applyProfile(active ? "active" : "idle");
-        },
-      );
-    }
-  }
 
-  BackgroundGeolocation.onLocation(async (location) => {
-    locationLogger.debug("Location update received", {
-      coords: location.coords,
-      timestamp: location.timestamp,
-      activity: location.activity,
-      battery: location.battery,
+      const state = await BackgroundGeolocation.getState();
+      try {
+        const decodedToken = jwtDecode(userToken);
+        locationLogger.debug("Decoded JWT token", { decodedToken });
+      } catch (error) {
+        locationLogger.error("Failed to decode JWT token", {
+          error: error.message,
+        });
+      }
+
+      if (!state.enabled) {
+        locationLogger.info("Starting location tracking");
+        try {
+          await BackgroundGeolocation.start();
+          locationLogger.debug("Location tracking started successfully");
+        } catch (error) {
+          locationLogger.error("Failed to start location tracking", {
+            error: error.message,
+            stack: error.stack,
+          });
+        }
+      }
+
+      // Always request a fresh persisted point on any token update.
+      // This ensures a newly connected user gets an immediate point even if they don't move.
+      scheduleAuthFreshFix();
+
+      // Request a single fresh location-fix on each app launch when tracking is enabled.
+      // - We do this only after auth headers are configured so the persisted point can sync.
+      // - We do NOT force moving mode.
+      if (!didRequestStartupFix) {
+        didRequestStartupFix = true;
+        startupFixInFlight = scheduleAuthFreshFix();
+      } else if (authFixInFlight) {
+        // Avoid concurrent fix calls if auth updates race.
+        await authFixInFlight;
+      }
+
+      // Ensure we are NOT forcing "moving" mode by default.
+      // Default profile is idle unless an active alert requires higher accuracy.
+      const shouldBeActive = computeHasOwnOpenAlert();
+      await applyProfile(shouldBeActive ? "active" : "idle");
+
+      // Subscribe to changes that may require switching profiles.
+      if (!stopSessionSubscription) {
+        stopSessionSubscription = subscribeSessionState(
+          (s) => s?.userId,
+          () => {
+            const active = computeHasOwnOpenAlert();
+            applyProfile(active ? "active" : "idle");
+          },
+        );
+      }
+      if (!stopAlertSubscription) {
+        stopAlertSubscription = subscribeAlertState(
+          (s) => s?.alertingList,
+          () => {
+            const active = computeHasOwnOpenAlert();
+            applyProfile(active ? "active" : "idle");
+          },
+        );
+      }
+    }
+
+    setBackgroundGeolocationEventHandlers({
+      onLocation: async (location) => {
+        locationLogger.debug("Location update received", {
+          coords: location.coords,
+          timestamp: location.timestamp,
+          activity: location.activity,
+          battery: location.battery,
+          sample: location.sample,
+        });
+
+        // Ignore sampling locations (eg, emitted during getCurrentPosition) to avoid UI/storage churn.
+        // The final persisted location will arrive with sample=false.
+        if (location.sample) return;
+
+        if (
+          location.coords &&
+          location.coords.latitude &&
+          location.coords.longitude
+        ) {
+          setLocationState(location.coords);
+          // Also store in AsyncStorage for last known location fallback
+          storeLocation(location.coords, location.timestamp);
+        }
+      },
+      onLocationError: (error) => {
+        locationLogger.warn("Location error", {
+          error: error?.message,
+          code: error?.code,
+        });
+      },
+      onHttp: async (response) => {
+        // Log success/failure for visibility into token expiry, server errors, etc.
+        locationLogger.debug("HTTP response received", {
+          success: response?.success,
+          status: response?.status,
+          responseText: response?.responseText,
+        });
+      },
+      onMotionChange: (event) => {
+        locationLogger.info("Motion change", {
+          isMoving: event?.isMoving,
+          location: event?.location?.coords,
+        });
+      },
+      onActivityChange: (event) => {
+        locationLogger.info("Activity change", {
+          activity: event?.activity,
+          confidence: event?.confidence,
+        });
+      },
+      onProviderChange: (event) => {
+        locationLogger.info("Provider change", {
+          status: event?.status,
+          enabled: event?.enabled,
+          network: event?.network,
+          gps: event?.gps,
+          accuracyAuthorization: event?.accuracyAuthorization,
+        });
+      },
+      onConnectivityChange: (event) => {
+        locationLogger.info("Connectivity change", {
+          connected: event?.connected,
+        });
+      },
+      onEnabledChange: (enabled) => {
+        locationLogger.info("Enabled change", { enabled });
+      },
     });
 
-    if (
-      location.coords &&
-      location.coords.latitude &&
-      location.coords.longitude
-    ) {
-      setLocationState(location.coords);
-      // Also store in AsyncStorage for last known location fallback
-      storeLocation(location.coords, location.timestamp);
+    try {
+      locationLogger.info("Initializing background geolocation");
+      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+
+      // Only set the permission state if we already have the permission
+      const state = await BackgroundGeolocation.getState();
+      locationLogger.debug("Background geolocation state", {
+        enabled: state.enabled,
+        trackingMode: state.trackingMode,
+        isMoving: state.isMoving,
+        schedulerEnabled: state.schedulerEnabled,
+      });
+
+      if (state.enabled) {
+        locationLogger.info("Background location permission confirmed");
+        permissionsActions.setLocationBackground(true);
+      } else {
+        locationLogger.warn(
+          "Background location not enabled in geolocation state",
+        );
+      }
+
+      // if (LOCAL_DEV) {
+      //   // fixing issue on android emulator (which doesn't have accelerometer or gyroscope) by manually enabling location updates
+      //   setInterval(
+      //     () => {
+      //       BackgroundGeolocation.changePace(true);
+      //     },
+      //     30 * 60 * 1000,
+      //   );
+      // }
+    } catch (error) {
+      locationLogger.error("Location tracking initialization failed", {
+        error: error.message,
+        stack: error.stack,
+        code: error.code,
+      });
     }
-  });
+    const { userToken } = getAuthState();
+    locationLogger.debug("Setting up auth state subscription");
+    subscribeAuthState(({ userToken }) => userToken, handleAuth);
+    locationLogger.debug("Performing initial auth handling");
+    handleAuth(userToken);
 
-  BackgroundGeolocation.onHttp(async (response) => {
-    // log status code and response
-    locationLogger.debug("HTTP response received", {
-      status: response?.status,
-      responseText: response?.responseText,
-    });
-  });
-
-  try {
-    locationLogger.info("Initializing background geolocation");
-    await BackgroundGeolocation.ready(baseConfig);
-    await BackgroundGeolocation.setConfig(baseConfig);
-
-    // Only set the permission state if we already have the permission
-    const state = await BackgroundGeolocation.getState();
-    locationLogger.debug("Background geolocation state", {
-      enabled: state.enabled,
-      trackingMode: state.trackingMode,
-      isMoving: state.isMoving,
-      schedulerEnabled: state.schedulerEnabled,
-    });
-
-    if (state.enabled) {
-      locationLogger.info("Background location permission confirmed");
-      permissionsActions.setLocationBackground(true);
-    } else {
-      locationLogger.warn(
-        "Background location not enabled in geolocation state",
-      );
+    // Initialize emulator mode only in dev/staging to avoid accidental production battery drain.
+    if (__DEV__ || env.IS_STAGING) {
+      initEmulatorMode();
     }
+  })();
 
-    // if (LOCAL_DEV) {
-    //   // fixing issue on android emulator (which doesn't have accelerometer or gyroscope) by manually enabling location updates
-    //   setInterval(
-    //     () => {
-    //       BackgroundGeolocation.changePace(true);
-    //     },
-    //     30 * 60 * 1000,
-    //   );
-    // }
-  } catch (error) {
-    locationLogger.error("Location tracking initialization failed", {
-      error: error.message,
-      stack: error.stack,
-      code: error.code,
-    });
-  }
-  const { userToken } = getAuthState();
-  locationLogger.debug("Setting up auth state subscription");
-  subscribeAuthState(({ userToken }) => userToken, handleAuth);
-  locationLogger.debug("Performing initial auth handling");
-  handleAuth(userToken);
-
-  // Initialize emulator mode only in dev/staging to avoid accidental production battery drain.
-  if (__DEV__ || env.IS_STAGING) {
-    initEmulatorMode();
-  }
+  return trackLocationStartPromise;
 }
