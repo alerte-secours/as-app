@@ -9,6 +9,9 @@ import setLocationState from "./setLocationState";
 
 import camelCaseKeys from "~/utils/string/camelCaseKeys";
 
+import { ensureBackgroundGeolocationReady } from "~/location/backgroundGeolocationService";
+import { BASE_GEOLOCATION_CONFIG } from "~/location/backgroundGeolocationConfig";
+
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
@@ -17,6 +20,10 @@ export async function getCurrentLocation() {
 
   while (retries < MAX_RETRIES) {
     try {
+      // Vendor requirement: never call APIs like getState/requestPermission/getCurrentPosition
+      // before `.ready()` has resolved.
+      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+
       // Check for location permissions and services
       const state = await BackgroundGeolocation.getState();
 

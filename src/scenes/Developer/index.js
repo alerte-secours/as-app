@@ -22,6 +22,9 @@ import {
 import { LOG_LEVELS, setMinLogLevel } from "~/lib/logger";
 import { config as loggerConfig } from "~/lib/logger/config";
 
+import { ensureBackgroundGeolocationReady } from "~/location/backgroundGeolocationService";
+import { BASE_GEOLOCATION_CONFIG } from "~/location/backgroundGeolocationConfig";
+
 const reset = async () => {
   await authActions.logout();
 };
@@ -74,6 +77,8 @@ export default function Developer() {
     try {
       setSyncStatus("syncing");
       setSyncResult("");
+
+      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
 
       // Get the count of pending records first
       const count = await BackgroundGeolocation.getCount();
