@@ -35,23 +35,33 @@ const geolocBgLogger = createLogger({
   task: "headless",
 });
 
-// const HeadlessTask = async (event) => {
-//   try {
-//     switch (event?.name) {
-//       case "heartbeat":
-//         await executeHeartbeatSync();
-//         break;
-//       default:
-//         break;
-//     }
-//   } catch (error) {
-//     geolocBgLogger.error("HeadlessTask error", {
-//       error,
-//       event,
-//     });
-//   }
-// };
+// Android Headless Task entrypoint.
+// This is required for reliable delivery of events when the app process is terminated.
+// We keep it lightweight and focus on ensuring queued locations are flushed.
+const HeadlessTask = async (event) => {
+  try {
+    const name = event?.name;
+    geolocBgLogger.info("HeadlessTask event", { name });
 
-// if (Platform.OS === "android") {
-//   BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
-// }
+    switch (name) {
+      case "location":
+      case "heartbeat":
+      case "connectivitychange":
+        // Attempt to flush any queued locations.
+        await BackgroundGeolocation.sync();
+        break;
+      default:
+        break;
+    }
+  } catch (error) {
+    geolocBgLogger.error("HeadlessTask error", {
+      error: error?.message,
+      stack: error?.stack,
+      event,
+    });
+  }
+};
+
+if (Platform.OS === "android") {
+  BackgroundGeolocation.registerHeadlessTask(HeadlessTask);
+}
