@@ -14,7 +14,11 @@ export default function ConnectivityErrorCompact({
     <View {...containerProps} style={[styles.container, containerProps.style]}>
       <MaterialCommunityIcons style={styles.icon} name="connection" />
       <Text style={styles.label}>Connexion perdue</Text>
-      <TouchableOpacity style={styles.button} onPress={retryConnect}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        style={styles.button}
+        onPress={retryConnect}
+      >
         <Text style={styles.buttonText}>Réessayer</Text>
       </TouchableOpacity>
     </View>

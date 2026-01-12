@@ -28,6 +28,8 @@ export default function MapHeadRouting({
   distance,
   profileDefaultMode,
   openStepper,
+  openStepperTriggerRef,
+  seeAllStepsTriggerRef,
   calculatingState,
 }) {
   const { colors } = useTheme();
@@ -81,7 +83,11 @@ export default function MapHeadRouting({
       }}
     >
       <Pressable
-        onPress={openStepper}
+        ref={openStepperTriggerRef}
+        accessibilityRole="button"
+        accessibilityLabel="Ouvrir les étapes de navigation"
+        accessibilityHint="Ouvre la liste complète des étapes de l'itinéraire."
+        onPress={() => openStepper(openStepperTriggerRef)}
         style={{
           justifyContent: "center",
           backgroundColor: colors.surface,
@@ -126,16 +132,18 @@ export default function MapHeadRouting({
         >
           {displayOpenStepperButton && (
             <Button
+              ref={seeAllStepsTriggerRef}
               compact
               rippleColor={colors.secondary}
               accessibilityLabel={"Voir toutes les étapes"}
+              accessibilityHint="Affiche toutes les étapes de l'itinéraire."
               contentStyle={{
                 flexDirection: "row-reverse",
               }}
               style={{
                 borderRadius: 0,
               }}
-              onPress={openStepper}
+              onPress={() => openStepper(seeAllStepsTriggerRef)}
               icon={() => (
                 <MaterialCommunityIcons
                   name={"chevron-right"}

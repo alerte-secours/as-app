@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View } from "react-native";
 import { createStyles, useTheme } from "~/theme";
 import Text from "~/components/Text";
@@ -36,6 +36,15 @@ export default function MessageRow({
 
   const createdAtText = useTimeDisplay(createdAt);
 
+  const a11ySummaryLabel = useMemo(() => {
+    const who = username || "anonyme";
+    const from = isMine ? `${who} (moi)` : who;
+    const contentSummary =
+      contentType === "audio" ? "message audio" : (text || "").trim();
+    const statusText = !row.isOptimistic && isMine ? ", envoyé" : "";
+    return `${from}. ${createdAtText}. ${contentSummary}${statusText}`;
+  }, [contentType, createdAtText, isMine, row.isOptimistic, text, username]);
+
   // const usernameColor = bgColorBySeed(username);
 
   return (
@@ -45,7 +54,19 @@ export default function MessageRow({
           styles.bubbleContainer,
           isMine ? styles.bubbleContainerRight : styles.bubbleContainerLeft,
         ]}
+        // Don't set `accessible` here: it would group the whole row into one
+        // accessibility element, preventing SR users from reaching inner
+        // interactive controls like the audio player.
       >
+        {/* SR-only summary so users get a concise message description without
+            hiding interactive children (audio controls). */}
+        <Text
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={a11ySummaryLabel}
+          accessibilityHint="Message."
+          style={{ height: 0, width: 0, opacity: 0 }}
+        />
         {!isMine && (
           <View style={styles.userAvatar}>
             <Avatar message={row} />
@@ -56,12 +77,16 @@ export default function MessageRow({
             styles.triangle,
             isMine ? styles.triangleRight : styles.triangleLeft,
           ]}
+          accessible={false}
+          importantForAccessibility="no"
         />
         <View
           style={[
             styles.bubble,
             isMine ? styles.bubbleMe : styles.bubbleOthers,
           ]}
+          accessible={false}
+          importantForAccessibility="no"
         >
           {!sameUserAsPrevious && (
             <View style={styles.username}>
@@ -101,6 +126,8 @@ export default function MessageRow({
                 name="check-circle-outline"
                 size={16}
                 style={styles.checkIcon}
+                accessible={false}
+                importantForAccessibility="no"
               />
             )}
           </View>

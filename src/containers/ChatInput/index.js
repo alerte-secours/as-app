@@ -27,6 +27,7 @@ import network from "~/network";
 
 import TextArea from "./TextArea";
 import useInsertMessage from "~/hooks/useInsertMessage";
+import { announceForA11y } from "~/lib/a11y";
 
 const MODE = {
   EMPTY: "EMPTY",
@@ -139,6 +140,7 @@ export default React.memo(function ChatInput({
   const styles = useStyles();
 
   const [text, setText] = useState("");
+  const textInputRef = useRef(null);
   const { userId, username: sessionUsername } = useSessionState([
     "userId",
     "username",
@@ -152,6 +154,9 @@ export default React.memo(function ChatInput({
   const recorder = useAudioRecorder(recordingOptionsSpeech);
   const [player, setPlayer] = useState(null);
   const requestingMicRef = useRef(false);
+
+  // A11y: avoid repeated announcements while recording (e.g. every countdown tick)
+  const lastRecordingAnnouncementRef = useRef(null);
 
   const insertMessage = useInsertMessage(alertId);
 
@@ -192,8 +197,15 @@ export default React.memo(function ChatInput({
         username,
         userId,
       });
+
+      // Keep focus stable for SR users: after sending, restore focus to the input.
+      // (Do not move focus elsewhere; let the user continue typing.)
+      setTimeout(() => {
+        textInputRef.current?.focus?.();
+      }, 0);
     } catch (error) {
       console.error("Failed to send message:", error);
+      announceForA11y("Échec de l'envoi du message");
     }
   }, [insertMessage, text, setText, userId, username]);
 
@@ -271,6 +283,12 @@ export default React.memo(function ChatInput({
         recorder.record();
         console.log("recording");
         setIsRecording(true);
+
+        // Announce once when recording starts.
+        if (lastRecordingAnnouncementRef.current !== "started") {
+          lastRecordingAnnouncementRef.current = "started";
+          announceForA11y("Enregistrement démarré");
+        }
       } catch (error) {
         console.log("error while recording:", error);
       }
@@ -290,6 +308,12 @@ export default React.memo(function ChatInput({
     }
     if (isRecording) {
       setIsRecording(false);
+
+      // Announce once when recording stops.
+      if (lastRecordingAnnouncementRef.current !== "stopped") {
+        lastRecordingAnnouncementRef.current = "stopped";
+        announceForA11y("Enregistrement arrêté");
+      }
     }
   }, [recorder, isRecording]);
 
@@ -329,13 +353,26 @@ export default React.memo(function ChatInput({
   }, [alertId, recorder]);
 
   const sendRecording = useCallback(async () => {
-    await stopRecording();
-    await recordedToSound();
-    await uploadAudio();
+    try {
+      await stopRecording();
+      await recordedToSound();
+      await uploadAudio();
+
+      // Keep focus stable: return focus to input after finishing recording flow.
+      setTimeout(() => {
+        textInputRef.current?.focus?.();
+      }, 0);
+    } catch (error) {
+      console.error("Failed to send recording:", error);
+      announceForA11y("Échec de l'envoi de l'enregistrement audio");
+    }
   }, [stopRecording, recordedToSound, uploadAudio]);
 
   const deleteRecording = useCallback(async () => {
     await stopRecording();
+    setTimeout(() => {
+      textInputRef.current?.focus?.();
+    }, 0);
   }, [stopRecording]);
 
   const triggerMicrophoneClick = useCallback(async () => {
@@ -389,10 +426,16 @@ export default React.memo(function ChatInput({
               value={text}
               onChangeText={setText}
               autoFocus={autoFocus}
+              inputRef={textInputRef}
             />
           )}
           {mode === MODE.RECORDING && (
             <TouchableOpacity
+              testID="chat-input-delete-recording"
+              accessibilityRole="button"
+              accessibilityLabel="Supprimer l'enregistrement"
+              accessibilityHint="Supprime l'enregistrement audio. Action destructive."
+              accessibilityState={{ disabled: false }}
               activeOpacity={activeOpacity}
               style={styles.deleteButton}
               onPress={deleteRecording}
@@ -406,29 +449,60 @@ export default React.memo(function ChatInput({
             </TouchableOpacity>
           )}
           {mode === MODE.RECORDING && (
-            <View style={styles.countdownContainer}>
+            <View
+              style={styles.countdownContainer}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel="Compte à rebours avant envoi automatique"
+              accessibilityHint="Affiche le temps restant avant l'envoi automatique."
+            >
               <Countdown
                 autoStart
                 date={Date.now() + RECORDING_TIMEOUT * 1000}
                 intervalDelay={1000}
                 onComplete={onRecordingCountDownComplete}
                 renderer={({ seconds }) => (
-                  <Text style={styles.countdownText}>
+                  <Text
+                    style={styles.countdownText}
+                    accessible={false}
+                    importantForAccessibility="no"
+                  >
                     {seconds || RECORDING_TIMEOUT}
                   </Text>
                 )}
               />
-              <Text style={styles.countdownSubtitle}>
+              <Text
+                style={styles.countdownSubtitle}
+                accessible={false}
+                importantForAccessibility="no"
+              >
                 Avant envoi automatique
               </Text>
             </View>
           )}
           <TouchableOpacity
+            testID={hasText ? "chat-input-send" : "chat-input-mic"}
             activeOpacity={activeOpacity}
             style={styles.sendButton}
+            accessibilityRole="button"
             accessibilityLabel={
-              hasText ? "envoyer le message" : "enregistrer un message audio"
+              hasText
+                ? "Envoyer le message"
+                : isRecording
+                ? "Envoyer l'enregistrement audio"
+                : "Démarrer l'enregistrement audio"
             }
+            accessibilityHint={
+              hasText
+                ? "Envoie le message."
+                : isRecording
+                ? "Envoie l'enregistrement audio."
+                : "Démarre l'enregistrement audio."
+            }
+            accessibilityState={{
+              disabled: false,
+              ...(isRecording ? { selected: true } : null),
+            }}
             onPress={hasText ? sendTextMessage : triggerMicrophoneClick}
           >
             <MaterialCommunityIcons

@@ -1,9 +1,9 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Button, Portal, Modal, IconButton, Avatar } from "react-native-paper";
 import { View, Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ImagePicker from "react-native-image-crop-picker";
-import { createStyles, useTheme } from "~/theme";
+import { useTheme } from "~/theme";
 import { useFormContext } from "react-hook-form";
 import ImageResizer from "@bam.tech/react-native-image-resizer";
 import {
@@ -16,6 +16,8 @@ import env from "~/env";
 import bgColorBySeed from "~/lib/style/bg-color-by-seed";
 
 import Text from "~/components/Text";
+
+import { setA11yFocusAfterInteractions } from "~/lib/a11y";
 
 import network from "~/network";
 
@@ -44,11 +46,13 @@ const delOneAvatar = async () => {
   await network.oaFilesKy.delete("avatar", {});
 };
 
-export default function AvatarModalEdit({ modalState, userId }) {
+export default function AvatarModalEdit({ modalState, userId, triggerRef }) {
   const [modal, setModal] = modalState;
-  const { colors, custom } = useTheme();
+  const { colors } = useTheme();
   const styles = useStyles();
   const { watch, setValue } = useFormContext();
+
+  const titleRef = useRef(null);
 
   const username = watch("username");
   const defaultImage = watch("image");
@@ -127,6 +131,12 @@ export default function AvatarModalEdit({ modalState, userId }) {
     });
   }, [setValue, setModal]);
 
+  useEffect(() => {
+    if (modal.visible) {
+      setA11yFocusAfterInteractions(titleRef);
+    }
+  }, [modal.visible]);
+
   const saveImage = useCallback(async () => {
     const imageMode = image?.mode || "text";
     if (imageMode === "image" && image.localImage) {
@@ -150,8 +160,13 @@ export default function AvatarModalEdit({ modalState, userId }) {
         visible={modal.visible}
         onDismiss={closeModal}
         contentContainerStyle={styles.bottomModalContentContainer}
+        accessibilityViewIsModal
       >
-        <Text style={{ fontSize: 16, fontWeight: "bold" }}>
+        <Text
+          ref={titleRef}
+          accessibilityRole="header"
+          style={{ fontSize: 16, fontWeight: "bold" }}
+        >
           Photo de profil
         </Text>
 
@@ -165,6 +180,9 @@ export default function AvatarModalEdit({ modalState, userId }) {
                 borderRadius: 120,
                 padding: 20,
               }}
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
             />
           )}
           {imageMode === "text" && (
@@ -182,6 +200,9 @@ export default function AvatarModalEdit({ modalState, userId }) {
               right: -45,
               top: -35,
             }}
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
           />
         </View>
 
@@ -206,6 +227,8 @@ export default function AvatarModalEdit({ modalState, userId }) {
               iconColor={colors.primary}
               size={32}
               onPress={() => getPicture("text")}
+              accessibilityLabel="Utiliser un avatar texte"
+              accessibilityHint="Affiche une lettre comme photo de profil"
             />
             <Text>Texte</Text>
           </View>
@@ -222,6 +245,8 @@ export default function AvatarModalEdit({ modalState, userId }) {
               iconColor={colors.primary}
               size={32}
               onPress={() => getPicture("camera")}
+              accessibilityLabel="Prendre une photo"
+              accessibilityHint="Ouvre l'appareil photo"
             />
             <Text>Photo</Text>
           </View>
@@ -238,6 +263,8 @@ export default function AvatarModalEdit({ modalState, userId }) {
               iconColor={colors.primary}
               size={32}
               onPress={() => getPicture("library")}
+              accessibilityLabel="Choisir une photo dans la galerie"
+              accessibilityHint="Ouvre la galerie de photos"
             />
             <Text>Galerie</Text>
           </View>
@@ -250,7 +277,15 @@ export default function AvatarModalEdit({ modalState, userId }) {
             paddingTop: 20,
           }}
         >
-          <Button onPress={() => closeModal()} mode="contained">
+          <Button
+            onPress={() => {
+              closeModal();
+              if (triggerRef?.current) {
+                setA11yFocusAfterInteractions(triggerRef);
+              }
+            }}
+            mode="contained"
+          >
             Annuler
           </Button>
           <Button onPress={saveImage} mode="contained">

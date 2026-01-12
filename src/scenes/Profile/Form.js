@@ -30,6 +30,8 @@ import Identification from "./Identification";
 
 import useCheckEmailRegistered from "~/hooks/queries/useCheckEmailRegistered";
 
+import { announceForA11yIfScreenReaderEnabled } from "~/lib/a11y";
+
 const schema = {
   type: "object",
   properties: {
@@ -85,6 +87,17 @@ export default function Form({
     setFieldValue,
     formState: { isDirty },
   } = methods;
+
+  useEffect(() => {
+    const firstErrorMessage = methods.formState?.errors
+      ? Object.values(methods.formState.errors)
+          .map((e) => e?.message)
+          .find(Boolean)
+      : null;
+    if (!firstErrorMessage) return;
+
+    announceForA11yIfScreenReaderEnabled(firstErrorMessage);
+  }, [methods.formState?.errors]);
 
   useEffect(() => {
     if (!getValues("username") && username) {

@@ -7,19 +7,37 @@ export default React.memo(function TextArea({
   value,
   onChangeText,
   autoFocus,
+  inputRef,
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
   const [keyboardEnabled, setKeyboardEnabled] = useState(false);
   const textInputRef = useRef(null);
+  const didAutoFocusRef = useRef(false);
   const [isFocused, setIsFocused] = useState(false);
+
+  const setRefs = useCallback(
+    (node) => {
+      textInputRef.current = node;
+      if (!inputRef) return;
+      if (typeof inputRef === "function") {
+        inputRef(node);
+      } else {
+        inputRef.current = node;
+      }
+    },
+    [inputRef],
+  );
 
   useFocusEffect(
     useCallback(() => {
       let timeout;
       const task = InteractionManager.runAfterInteractions(() => {
         timeout = setTimeout(() => {
-          if (autoFocus && textInputRef.current) {
+          // Only auto-focus once per screen visit; re-focusing later can cause
+          // unwanted focus jumps for screen reader users.
+          if (autoFocus && textInputRef.current && !didAutoFocusRef.current) {
+            didAutoFocusRef.current = true;
             textInputRef.current.focus();
           }
         }, 500);
@@ -29,7 +47,7 @@ export default React.memo(function TextArea({
         clearTimeout(timeout);
         setKeyboardEnabled(false);
       };
-    }, [textInputRef, autoFocus]),
+    }, [autoFocus]),
   );
 
   const onBlur = useCallback(() => {
@@ -38,8 +56,15 @@ export default React.memo(function TextArea({
   }, []);
 
   useEffect(() => {
-    if (!keyboardEnabled && autoFocus && !isFocused) {
+    if (
+      !keyboardEnabled &&
+      autoFocus &&
+      !isFocused &&
+      textInputRef.current &&
+      !didAutoFocusRef.current
+    ) {
       setTimeout(() => {
+        didAutoFocusRef.current = true;
         textInputRef.current?.focus();
       }, 100);
     }
@@ -47,12 +72,15 @@ export default React.memo(function TextArea({
 
   return (
     <TextInput
+      testID="chat-input-text"
+      accessibilityLabel="Message"
+      accessibilityHint="Saisissez votre message."
       multiline
       maxLength={4096}
       style={styles.input}
       onChangeText={onChangeText}
       value={value}
-      ref={textInputRef}
+      ref={setRefs}
       textAlignVertical="center"
       autoFocus={autoFocus}
       showSoftInputOnFocus={keyboardEnabled} // controlled by state

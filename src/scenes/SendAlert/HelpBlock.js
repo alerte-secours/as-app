@@ -5,7 +5,7 @@ import Text from "~/components/Text";
 
 export default function HelpBlock({ children, style, labelStyle, ...props }) {
   return (
-    <View style={[style]} {...props}>
+    <View accessible accessibilityRole="text" style={[style]} {...props}>
       <Text style={[labelStyle]}>{children}</Text>
     </View>
   );

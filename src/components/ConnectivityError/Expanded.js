@@ -13,7 +13,11 @@ export default function ConnectivityErrorExpanded({
     <View {...containerProps} style={[styles.container, containerProps.style]}>
       <MaterialCommunityIcons style={styles.icon} name="connection" />
       <Text style={styles.label}>Vous n'êtes pas connecté à internet</Text>
-      <TouchableOpacity style={styles.button} onPress={retryConnect}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        style={styles.button}
+        onPress={retryConnect}
+      >
         <Text style={styles.buttonText}>Réessayer</Text>
       </TouchableOpacity>
     </View>

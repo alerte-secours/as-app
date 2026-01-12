@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { View, StyleSheet, Image, ScrollView } from "react-native";
 import { Title } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +10,10 @@ import {
 } from "~/stores";
 import { useTheme } from "~/theme";
 import openSettings from "~/lib/native/openSettings";
+import {
+  announceForA11yIfScreenReaderEnabled,
+  setA11yFocusAfterInteractions,
+} from "~/lib/a11y";
 
 import requestPermissionPhoneCall from "~/permissions/requestPermissionPhoneCall";
 import requestPermissionFcm from "~/permissions/requestPermissionFcm";
@@ -21,6 +25,8 @@ const Welcome = () => {
   const [requesting, setRequesting] = useState(false);
   const [hasAttempted, setHasAttempted] = useState(false);
   const [hasRetried, setHasRetried] = useState(false);
+  const titleRef = useRef(null);
+  const lastAnnouncementRef = useRef({});
   const permissions = usePermissionsState([
     "phoneCall",
     "fcm",
@@ -48,6 +54,24 @@ const Welcome = () => {
         permissionWizardActions.setBasicPermissionsGranted(true);
         permissionWizardActions.setCurrentStep("hero");
       }
+
+      // Announce results (screen-reader only) without spamming repeated attempts.
+      const entries = [
+        ["phoneCall", "Appels", phoneCall],
+        ["fcm", "Notifications", fcm],
+        ["locationForeground", "Localisation", location],
+      ];
+
+      for (const [key, label, granted] of entries) {
+        const announceKey = `${key}:${String(!!granted)}`;
+        if (lastAnnouncementRef.current[key] === announceKey) continue;
+        lastAnnouncementRef.current[key] = announceKey;
+        await announceForA11yIfScreenReaderEnabled(
+          `${label} : ${
+            granted ? "permission accordée" : "permission non accordée"
+          }.`,
+        );
+      }
     } catch (error) {
       console.error("Error requesting permissions:", error);
     }
@@ -68,6 +92,10 @@ const Welcome = () => {
       handleNext();
     }
   }, [hasAttempted, allGranted, handleNext]);
+
+  useEffect(() => {
+    setA11yFocusAfterInteractions(titleRef);
+  }, []);
 
   const renderWarnings = () => {
     const warnings = [];
@@ -100,6 +128,8 @@ const Welcome = () => {
           mode="contained"
           onPress={handleRequestPermissions}
           loading={requesting}
+          accessibilityLabel="Accorder les permissions"
+          accessibilityHint="Demande les autorisations d'appels, de notifications et de localisation pendant l'utilisation."
         >
           J'accorde les permissions
         </CustomButton>
@@ -116,13 +146,20 @@ const Welcome = () => {
 
     return (
       <>
-        <CustomButton mode="contained" onPress={handleNext}>
+        <CustomButton
+          mode="contained"
+          onPress={handleNext}
+          accessibilityLabel="Ignorer"
+          accessibilityHint="Continue sans accorder les permissions maintenant."
+        >
           Ignorer
         </CustomButton>
         <CustomButton
           mode="contained"
           onPress={handleRetry}
           color={theme.colors.secondary}
+          accessibilityLabel="Réessayer d'accorder les permissions"
+          accessibilityHint="Relance la demande des autorisations."
         >
           Réessayer d'accorder les permissions
         </CustomButton>
@@ -160,8 +197,14 @@ const Welcome = () => {
           <Image
             source={require("~/assets/img/logo.png")}
             style={styles.titleImage}
+            accessible={false}
+            importantForAccessibility="no"
           />
-          <Title style={[styles.title, { color: theme.colors.primary }]}>
+          <Title
+            ref={titleRef}
+            accessibilityRole="header"
+            style={[styles.title, { color: theme.colors.primary }]}
+          >
             <Text>Alerte-Secours</Text>
             {"\n"}
             <Text style={styles.subtitle}>Toujours prêts !</Text>

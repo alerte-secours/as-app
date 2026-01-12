@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 
 import { View } from "react-native";
 import { Button, TextInput } from "react-native-paper";
@@ -17,6 +17,8 @@ import { useStyles } from "./styles";
 import { useFormContext } from "react-hook-form";
 
 import { RESEND_VERIFICATION_EMAIL_MUTATION } from "./gql";
+
+import { announceForA11yIfScreenReaderEnabled } from "~/lib/a11y";
 
 export default function Identification({ profileData }) {
   const styles = useStyles();
@@ -39,6 +41,11 @@ export default function Identification({ profileData }) {
       },
     });
   }, [resendVerificationEmail, email]);
+
+  useEffect(() => {
+    if (!errors?.email?.message) return;
+    announceForA11yIfScreenReaderEnabled(errors.email.message);
+  }, [errors?.email?.message]);
   return (
     <View>
       <View>
@@ -46,6 +53,8 @@ export default function Identification({ profileData }) {
           style={styles.textInput}
           label="Nom d'utilisateur"
           name="username"
+          accessibilityLabel="Nom d'utilisateur"
+          accessibilityHint="Modifier votre nom d'utilisateur"
         />
       </View>
       <View>
@@ -67,6 +76,9 @@ export default function Identification({ profileData }) {
           label="Email"
           name="email"
           error={errors.email}
+          accessibilityLabel="Email"
+          accessibilityHint="Modifier votre adresse email"
+          errorMessage={errors.email?.message}
         />
         {emailInput && errors.email && emailInput !== email && (
           <View style={{}}>

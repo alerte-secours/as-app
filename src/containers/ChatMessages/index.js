@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, ScrollView } from "react-native";
 import { createStyles, useTheme } from "~/theme";
 import { Button } from "react-native-paper";
 import { AntDesign } from "@expo/vector-icons";
 
-import { alertActions, aggregatedMessagesActions } from "~/stores";
+import { alertActions, useSessionState } from "~/stores";
 import { getVisibleIndexes, isScrollAtBottom } from "./utils";
+
+import { announceForA11yIfScreenReaderEnabled } from "~/lib/a11y";
 
 import MessageRow from "./MessageRow";
 import MessageWelcome from "./MessageWelcome";
@@ -18,11 +20,19 @@ const ChatMessages = React.memo(function ChatMessages({
   const styles = useStyles();
   const { colors } = useTheme();
 
+  const { userId: sessionUserId } = useSessionState(["userId"]);
+
   const [messageLayouts, setMessageLayouts] = useState([]);
   const [layoutsReady, setLayoutsReady] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [lastMessageId, setLastMessageId] = useState(null);
   const [lastViewedIndex, setLastViewedIndex] = useState(messages.length - 1);
+
+  // A11y: throttle announcements for incoming new messages (avoid SR spam)
+  const lastA11yAnnouncementRef = React.useRef({
+    id: null,
+    at: 0,
+  });
 
   useEffect(() => {
     alertActions.setHasMessages(messages.length > 0);
@@ -47,11 +57,30 @@ const ChatMessages = React.memo(function ChatMessages({
     // Only scroll if it's a new message and we're at the bottom
     if (lastMessage.id !== lastMessageId) {
       setLastMessageId(lastMessage.id);
+
+      // Announce a concise summary for new incoming messages when SR is enabled.
+      // Throttle so multiple rapid messages don't spam TalkBack/VoiceOver.
+      try {
+        const now = Date.now();
+        const last = lastA11yAnnouncementRef.current;
+        const isNewId = last.id !== lastMessage.id;
+        const isThrottled = now - last.at < 2500;
+        const isMine =
+          sessionUserId != null && lastMessage.userId === sessionUserId;
+        const isIncoming = !isMine;
+        const sender = lastMessage.username || "anonyme";
+
+        if (isNewId && !isThrottled && isIncoming) {
+          lastA11yAnnouncementRef.current = { id: lastMessage.id, at: now };
+          announceForA11yIfScreenReaderEnabled(`Nouveau message de ${sender}`);
+        }
+      } catch (_e) {}
+
       if (isAtBottom) {
         scrollToBottom();
       }
     }
-  }, [messages, isAtBottom, scrollToBottom, lastMessageId]);
+  }, [messages, isAtBottom, scrollToBottom, lastMessageId, sessionUserId]);
 
   const messagesLength = messages.length;
 
@@ -76,12 +105,6 @@ const ChatMessages = React.memo(function ChatMessages({
       }
 
       // Mark visible messages as read in the aggregated messages store
-      // aggregatedMessagesActions.markMultipleMessagesAsRead(
-      //   visibleIndexes
-      //     .filter((index) => !messages[index].isRead)
-      //     .map((index) => messages[index].id),
-      // );
-
       const maxVisibleIndex = Math.max(...visibleIndexes);
       if (maxVisibleIndex > lastViewedIndex) {
         setLastViewedIndex(maxVisibleIndex);
@@ -139,6 +162,8 @@ const ChatMessages = React.memo(function ChatMessages({
             style={styles.newMessageButton}
             labelStyle={styles.newMessageButtonLabel}
             contentStyle={styles.newMessageButtonContent}
+            accessibilityLabel={newMessagesText}
+            accessibilityHint="Aller aux nouveaux messages."
             icon={() => (
               <AntDesign name="arrowdown" size={14} color={colors.onPrimary} />
             )}

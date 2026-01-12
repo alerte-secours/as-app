@@ -20,13 +20,19 @@ function SentryOptOut() {
 
   return (
     <View style={styles.container}>
-      <Title style={styles.title}>Rapport d'erreurs</Title>
+      <Title accessibilityRole="header" style={styles.title}>
+        Rapport d'erreurs
+      </Title>
       <View style={styles.content}>
         <View style={styles.switchContainer}>
           <Text style={styles.label}>Envoyer les rapports d'erreurs</Text>
           <Switch
             value={sentryEnabled}
             onValueChange={handleToggle}
+            accessibilityRole="switch"
+            accessibilityLabel="Envoyer les rapports d'erreurs"
+            accessibilityHint="Active ou désactive l'envoi automatique des rapports d'erreurs."
+            accessibilityState={{ checked: !!sentryEnabled }}
             style={styles.switch}
           />
         </View>

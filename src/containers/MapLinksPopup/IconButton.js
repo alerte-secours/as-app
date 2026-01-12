@@ -1,6 +1,6 @@
-import { ToggleButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "~/theme";
+import IconTouchTarget from "~/components/IconTouchTarget";
 
 export default function MapLinksPopupIconButton({
   setIsVisible,
@@ -9,23 +9,22 @@ export default function MapLinksPopupIconButton({
 }) {
   const { colors, custom } = useTheme();
   return (
-    <ToggleButton
-      mode="contained"
+    <IconTouchTarget
+      accessibilityLabel="Ouvrir dans une application de navigation"
+      accessibilityHint="Ouvre un choix d'applications pour naviguer vers l'emplacement."
       onPress={() => setIsVisible(true)}
-      icon={() => (
-        <MaterialCommunityIcons
-          name="arrow-top-right-bold-box-outline"
-          size={24}
-          color={colors.onSurface}
-        />
-      )}
-      style={{
-        width: 32,
-        height: 32,
+      style={({ pressed }) => ({
         backgroundColor: colors.surface,
-        color: colors.onSurface,
-      }}
+        borderRadius: 4,
+        opacity: pressed ? 0.7 : 1,
+      })}
       {...extraProps}
-    />
+    >
+      <MaterialCommunityIcons
+        name="arrow-top-right-bold-box-outline"
+        size={24}
+        color={colors.onSurface}
+      />
+    </IconTouchTarget>
   );
 }

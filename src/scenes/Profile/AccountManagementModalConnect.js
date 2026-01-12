@@ -23,6 +23,8 @@ import isConnectedProfile from "./isConnectedProfile";
 
 import { getDeviceUuid } from "~/auth/deviceUuid";
 
+import { announceForA11yIfScreenReaderEnabled } from "~/lib/a11y";
+
 export default function AccountManagementModalConnect({
   closeModal,
   profileData,
@@ -108,6 +110,9 @@ export default function AccountManagementModalConnect({
       closeModal();
     } catch (e) {
       setIsLoading(false);
+      announceForA11yIfScreenReaderEnabled(
+        "Erreur lors de la confirmation de connexion",
+      );
     }
   }, [
     loginConfirmRequest,

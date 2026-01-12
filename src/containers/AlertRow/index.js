@@ -144,6 +144,7 @@ export default function AlertRow({ row, isLast, isFirst, sortBy }) {
     <View style={styles.container}>
       <TouchableRipple
         accessibilityLabel={label}
+        accessibilityHint="Ouvre l'alerte. Appui long pour afficher ou masquer les informations."
         mode="outlined"
         style={[
           styles.button,

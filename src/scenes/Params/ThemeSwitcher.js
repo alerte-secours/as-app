@@ -24,7 +24,9 @@ function ThemeSwitcher() {
 
   return (
     <View style={styles.container}>
-      <Title style={styles.title}>Thème</Title>
+      <Title accessibilityRole="header" style={styles.title}>
+        Thème
+      </Title>
       <View style={styles.buttonContainer}>
         {themeOptions.map((option) => (
           <Button
@@ -32,8 +34,18 @@ function ThemeSwitcher() {
             mode={colorScheme === option.value ? "contained" : "outlined"}
             onPress={() => handleThemeChange(option.value)}
             style={styles.button}
+            accessibilityRole="button"
+            accessibilityLabel={`Thème ${option.label}`}
+            accessibilityHint={`Applique le thème ${option.label.toLowerCase()}.`}
+            accessibilityState={{ selected: colorScheme === option.value }}
             icon={({ size, color }) => (
-              <Ionicons name={option.icon} size={size} color={color} />
+              <Ionicons
+                accessible={false}
+                importantForAccessibility="no"
+                name={option.icon}
+                size={size}
+                color={color}
+              />
             )}
           >
             {option.label}

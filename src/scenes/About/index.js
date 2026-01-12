@@ -183,6 +183,7 @@ export default function About() {
         <View style={{ paddingHorizontal: 15, paddingVertical: 10 }}>
           {/* Website Button */}
           <TouchableOpacity
+            accessibilityRole="button"
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -219,6 +220,7 @@ export default function About() {
 
           {/* Contribute Button */}
           <TouchableOpacity
+            accessibilityRole="button"
             style={{
               flexDirection: "row",
               alignItems: "center",

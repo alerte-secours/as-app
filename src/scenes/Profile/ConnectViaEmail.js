@@ -12,10 +12,12 @@ import { ajvSchemaOptions } from "~/lib/ajv";
 import useCheckEmailRegistered from "~/hooks/queries/useCheckEmailRegistered";
 import { useTheme } from "~/theme";
 import { useStyles } from "./styles";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 import { SEND_CONNECTION_EMAIL_MUTATION } from "./gql";
 import { useMutation } from "@apollo/client";
+
+import { announceForA11yIfScreenReaderEnabled } from "~/lib/a11y";
 
 const schema = {
   type: "object",
@@ -78,6 +80,11 @@ export default function ConnectViaEmail() {
     [checkEmailIsRegistered, clearErrors, sendConnectionEmail, setError],
   );
 
+  useEffect(() => {
+    if (!errors?.email?.message) return;
+    announceForA11yIfScreenReaderEnabled(errors.email.message);
+  }, [errors?.email?.message]);
+
   return (
     <FormProvider {...methods}>
       <View style={{ flex: 1, flexDirection: "column" }}>
@@ -87,6 +94,7 @@ export default function ConnectViaEmail() {
             label="Email"
             name="email"
             error={errors.email}
+            errorMessage={errors.email?.message}
             mode="outlined"
             autoFocus
           />

@@ -36,7 +36,9 @@ export default function ParamsNotifications({ data }) {
 
   return (
     <>
-      <Title style={styles.title}>Notifications</Title>
+      <Title accessibilityRole="header" style={styles.title}>
+        Notifications
+      </Title>
       <View style={styles.box}>
         <Text style={styles.label}>Je souhaite recevoir des notifications</Text>
         <View style={styles.radioGroup}>

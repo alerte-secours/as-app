@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -17,6 +17,10 @@ import {
 } from "~/stores";
 import { createStyles, useTheme } from "~/theme";
 import openSettings from "~/lib/native/openSettings";
+import {
+  announceForA11yIfScreenReaderEnabled,
+  setA11yFocusAfterInteractions,
+} from "~/lib/a11y";
 import {
   RequestDisableOptimization,
   BatteryOptEnabled,
@@ -53,6 +57,8 @@ const HeroMode = () => {
   ]);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const titleRef = useRef(null);
+  const lastAnnouncementRef = useRef({});
 
   const [skipMessage] = useState(() => {
     const randomIndex = Math.floor(Math.random() * skipMessages.length);
@@ -116,10 +122,33 @@ const HeroMode = () => {
       permissionsActions.setLocationBackground(locationGranted);
       console.log("Location background permission:", locationGranted);
 
+      if (
+        lastAnnouncementRef.current.locationBackground !==
+        String(!!locationGranted)
+      ) {
+        lastAnnouncementRef.current.locationBackground = String(
+          !!locationGranted,
+        );
+        await announceForA11yIfScreenReaderEnabled(
+          `Localisation en arrière-plan : ${
+            locationGranted ? "permission accordée" : "permission non accordée"
+          }.`,
+        );
+      }
+
       // Request motion permission second
       const motionGranted = await requestPermissionMotion.requestPermission();
       permissionsActions.setMotion(motionGranted);
       console.log("Motion permission:", motionGranted);
+
+      if (lastAnnouncementRef.current.motion !== String(!!motionGranted)) {
+        lastAnnouncementRef.current.motion = String(!!motionGranted);
+        await announceForA11yIfScreenReaderEnabled(
+          `Détection de mouvement : ${
+            motionGranted ? "permission accordée" : "permission non accordée"
+          }.`,
+        );
+      }
 
       permissionWizardActions.setCurrentStep("tracking");
 
@@ -127,6 +156,23 @@ const HeroMode = () => {
 
       const batteryOptDisabled = await handleBatteryOptimization();
       console.log("Battery optimization disabled:", batteryOptDisabled);
+
+      if (
+        Platform.OS === "android" &&
+        lastAnnouncementRef.current.batteryOptimizationDisabled !==
+          String(!!batteryOptDisabled)
+      ) {
+        lastAnnouncementRef.current.batteryOptimizationDisabled = String(
+          !!batteryOptDisabled,
+        );
+        await announceForA11yIfScreenReaderEnabled(
+          `Optimisation de la batterie : ${
+            batteryOptDisabled
+              ? "désactivée"
+              : "toujours activée. Ouvrez les paramètres Android."
+          }`,
+        );
+      }
 
       // Check if we should proceed to success immediately
       if (locationGranted && motionGranted && batteryOptDisabled) {
@@ -243,6 +289,10 @@ const HeroMode = () => {
     }
   }, [hasAttempted, allGranted, handleNext]);
 
+  useEffect(() => {
+    setA11yFocusAfterInteractions(titleRef);
+  }, []);
+
   const styles = useStyles();
 
   const renderWarnings = () => {
@@ -348,6 +398,8 @@ const HeroMode = () => {
           mode="outlined"
           onPress={openSettings}
           style={styles.androidSettingsButton}
+          accessibilityLabel="Ouvrir les paramètres Android"
+          accessibilityHint="Ouvre les paramètres du téléphone pour activer les autorisations et désactiver l'optimisation de la batterie."
         >
           Ouvrir les paramètres
         </CustomButton>
@@ -401,6 +453,8 @@ const HeroMode = () => {
           mode="outlined"
           onPress={openSettings}
           style={styles.iosSettingsButton}
+          accessibilityLabel="Ouvrir les réglages iOS"
+          accessibilityHint="Ouvre les réglages du téléphone pour vérifier les autorisations et les options de fonctionnement en arrière-plan."
         >
           Ouvrir les réglages
         </CustomButton>
@@ -482,8 +536,14 @@ const HeroMode = () => {
               source={require("~/assets/img/wizard-heromode.png")}
               style={styles.heroImage}
               resizeMode="contain"
+              accessible={false}
+              importantForAccessibility="no"
             />
-            <Title style={[styles.title, { color: theme.colors.primary }]}>
+            <Title
+              ref={titleRef}
+              accessibilityRole="header"
+              style={[styles.title, { color: theme.colors.primary }]}
+            >
               Rejoignez les vrais{"\n"}
               <Text style={styles.subtitle}>Soyez prêt à agir</Text>
             </Title>

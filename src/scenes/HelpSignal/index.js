@@ -105,6 +105,7 @@ export default function HelpSignal() {
           </Text>
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={[styles.linkContainer, styles.sectionLink]}
             onPress={openArticle}
           >

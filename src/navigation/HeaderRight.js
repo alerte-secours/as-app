@@ -70,7 +70,9 @@ export default function HeaderRight(props) {
   return (
     <View style={[styles.container]}>
       <IconButton
+        testID="header-right-send-alert"
         accessibilityLabel="Alerter"
+        accessibilityHint="Ouvre l'écran pour envoyer une alerte."
         style={[
           styles.button,
           styles.quickNavButton,
@@ -99,7 +101,9 @@ export default function HeaderRight(props) {
       />
 
       <IconButton
+        testID="header-right-alerts"
         accessibilityLabel="Alertes"
+        accessibilityHint="Ouvre la liste des alertes."
         style={[
           styles.button,
           styles.quickNavButton,
@@ -134,7 +138,9 @@ export default function HeaderRight(props) {
       />
 
       <IconButton
+        testID="header-right-current-alert"
         accessibilityLabel="Alerte en cours"
+        accessibilityHint="Ouvre l'alerte en cours."
         style={[
           styles.button,
           styles.quickNavButton,
@@ -167,7 +173,9 @@ export default function HeaderRight(props) {
 
       {drawerExists && (
         <IconButton
+          testID="header-right-menu"
           accessibilityLabel="Menu"
+          accessibilityHint="Ouvre ou ferme le menu."
           style={[styles.button, styles.menuButton]}
           size={24}
           icon={() => (
@@ -193,7 +201,9 @@ export default function HeaderRight(props) {
           anchor={(() => {
             return (
               <IconButton
+                testID="header-right-overflow"
                 accessibilityLabel="Plus"
+                accessibilityHint="Ouvre les options supplémentaires."
                 style={[styles.button, styles.menuButton]}
                 size={24}
                 icon={() => (

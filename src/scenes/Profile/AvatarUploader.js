@@ -1,11 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Image, TouchableWithoutFeedback } from "react-native";
-import { IconButton, Avatar } from "react-native-paper";
+import { Avatar } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "~/theme";
 import { useFormContext } from "react-hook-form";
 // import Text from "~/components/Text";
-import ImageResizer from "@bam.tech/react-native-image-resizer";
 
 import AvatarModalEdit from "./AvatarModalEdit";
 
@@ -13,8 +12,10 @@ import env from "~/env";
 import bgColorBySeed from "~/lib/style/bg-color-by-seed";
 
 export default function AvatarUploader({ data, userId }) {
-  const { colors, custom } = useTheme();
-  const { watch, setValue } = useFormContext();
+  const { colors } = useTheme();
+  const { watch } = useFormContext();
+
+  const triggerRef = useRef(null);
 
   const username = watch("username");
   const image = watch("image");
@@ -47,8 +48,18 @@ export default function AvatarUploader({ data, userId }) {
   return (
     <View>
       <View style={{ flexDirection: "column", alignItems: "center" }}>
-        <TouchableWithoutFeedback onPress={edit}>
-          <View style={{ flexDirection: "column", alignItems: "center" }}>
+        <TouchableWithoutFeedback
+          accessibilityRole="button"
+          accessibilityLabel="Modifier la photo de profil"
+          accessibilityHint="Ouvre les options pour changer votre photo de profil"
+          onPress={edit}
+        >
+          <View
+            // Attach the ref to a native view; TouchableWithoutFeedback does not
+            // reliably support refs across platforms.
+            ref={triggerRef}
+            style={{ flexDirection: "column", alignItems: "center" }}
+          >
             {imageMode === "image" && imageSrc && (
               <Image
                 source={imageSrc}
@@ -58,6 +69,9 @@ export default function AvatarUploader({ data, userId }) {
                   borderRadius: 120,
                   padding: 20,
                 }}
+                accessible={false}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
               />
             )}
             {imageMode === "text" && (
@@ -75,11 +89,18 @@ export default function AvatarUploader({ data, userId }) {
                 right: -45,
                 top: -35,
               }}
+              accessible={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
             />
           </View>
         </TouchableWithoutFeedback>
       </View>
-      <AvatarModalEdit modalState={modalState} userId={userId} />
+      <AvatarModalEdit
+        modalState={modalState}
+        userId={userId}
+        triggerRef={triggerRef}
+      />
     </View>
   );
 }

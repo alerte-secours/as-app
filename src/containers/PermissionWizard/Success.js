@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { View, StyleSheet, Image, ScrollView } from "react-native";
 import { Button, Title } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,13 +7,19 @@ import { permissionWizardActions } from "~/stores";
 import { useTheme } from "~/theme";
 import Text from "~/components/Text";
 import CustomButton from "~/components/CustomButton";
+import { setA11yFocusAfterInteractions } from "~/lib/a11y";
 
 const Success = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const titleRef = useRef(null);
 
   const handleFinish = useCallback(() => {
     permissionWizardActions.setCompleted(true);
+  }, []);
+
+  useEffect(() => {
+    setA11yFocusAfterInteractions(titleRef);
   }, []);
 
   return (
@@ -31,8 +37,14 @@ const Success = () => {
             source={require("~/assets/img/wizard-success.png")}
             style={styles.titleImage}
             resizeMode="contain"
+            accessible={false}
+            importantForAccessibility="no"
           />
-          <Title style={[styles.title, { color: theme.colors.primary }]}>
+          <Title
+            ref={titleRef}
+            accessibilityRole="header"
+            style={[styles.title, { color: theme.colors.primary }]}
+          >
             Vous voilà prêt !
           </Title>
 

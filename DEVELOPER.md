@@ -11,6 +11,7 @@ This document contains technical information for developers working on the Alert
   - [Android](#android)
   - [iOS](#ios)
 - [Project Structure](#project-structure)
+- [Accessibility](#accessibility)
 - [Troubleshooting](#troubleshooting)
 
 ## Project Overview
@@ -196,6 +197,35 @@ Guidelines for contributing to the project:
 2. Write tests for new features
 3. Update documentation as needed
 4. Use the ESLint and Prettier configurations
+
+## Accessibility
+
+This app has an accessibility baseline (WCAG 2.2 AA, VoiceOver/TalkBack) and app-specific conventions.
+
+### Docs
+
+- Baseline checklist: [`docs/a11y-wcag22-aa.md`](docs/a11y-wcag22-aa.md:1)
+- Code conventions + helpers: [`docs/a11y-usage.md`](docs/a11y-usage.md:1)
+- Color contrast guidance: [`docs/a11y-color-contrast.md`](docs/a11y-color-contrast.md:1)
+- `testID` conventions: [`docs/testids.md`](docs/testids.md:1)
+- QA runbook (iOS VoiceOver): [`docs/qa-voiceover.md`](docs/qa-voiceover.md:1)
+- QA runbook (Android TalkBack): [`docs/qa-talkback.md`](docs/qa-talkback.md:1)
+
+### PR checklist (required for any UI change)
+
+- [ ] **Roles / labels / hints / states**: all interactive controls expose correct `accessibilityRole`, meaningful `accessibilityLabel`, helpful `accessibilityHint` (especially icon-only actions), and state where applicable.
+- [ ] **Focus management**: any modal/dialog/sheet sets initial focus on open, returns focus on close, and avoids focus traps.
+- [ ] **Touch target size**: critical tap targets are comfortably tappable (aim ~44x44pt minimum).
+- [ ] **Color contrast**: text + icons meet WCAG AA contrast; do not rely on color alone for meaning.
+- [ ] **`testID`s for critical controls**: stable `testID` added/updated for key actions and navigation chrome (per [`docs/testids.md`](docs/testids.md:1)).
+- [ ] **Tests**: add/update tests covering the new UI behavior (and its states). Prefer assertions that don’t depend on translated text; include E2E coverage for critical flows when applicable.
+
+### Manual validation (screen readers)
+
+When a PR changes UI or navigation, do a quick pass with the platform screen reader:
+
+- iOS: follow [`docs/qa-voiceover.md`](docs/qa-voiceover.md:1) and validate labels/hints, navigation order, and activation behavior on the affected screens.
+- Android: follow [`docs/qa-talkback.md`](docs/qa-talkback.md:1) with the same focus on discoverability, focus order, and activation.
 
 ## Troubleshooting
 

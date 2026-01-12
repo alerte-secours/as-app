@@ -21,6 +21,7 @@ export default function HeaderLeft(props) {
     return (
       <HeaderBackButton
         {...props}
+        testID="header-left-back"
         labelVisible={false}
         style={[styles.size, styles.backButton]}
         onPress={() => {

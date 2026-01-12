@@ -42,6 +42,7 @@ export default function AlertRow({ row, isLast, isFirst, sortBy }) {
     <View style={styles.container}>
       <Button
         accessibilityLabel={label}
+        accessibilityHint="Ouvre le détail de l'alerte. Appui long pour afficher ou masquer le code."
         mode="outlined"
         style={[
           styles.button,

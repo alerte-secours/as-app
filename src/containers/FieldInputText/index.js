@@ -1,13 +1,24 @@
+import React, { forwardRef } from "react";
+
 import { TextInput } from "react-native-paper";
 import { useFormContext } from "react-hook-form";
-export default function FieldInputText({
-  name,
-  shouldDirty = true,
-  error,
-  ...inputProps
-}) {
+
+function FieldInputText(
+  { name, shouldDirty = true, error, errorMessage, ...inputProps },
+  ref,
+) {
   const { setValue, trigger, watch } = useFormContext();
   const value = watch(name);
+
+  const computedErrorMessage = errorMessage ?? error?.message;
+
+  const computedAccessibilityHint =
+    inputProps.accessibilityHint ?? computedErrorMessage;
+
+  const computedAccessibilityState = {
+    ...(inputProps.accessibilityState ?? {}),
+    ...(error || computedErrorMessage ? { invalid: true } : null),
+  };
 
   const handleChangeText = async (newValue) => {
     await setValue(name, newValue, { shouldDirty });
@@ -25,12 +36,17 @@ export default function FieldInputText({
 
   return (
     <TextInput
+      ref={ref}
       name={name}
       onChangeText={handleChangeText}
       onBlur={handleBlur}
       value={value}
-      error={error}
+      error={!!error}
+      accessibilityHint={computedAccessibilityHint}
+      accessibilityState={computedAccessibilityState}
       {...inputProps}
     />
   );
 }
+
+export default forwardRef(FieldInputText);

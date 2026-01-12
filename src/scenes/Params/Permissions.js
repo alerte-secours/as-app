@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import {
   View,
   TouchableOpacity,
@@ -9,11 +9,16 @@ import {
 import { Button, Title } from "react-native-paper";
 import { usePermissionsState, permissionsActions } from "~/stores";
 import { Ionicons } from "@expo/vector-icons";
+import { check, PERMISSIONS, RESULTS } from "react-native-permissions";
 import {
   requestBatteryOptimizationExemption,
   isBatteryOptimizationEnabled,
 } from "~/lib/native/batteryOptimization";
 import openSettings from "~/lib/native/openSettings";
+import {
+  announceForA11yIfScreenReaderEnabled,
+  setA11yFocusAfterInteractions,
+} from "~/lib/a11y";
 
 import requestPermissionFcm from "~/permissions/requestPermissionFcm";
 import requestPermissionLocationBackground from "~/permissions/requestPermissionLocationBackground";
@@ -76,6 +81,49 @@ const titlePermissions = {
   batteryOptimizationDisabled: "Optimisation de la batterie",
 };
 
+const a11yDescriptions = {
+  fcm: {
+    purpose: "Recevoir des alertes et des messages importants en temps réel.",
+    settingsGuidance:
+      "Si la permission est bloquée, ouvrez les paramètres du téléphone pour l'activer.",
+  },
+  phoneCall: {
+    purpose:
+      "Permettre à l'application de lancer un appel vers les secours quand vous le demandez.",
+    settingsGuidance:
+      "Si la permission est bloquée, ouvrez les paramètres du téléphone pour l'activer.",
+  },
+  locationForeground: {
+    purpose: "Partager votre position pendant l'utilisation de l'application.",
+    settingsGuidance:
+      "Si la permission est bloquée, ouvrez les paramètres du téléphone pour l'activer.",
+  },
+  locationBackground: {
+    purpose:
+      "Partager votre position même quand l'application est fermée, pour être alerté à proximité.",
+    settingsGuidance:
+      "Si la permission est bloquée, ouvrez les paramètres du téléphone pour l'activer.",
+  },
+  motion: {
+    purpose:
+      "Optimiser la localisation en arrière-plan sans enregistrer de données de mouvement.",
+    settingsGuidance:
+      "Si la permission est bloquée, ouvrez les paramètres du téléphone pour l'activer.",
+  },
+  readContacts: {
+    purpose:
+      "Accéder à vos contacts pour faciliter le choix d'un proche (si vous utilisez cette fonctionnalité).",
+    settingsGuidance:
+      "Si la permission est bloquée, ouvrez les paramètres du téléphone pour l'activer.",
+  },
+  batteryOptimizationDisabled: {
+    purpose:
+      "Désactiver l'optimisation de la batterie pour permettre le fonctionnement en arrière-plan sur Android.",
+    settingsGuidance:
+      "Ouvrez les paramètres Android pour définir l'application sur « Ne pas optimiser ».",
+  },
+};
+
 // Function to check current permission status
 const checkPermissionStatus = async (permission) => {
   try {
@@ -98,9 +146,10 @@ const checkPermissionStatus = async (permission) => {
       case "motion":
         return await requestPermissionMotion.checkPermission();
       case "phoneCall":
-        // Note: Phone call permissions on iOS are determined at build time
-        // and on Android they're requested at runtime
-        return true; // This might need adjustment based on your specific implementation
+        if (Platform.OS !== "android") return true;
+        return (
+          (await check(PERMISSIONS.ANDROID.CALL_PHONE)) === RESULTS.GRANTED
+        );
       case "batteryOptimizationDisabled":
         if (Platform.OS !== "android") {
           return true; // iOS doesn't have battery optimization
@@ -121,22 +170,143 @@ const checkPermissionStatus = async (permission) => {
   }
 };
 
-const PermissionItem = ({ permission, status, onRequestPermission }) => (
-  <View style={styles.permissionItem}>
-    <TouchableOpacity
-      onPress={() => onRequestPermission(permission)}
-      style={styles.permissionButton}
-    >
-      <Text style={styles.permissionText}>{titlePermissions[permission]}</Text>
+const getPermissionA11yMeta = async (permission) => {
+  try {
+    switch (permission) {
+      case "fcm": {
+        const { status, canAskAgain } =
+          await Notifications.getPermissionsAsync();
+        return {
+          granted: status === "granted",
+          blocked: status !== "granted" && canAskAgain === false,
+        };
+      }
+      case "locationForeground": {
+        const { status, canAskAgain } =
+          await Location.getForegroundPermissionsAsync();
+        return {
+          granted: status === "granted",
+          blocked: status !== "granted" && canAskAgain === false,
+        };
+      }
+      case "locationBackground": {
+        const { status, canAskAgain } =
+          await Location.getBackgroundPermissionsAsync();
+        return {
+          granted: status === "granted",
+          blocked: status !== "granted" && canAskAgain === false,
+        };
+      }
+      case "readContacts": {
+        const { status, canAskAgain } = await Contacts.getPermissionsAsync();
+        return {
+          granted: status === "granted",
+          blocked: status !== "granted" && canAskAgain === false,
+        };
+      }
+      case "motion": {
+        if (Platform.OS !== "android") {
+          return { granted: true, blocked: false };
+        }
+        const status = await check(PERMISSIONS.ANDROID.ACTIVITY_RECOGNITION);
+        return {
+          granted: status === RESULTS.GRANTED,
+          blocked: status === RESULTS.BLOCKED,
+        };
+      }
+      case "phoneCall": {
+        if (Platform.OS !== "android") {
+          return { granted: true, blocked: false };
+        }
+        const status = await check(PERMISSIONS.ANDROID.CALL_PHONE);
+        return {
+          granted: status === RESULTS.GRANTED,
+          blocked: status === RESULTS.BLOCKED,
+        };
+      }
+      case "batteryOptimizationDisabled": {
+        if (Platform.OS !== "android") {
+          return { granted: true, blocked: false };
+        }
+        const enabled = await isBatteryOptimizationEnabled();
+        return {
+          granted: !enabled,
+          blocked: false,
+        };
+      }
+      default:
+        return { granted: false, blocked: false };
+    }
+  } catch (error) {
+    console.error(`Error getting a11y meta for ${permission}:`, error);
+    return { granted: false, blocked: false };
+  }
+};
 
-      <Ionicons
-        name={status ? "checkmark-circle" : "close-circle"}
-        size={24}
-        color={status ? "green" : "red"}
-      />
-    </TouchableOpacity>
-  </View>
-);
+const PermissionItem = ({
+  permission,
+  status,
+  blocked,
+  onRequestPermission,
+  onOpenSettings,
+}) => {
+  const label = titlePermissions[permission];
+  const description = a11yDescriptions[permission]?.purpose;
+  const hintWhenEnabled =
+    "Permission accordée. Pour la retirer, utilisez les réglages du téléphone.";
+  const hintWhenDisabled = `Active ${label.toLowerCase()} : ${description}`;
+  const hintWhenBlocked =
+    a11yDescriptions[permission]?.settingsGuidance ??
+    "Permission bloquée. Ouvrez les paramètres du téléphone.";
+
+  let computedHint = hintWhenDisabled;
+  if (blocked) {
+    computedHint = hintWhenBlocked;
+  } else if (status) {
+    computedHint = hintWhenEnabled;
+  }
+
+  return (
+    <View style={styles.permissionItem}>
+      <TouchableOpacity
+        accessibilityRole="switch"
+        accessibilityLabel={label}
+        accessibilityHint={computedHint}
+        accessibilityState={{ checked: !!status, disabled: !!blocked }}
+        disabled={blocked}
+        onPress={() => onRequestPermission(permission)}
+        style={styles.permissionButton}
+      >
+        <Text style={styles.permissionText}>{label}</Text>
+
+        <Ionicons
+          accessible={false}
+          importantForAccessibility="no"
+          name={status ? "checkmark-circle" : "close-circle"}
+          size={24}
+          color={status ? "green" : "red"}
+        />
+      </TouchableOpacity>
+
+      {blocked ? (
+        <View style={styles.blockedRow}>
+          <Text style={styles.blockedText}>
+            Action requise : paramètres du téléphone.
+          </Text>
+          <Button
+            mode="outlined"
+            onPress={onOpenSettings}
+            accessibilityRole="button"
+            accessibilityLabel={`Ouvrir les paramètres pour ${label}`}
+            accessibilityHint={`Ouvre les paramètres du téléphone pour activer ${label.toLowerCase()}.`}
+          >
+            Ouvrir les paramètres
+          </Button>
+        </View>
+      ) : null}
+    </View>
+  );
+};
 
 export default function Permissions() {
   // Create permissions list based on platform
@@ -161,18 +331,36 @@ export default function Permissions() {
   const permissionsList = getPermissionsList();
   const permissionsState = usePermissionsState(permissionsList);
 
+  const titleRef = useRef(null);
+  const lastAnnouncementRef = useRef({});
+
+  // We keep a minimal, best-effort blocked map for a11y/UX.
+  const [blockedMap, setBlockedMap] = React.useState({});
+
   // Memoize the check permissions function
   const checkAllPermissions = useCallback(async () => {
     for (const permission of permissionsList) {
       const status = await checkPermissionStatus(permission);
       setPermissions[permission](status);
     }
+
+    // Also refresh "blocked" state used for a11y guidance.
+    const nextBlocked = {};
+    for (const permission of permissionsList) {
+      const meta = await getPermissionA11yMeta(permission);
+      nextBlocked[permission] = !!meta.blocked;
+    }
+    setBlockedMap(nextBlocked);
   }, [permissionsList]);
 
   // Check all permissions when component mounts
   useEffect(() => {
     checkAllPermissions();
   }, [checkAllPermissions]);
+
+  useEffect(() => {
+    setA11yFocusAfterInteractions(titleRef);
+  }, []);
 
   // Listen for app state changes to re-check permissions when user returns from settings
   useEffect(() => {
@@ -197,6 +385,7 @@ export default function Permissions() {
   const handleRequestPermission = async (permission) => {
     try {
       let granted = false;
+      const previous = !!permissionsState?.[permission];
 
       if (permission === "locationBackground") {
         // Ensure foreground location is granted first
@@ -223,6 +412,40 @@ export default function Permissions() {
       // we'll re-check again on AppState 'active' after returning from Settings.
       const actualStatus = await checkPermissionStatus(permission);
       setPermissions[permission](actualStatus);
+
+      const meta = await getPermissionA11yMeta(permission);
+      setBlockedMap((prevMap) => ({
+        ...prevMap,
+        [permission]: !!meta.blocked,
+      }));
+
+      // Announce only on changes or first explicit failure.
+      const lastKey = `${permission}:${String(actualStatus)}:${String(
+        meta.blocked,
+      )}`;
+      if (lastAnnouncementRef.current[permission] !== lastKey) {
+        if (actualStatus && !previous) {
+          await announceForA11yIfScreenReaderEnabled(
+            `${titlePermissions[permission]} : permission accordée.`,
+          );
+          lastAnnouncementRef.current[permission] = lastKey;
+        } else if (!actualStatus && previous) {
+          await announceForA11yIfScreenReaderEnabled(
+            `${titlePermissions[permission]} : permission retirée.`,
+          );
+          lastAnnouncementRef.current[permission] = lastKey;
+        } else if (!actualStatus && meta.blocked) {
+          await announceForA11yIfScreenReaderEnabled(
+            `${titlePermissions[permission]} : permission bloquée. Ouvrez les paramètres du téléphone.`,
+          );
+          lastAnnouncementRef.current[permission] = lastKey;
+        } else if (!actualStatus && !previous) {
+          await announceForA11yIfScreenReaderEnabled(
+            `${titlePermissions[permission]} : permission non accordée.`,
+          );
+          lastAnnouncementRef.current[permission] = lastKey;
+        }
+      }
     } catch (error) {
       console.error(`Error requesting ${permission} permission:`, error);
     }
@@ -230,20 +453,27 @@ export default function Permissions() {
 
   return (
     <>
-      <Title style={styles.title}>Permissions</Title>
+      <Title ref={titleRef} accessibilityRole="header" style={styles.title}>
+        Permissions
+      </Title>
       <View style={styles.container}>
         {Object.entries(permissionsState).map(([permission, status]) => (
           <PermissionItem
             key={permission}
             permission={permission}
             status={status}
+            blocked={!!blockedMap[permission]}
             onRequestPermission={handleRequestPermission}
+            onOpenSettings={openSettings}
           />
         ))}
         <Button
           mode="contained"
           onPress={openSettings}
           style={styles.settingsButton}
+          accessibilityRole="button"
+          accessibilityLabel="Paramétrer les permissions"
+          accessibilityHint="Ouvre les paramètres du téléphone pour gérer les autorisations de l'application."
         >
           Paramétrer les permissions
         </Button>
@@ -273,6 +503,13 @@ const styles = StyleSheet.create({
   permissionText: {
     fontSize: 16,
     flex: 1,
+  },
+  blockedRow: {
+    marginTop: 8,
+  },
+  blockedText: {
+    fontSize: 14,
+    marginBottom: 6,
   },
   settingsButton: {},
 });

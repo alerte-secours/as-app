@@ -58,7 +58,10 @@ export default function FieldConfirm({ style, autoConfirmEnabled, confirmed }) {
     <View style={[styles.container, style]}>
       {autoConfirmEnabled && autoConfirmVisible && (
         <Animatable.View ref={autoConfirmViewRef}>
-          <TouchableWithoutFeedback onPress={cancelAutoConfirm}>
+          <TouchableWithoutFeedback
+            accessibilityRole="button"
+            onPress={cancelAutoConfirm}
+          >
             <View style={styles.countDownContainer}>
               <Text style={styles.countDownLabel}>
                 {`Confirmation\nautomatique`}

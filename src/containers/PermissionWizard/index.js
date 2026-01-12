@@ -43,6 +43,9 @@ export default function PermissionWizard({ visible }) {
       onRequestClose={() => {}}
     >
       <SafeAreaView
+        accessibilityViewIsModal
+        accessibilityLabel="Assistant d'autorisations"
+        accessibilityHint="Fenêtre modale. Suivez les étapes pour accorder les autorisations nécessaires."
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
         <StepComponent />

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Image, ScrollView } from "react-native";
 import { Title } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,10 +6,16 @@ import { useTheme } from "~/theme";
 import { permissionWizardActions } from "~/stores";
 import CustomButton from "~/components/CustomButton";
 import Text from "~/components/Text";
+import { setA11yFocusAfterInteractions } from "~/lib/a11y";
 
 const SkipInfo = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const titleRef = useRef(null);
+
+  useEffect(() => {
+    setA11yFocusAfterInteractions(titleRef);
+  }, []);
 
   const handleFinish = () => {
     permissionWizardActions.setCompleted(true);
@@ -32,9 +38,15 @@ const SkipInfo = () => {
                 source={require("~/assets/img/wizard-skip.png")}
                 style={styles.titleImage}
                 resizeMode="contain"
+                accessible={false}
+                importantForAccessibility="no"
               />
             </View>
-            <Title style={[styles.title, { color: theme.colors.primary }]}>
+            <Title
+              ref={titleRef}
+              accessibilityRole="header"
+              style={[styles.title, { color: theme.colors.primary }]}
+            >
               Bon... D'accord...{"\n"}
               <Text style={styles.subtitle}>On ne vous en veut pas !</Text>
             </Title>
