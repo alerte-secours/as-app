@@ -145,10 +145,14 @@ export default function trackLocation() {
       try {
         await BackgroundGeolocation.setConfig(profile);
 
-        // Key battery fix:
-        // - IDLE profile forces stationary mode
-        // - ACTIVE profile forces moving mode
-        await BackgroundGeolocation.changePace(profileName === "active");
+        // Motion state strategy:
+        // - ACTIVE: force moving to begin aggressive tracking immediately.
+        // - IDLE: do NOT force stationary.  Let the SDK's motion detection manage
+        //   moving/stationary transitions so we still get distance-based updates
+        //   (target: new point when moved ~50m+ even without an open alert).
+        if (profileName === "active") {
+          await BackgroundGeolocation.changePace(true);
+        }
 
         currentProfile = profileName;
       } catch (error) {
@@ -176,6 +180,21 @@ export default function trackLocation() {
       });
       if (!userToken) {
         locationLogger.info("No auth token, stopping location tracking");
+
+        // Prevent any further uploads before stopping.
+        // This guards against persisted HTTP config continuing to flush queued records.
+        try {
+          await BackgroundGeolocation.setConfig({
+            url: "",
+            autoSync: false,
+            headers: {},
+          });
+        } catch (e) {
+          locationLogger.warn("Failed to clear BGGeo HTTP config on logout", {
+            error: e?.message,
+          });
+        }
+
         await BackgroundGeolocation.stop();
         locationLogger.debug("Location tracking stopped");
 
@@ -313,11 +332,41 @@ export default function trackLocation() {
         });
       },
       onHttp: async (response) => {
-        // log status code and response
+        // Log success/failure for visibility into token expiry, server errors, etc.
         locationLogger.debug("HTTP response received", {
+          success: response?.success,
           status: response?.status,
           responseText: response?.responseText,
         });
+      },
+      onMotionChange: (event) => {
+        locationLogger.info("Motion change", {
+          isMoving: event?.isMoving,
+          location: event?.location?.coords,
+        });
+      },
+      onActivityChange: (event) => {
+        locationLogger.info("Activity change", {
+          activity: event?.activity,
+          confidence: event?.confidence,
+        });
+      },
+      onProviderChange: (event) => {
+        locationLogger.info("Provider change", {
+          status: event?.status,
+          enabled: event?.enabled,
+          network: event?.network,
+          gps: event?.gps,
+          accuracyAuthorization: event?.accuracyAuthorization,
+        });
+      },
+      onConnectivityChange: (event) => {
+        locationLogger.info("Connectivity change", {
+          connected: event?.connected,
+        });
+      },
+      onEnabledChange: (enabled) => {
+        locationLogger.info("Enabled change", { enabled });
       },
     });
 

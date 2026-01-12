@@ -47,8 +47,10 @@ const HeadlessTask = async (event) => {
       case "location":
       case "heartbeat":
       case "connectivitychange":
-        // Attempt to flush any queued locations.
-        await BackgroundGeolocation.sync();
+        // Let the SDK's HTTP service manage autoSync in headless mode.
+        // Avoid calling `sync()` blindly: per upstream docs, if HTTP is not configured
+        // `sync()` will delete all stored records.
+        // If we ever need manual sync, we must guard it by checking state.url and auth.
         break;
       default:
         break;

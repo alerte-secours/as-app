@@ -16,8 +16,9 @@ export const BASE_GEOLOCATION_CONFIG = {
   // Default to low-power (idle) profile; will be overridden when needed.
   desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
 
-  // Larger distance filter in idle mode to prevent frequent GPS wakes.
-  distanceFilter: 200,
+  // Default to the IDLE profile behaviour: we still want distance-based updates
+  // even with no open alert (see TRACKING_PROFILES.idle).
+  distanceFilter: 50,
 
   // debug: true,
   logLevel: BackgroundGeolocation.LOG_LEVEL_VERBOSE,

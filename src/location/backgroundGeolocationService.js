@@ -54,10 +54,23 @@ export function setBackgroundGeolocationEventHandlers({
   onLocation,
   onLocationError,
   onHttp,
+  onMotionChange,
+  onActivityChange,
+  onProviderChange,
+  onConnectivityChange,
+  onEnabledChange,
 } = {}) {
   // Avoid duplicate registration when `trackLocation()` is called multiple times.
   // We use a simple signature so calling with identical functions is a no-op.
-  const sig = `${onLocation ? "L1" : "L0"}-${onHttp ? "H1" : "H0"}`;
+  const sig = [
+    onLocation ? "L1" : "L0",
+    onHttp ? "H1" : "H0",
+    onMotionChange ? "M1" : "M0",
+    onActivityChange ? "A1" : "A0",
+    onProviderChange ? "P1" : "P0",
+    onConnectivityChange ? "C1" : "C0",
+    onEnabledChange ? "E1" : "E0",
+  ].join("-");
   if (handlersSignature === sig && subscriptions.length) {
     return;
   }
@@ -72,6 +85,27 @@ export function setBackgroundGeolocationEventHandlers({
   }
   if (onHttp) {
     subscriptions.push(BackgroundGeolocation.onHttp(onHttp));
+  }
+  if (onMotionChange) {
+    subscriptions.push(BackgroundGeolocation.onMotionChange(onMotionChange));
+  }
+  if (onActivityChange) {
+    subscriptions.push(
+      BackgroundGeolocation.onActivityChange(onActivityChange),
+    );
+  }
+  if (onProviderChange) {
+    subscriptions.push(
+      BackgroundGeolocation.onProviderChange(onProviderChange),
+    );
+  }
+  if (onConnectivityChange) {
+    subscriptions.push(
+      BackgroundGeolocation.onConnectivityChange(onConnectivityChange),
+    );
+  }
+  if (onEnabledChange) {
+    subscriptions.push(BackgroundGeolocation.onEnabledChange(onEnabledChange));
   }
 
   handlersSignature = sig;
