@@ -12,6 +12,9 @@ export default function ContributeButton() {
   return (
     <View>
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Contribuer au projet"
+        accessibilityHint="Ouvre l'écran pour contribuer au projet."
         style={styles.button}
         onPress={() => navigation.navigate("Contribute")}
       >

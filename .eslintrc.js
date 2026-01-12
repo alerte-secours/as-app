@@ -27,6 +27,7 @@ module.exports = {
     "sort-keys-fix",
     "react",
     "react-native",
+    "react-native-a11y",
     "unused-imports",
     "autoimport-declarative",
   ],
@@ -39,7 +40,7 @@ module.exports = {
       typescript: {},
     },
   },
-  ignorePatterns: ["build", "node_modules", "e2e"],
+  ignorePatterns: ["build", "node_modules", "e2e", "**/*.bak.js"],
   rules: {
     "no-undef": [2],
     "react/forbid-prop-types": [0],
@@ -47,6 +48,12 @@ module.exports = {
     "react/jsx-uses-vars": 1,
     "react-hooks/exhaustive-deps": "error",
     "jsx-a11y/no-autofocus": 0,
+
+    // React-Native accessibility: start as warnings to enable gradual adoption
+    // without breaking the build; we will tighten to errors as we fix surfaces.
+    "react-native-a11y/has-accessibility-hint": "error",
+    "react-native-a11y/has-valid-accessibility-descriptors": "error",
+
     "import/no-named-as-default": 0,
     "import/no-named-as-default-member": 0,
     // 'unused-imports/no-unused-imports-ts': 1, # enable and run yarn lint --fix to autoremove all unused imports

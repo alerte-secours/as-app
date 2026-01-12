@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 import { View } from "react-native";
 import { Button } from "react-native-paper";
@@ -11,6 +11,11 @@ import { useStyles } from "./styles";
 import { useTheme } from "~/theme";
 import { DESTROY_USER_MUTATION } from "./gql";
 import { authActions } from "~/stores";
+
+import {
+  announceForA11yIfScreenReaderEnabled,
+  setA11yFocusAfterInteractions,
+} from "~/lib/a11y";
 
 import { ajvResolver } from "@hookform/resolvers/ajv";
 import { useForm, FormProvider } from "react-hook-form";
@@ -48,6 +53,9 @@ export default function AccountManagementModalDestroy({
 
   const validConfirmSentence = username;
 
+  const titleRef = useRef(null);
+  const confirmInputRef = useRef(null);
+
   const methods = useForm({
     mode: "onTouched",
     defaultValues: {
@@ -81,6 +89,16 @@ export default function AccountManagementModalDestroy({
     await authActions.logout();
   }, [deleteUser]);
 
+  useEffect(() => {
+    setA11yFocusAfterInteractions(titleRef);
+  }, []);
+
+  useEffect(() => {
+    if (!errors?.confirmSentence?.message) return;
+    announceForA11yIfScreenReaderEnabled(errors.confirmSentence.message);
+    setA11yFocusAfterInteractions(confirmInputRef);
+  }, [errors?.confirmSentence?.message]);
+
   return (
     <FormProvider {...methods}>
       <View
@@ -96,6 +114,8 @@ export default function AccountManagementModalDestroy({
           }}
         >
           <Text
+            ref={titleRef}
+            accessibilityRole="header"
             style={{
               fontSize: 16,
               fontWeight: "bold",
@@ -145,6 +165,7 @@ export default function AccountManagementModalDestroy({
 
           <View style={{ flex: 1, flexDirection: "column", marginTop: 10 }}>
             <FieldInputText
+              ref={confirmInputRef}
               style={styles.textInput}
               mode="outlined"
               label="Message de confirmation"
@@ -175,6 +196,8 @@ export default function AccountManagementModalDestroy({
             contentStyle={{
               height: 60,
             }}
+            accessibilityLabel="Supprimer le compte"
+            accessibilityHint="Action irréversible"
           >
             SUPPRIMER
           </Button>

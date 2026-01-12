@@ -252,6 +252,7 @@
     "eslint-plugin-react": "^7.32.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-native": "^4.0.0",
+    "eslint-plugin-react-native-a11y": "^3.5.1",
     "eslint-plugin-sort-keys-fix": "^1.1.2",
     "eslint-plugin-unused-imports": "^3.0.0",
     "husky": "^9.0.11",
@@ -273,7 +274,7 @@
         "binaryPath": "android/app/build/outputs/apk/debug/app-debug.apk",
         "build": "cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ..",
         "device": {
-          "avdName": "Pixel_6_API_30"
+          "avdName": "Medium_Phone_API_36.0"
         }
       }
     }

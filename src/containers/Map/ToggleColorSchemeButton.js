@@ -34,6 +34,14 @@ export default function ToggleColorSchemeButton({
     <View style={[styles.container, containerStyle]}>
       <ToggleButton
         onPress={handleToggle}
+        accessibilityRole="switch"
+        accessibilityLabel={
+          isDarkMap
+            ? "Basculer la carte en mode clair"
+            : "Basculer la carte en mode sombre"
+        }
+        accessibilityHint="Change le thème de la carte."
+        accessibilityState={{ checked: !!isDarkMap }}
         icon={() => (
           <Ionicons name={isDarkMap ? "sunny" : "moon"} style={styles.icon} />
         )}

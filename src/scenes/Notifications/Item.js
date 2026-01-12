@@ -305,6 +305,7 @@ const NotificationItem = ({
           {/* Mark as Read button - only show if not acknowledged and not a virtual notification */}
           {!notification.acknowledged && !notification.isVirtual && (
             <TouchableOpacity
+              accessibilityRole="button"
               onPress={handleMarkAsRead}
               style={[styles.actionButton]}
               activeOpacity={0.6}
@@ -319,6 +320,7 @@ const NotificationItem = ({
 
           {/* Delete button */}
           <TouchableOpacity
+            accessibilityRole="button"
             onPress={handleDelete}
             style={[
               styles.actionButton,
@@ -352,6 +354,7 @@ const NotificationItem = ({
           }}
         >
           <TouchableOpacity
+            accessibilityRole="button"
             style={itemStyle}
             onPress={handleNotificationPress}
             activeOpacity={0.7}

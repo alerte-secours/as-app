@@ -6,6 +6,7 @@ import DigitalTimeString from "./DigitalTimeString";
 
 import useStyles from "./styles";
 import withHooks from "~/hoc/withHooks";
+import IconTouchTarget from "~/components/IconTouchTarget";
 
 const TRACK_SIZE = 4;
 const THUMB_SIZE = 20;
@@ -138,6 +139,13 @@ function AudioSlider(props) {
     } catch {}
   };
 
+  const a11yPlayPauseLabel = status.playing
+    ? "Mettre en pause"
+    : "Lire le message audio";
+  const a11yPlayPauseHint = status.playing
+    ? "Met en pause la lecture."
+    : "Démarre la lecture du message audio.";
+
   // Pan handling for seeking
   const panResponder = useMemo(
     () =>
@@ -265,6 +273,10 @@ function AudioSlider(props) {
         }}
       >
         <TouchableOpacity
+          // Make this wrapper non-accessible to avoid a duplicate SR target.
+          // The interactive, labeled touch target is provided by IconTouchTarget below.
+          accessible={false}
+          importantForAccessibility="no"
           style={{
             flex: 1,
             flexDirection: "row",
@@ -290,6 +302,22 @@ function AudioSlider(props) {
           )}
         </TouchableOpacity>
 
+        {/* A11y: ensure minimum touch target and stateful labels for SR users */}
+        <IconTouchTarget
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 44,
+            zIndex: 3,
+          }}
+          accessibilityLabel={a11yPlayPauseLabel}
+          accessibilityHint={a11yPlayPauseHint}
+          accessibilityState={{ selected: !!status.playing }}
+          onPress={onPressPlayPause}
+        />
+
         <Animated.View
           onLayout={measureTrack}
           style={[
@@ -300,6 +328,10 @@ function AudioSlider(props) {
               borderRadius: TRACK_SIZE / 2,
             },
           ]}
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel="Position de lecture"
+          accessibilityHint="Faites glisser pour avancer ou reculer dans le message audio."
         >
           <Animated.View
             style={{

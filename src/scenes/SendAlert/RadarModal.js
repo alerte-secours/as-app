@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { View, Text } from "react-native";
 import { Modal, Portal, Button, ActivityIndicator } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createStyles, useTheme } from "~/theme";
+import { setA11yFocusAfterInteractions } from "~/lib/a11y";
 
 export default function RadarModal({
   visible,
@@ -13,6 +14,13 @@ export default function RadarModal({
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+
+  const titleRef = useRef(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    setA11yFocusAfterInteractions(titleRef);
+  }, [visible]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -78,7 +86,13 @@ export default function RadarModal({
             color={colors.primary}
             style={styles.modalIcon}
           />
-          <Text style={styles.modalTitle}>Utilisateurs aux alentours</Text>
+          <Text
+            ref={titleRef}
+            accessibilityRole="header"
+            style={styles.modalTitle}
+          >
+            Utilisateurs aux alentours
+          </Text>
         </View>
 
         <View style={styles.content}>
@@ -89,6 +103,9 @@ export default function RadarModal({
               mode="contained"
               onPress={onDismiss}
               style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Fermer"
+              accessibilityHint="Ferme la fenêtre radar et revient à l'écran d'alerte."
             >
               Fermer
             </Button>

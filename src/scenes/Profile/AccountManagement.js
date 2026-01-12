@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 
 import { View } from "react-native";
 
@@ -30,6 +30,9 @@ export default function AccountManagement({
 
   const modalState = useState({ visible: openAccountModal || false });
   const [, setModal] = modalState;
+
+  const openConnectButtonRef = useRef(null);
+  const openDestroyButtonRef = useRef(null);
 
   const openModal = useCallback(
     (options = {}) => {
@@ -76,6 +79,7 @@ export default function AccountManagement({
       </View>
       <View style={{ marginVertical: 10 }}>
         <Button
+          ref={openConnectButtonRef}
           mode="contained"
           style={{ marginVertical: 5 }}
           icon={() => (
@@ -113,8 +117,11 @@ export default function AccountManagement({
         )}
 
         <Button
+          ref={openDestroyButtonRef}
           mode="contained"
           style={{ marginVertical: 5, backgroundColor: custom.appColors.red }}
+          accessibilityLabel="Supprimer le compte"
+          accessibilityHint="Action irréversible. Ouvre une confirmation de suppression du compte"
           labelStyle={{
             flex: 1,
           }}
@@ -138,6 +145,10 @@ export default function AccountManagement({
         profileData={profileData}
         waitingSmsType={waitingSmsType}
         clearAuthWaitParams={clearAuthWaitParams}
+        triggerRefs={{
+          connect: openConnectButtonRef,
+          destroy: openDestroyButtonRef,
+        }}
       />
     </View>
   );

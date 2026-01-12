@@ -22,7 +22,10 @@ class Bubble extends React.PureComponent {
 
     if (this.props.onPress) {
       innerChildView = (
-        <TouchableOpacity onPress={this.props.onPress}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={this.props.onPress}
+        >
           {this.props.children}
         </TouchableOpacity>
       );

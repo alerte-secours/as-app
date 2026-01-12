@@ -104,7 +104,13 @@ export default function ToogleZoomButtonGroup({ boundType, setBoundType }) {
   return (
     <>
       <View style={styles.boundTypeButtonGroup}>
-        <ToggleButton.Group onValueChange={zoomToggle} value={boundType}>
+        <ToggleButton.Group
+          onValueChange={zoomToggle}
+          value={boundType}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Mode d'affichage de la carte"
+          accessibilityHint="Change le mode d'affichage de la carte."
+        >
           <ToggleZoomButton
             value={BoundType.TRACK_ALERT_RADIUS_ALL}
             selected={boundType}
