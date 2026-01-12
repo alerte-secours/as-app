@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.1](https://github.com/alerte-secours/as-app/compare/v1.15.0...v1.16.1) (2026-01-12)
+
+
+### Bug Fixes
+
+* a11y wip ([9b92fed](https://github.com/alerte-secours/as-app/commit/9b92fed825877e01faa286b28814c6c14249fdd4))
+* **ios:** bundle release version ([906e2f1](https://github.com/alerte-secours/as-app/commit/906e2f194d4f5fc73b29c4dece1b6054cd74031a))
+* **ios:** wip ([c5c5703](https://github.com/alerte-secours/as-app/commit/c5c570392ba52a56dd35d77f13844c2acf9bce7f))
+* load font ([8ba858f](https://github.com/alerte-secours/as-app/commit/8ba858f8763a5aa4c511b82b04387fb01fd81287))
+* reload + improve subscriptions ([39d2ede](https://github.com/alerte-secours/as-app/commit/39d2ede29554e5fd445ad4a4534850fa607f8e6f))
+* revert broken subscriptions ([52aff42](https://github.com/alerte-secours/as-app/commit/52aff4242dd9d9db3b07d2e43cf727748c6e2eb9))
+* track location ([29d7747](https://github.com/alerte-secours/as-app/commit/29d7747b51d333d9b592eab31c800fcdf4d808a5))
+* trackLocation ([0cf1139](https://github.com/alerte-secours/as-app/commit/0cf1139f9b3ce953aeb6a48274dfc58ca500dfdf))
+* yarn ios:staging ([c11b05a](https://github.com/alerte-secours/as-app/commit/c11b05a1082489eb8596567036329b142fb0b0b9))
+
 ## [1.16.0](https://github.com/alerte-secours/as-app/compare/v1.14.3...v1.16.0) (2026-01-04)
 
 
