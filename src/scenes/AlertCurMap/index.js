@@ -505,7 +505,9 @@ function AlertCurMap() {
 
   const closeStepper = useCallback(() => {
     setStepperIsOpened(false);
-    setA11yFocusAfterInteractions(lastStepsTriggerRef.current);
+    // Pass the ref object (not `.current`) so `findNodeHandle` can safely
+    // resolve the native host view.
+    setA11yFocusAfterInteractions(lastStepsTriggerRef);
   }, [setStepperIsOpened]);
 
   const stepperOnOpen = useCallback(() => {
@@ -521,7 +523,7 @@ function AlertCurMap() {
       setStepperIsOpened(false);
     }
     announceForA11yIfScreenReaderEnabled("Liste des étapes fermée");
-    setA11yFocusAfterInteractions(lastStepsTriggerRef.current);
+    setA11yFocusAfterInteractions(lastStepsTriggerRef);
   }, [stepperIsOpened, setStepperIsOpened]);
 
   const [externalGeoIsVisible, setExternalGeoIsVisible] = useState(false);
