@@ -55,11 +55,6 @@ export async function deleteFcmToken() {
   } catch (error) {
     const errorData = { error: error.message, stack: error.stack };
     fcmLogger.error("Token deletion failed", errorData);
-
-    Sentry.withScope((scope) => {
-      scope.setExtra("errorDetails", errorData);
-      Sentry.captureException(new Error("Failed to delete FCM token"));
-    });
     return false;
   }
 }
