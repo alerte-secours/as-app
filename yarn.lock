@@ -7066,7 +7066,6 @@ __metadata:
     eventemitter3: "npm:^5.0.1"
     expo: "npm:~53.0.23"
     expo-audio: "npm:~0.4.9"
-    expo-av: "npm:~15.1.7"
     expo-build-properties: "npm:~0.14.8"
     expo-constants: "npm:~17.1.7"
     expo-contacts: "npm:~14.2.5"
@@ -10591,21 +10590,6 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/874527adcf03e044770fc64fa9d58f735528bd40ebe038635ebf5ef34a21cdbce0115c9b2b1406604b9622f665d27a3a7eda417275322f2506a77f74c359724f
-  languageName: node
-  linkType: hard
-
-"expo-av@npm:~15.1.7":
-  version: 15.1.7
-  resolution: "expo-av@npm:15.1.7"
-  peerDependencies:
-    expo: "*"
-    react: "*"
-    react-native: "*"
-    react-native-web: "*"
-  peerDependenciesMeta:
-    react-native-web:
-      optional: true
-  checksum: 10/8f3055b68cac76b627116cf93a63bebdacb8c0d22f630f9fdae7dc74633a945d9a469421fce0f4c345c730eda0d039d78c88e59c09e2219bfde7e259d42981ba
   languageName: node
   linkType: hard
 
