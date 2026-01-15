@@ -29,6 +29,7 @@ import {
 } from "react-native-safe-area-context";
 
 import useTrackLocation from "~/hooks/useTrackLocation";
+import useWsWatchdog from "~/hooks/useWsWatchdog";
 // import { initializeBackgroundFetch } from "~/services/backgroundFetch";
 import useMount from "~/hooks/useMount";
 
@@ -224,6 +225,7 @@ function AppContent() {
   useUpdates();
   useNetworkListener();
   useTrackLocation();
+  useWsWatchdog();
 
   // useMount(() => {
   //   const setupBackgroundFetch = async () => {

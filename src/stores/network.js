@@ -6,6 +6,7 @@ export default createAtom(({ merge, get }) => {
       wsConnected: false,
       wsConnectedDate: null,
       wsClosedDate: null,
+      wsLastHeartbeatDate: null,
       triggerReload: false,
       initialized: true,
       hasInternetConnection: true,
@@ -27,6 +28,7 @@ export default createAtom(({ merge, get }) => {
         merge({
           wsConnected: true,
           wsConnectedDate: new Date().toISOString(),
+          wsLastHeartbeatDate: new Date().toISOString(),
         });
       },
       WSClosed: () => {
@@ -38,6 +40,12 @@ export default createAtom(({ merge, get }) => {
         merge({
           wsConnected: false,
           wsClosedDate: new Date().toISOString(),
+        });
+      },
+      WSTouch: () => {
+        // Update whenever we get any WS-level signal: connected, ping/pong, or a message.
+        merge({
+          wsLastHeartbeatDate: new Date().toISOString(),
         });
       },
       setHasInternetConnection: (status) =>

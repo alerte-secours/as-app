@@ -4,6 +4,7 @@ import { ScrollView, View } from "react-native";
 
 import Loader from "~/components/Loader";
 import { useSubscription } from "@apollo/client";
+import Error from "~/components/Error";
 
 import { LOAD_PROFILE_SUBSCRIPTION } from "./gql";
 
@@ -23,7 +24,7 @@ const profileLogger = createLogger({
 export default withConnectivity(function Profile({ navigation, route }) {
   const { userId } = useSessionState(["userId"]);
   // profileLogger.debug("Profile user ID", { userId });
-  const { data, loading, restart } = useSubscription(
+  const { data, loading, error, restart } = useSubscription(
     LOAD_PROFILE_SUBSCRIPTION,
     {
       variables: {
@@ -44,8 +45,19 @@ export default withConnectivity(function Profile({ navigation, route }) {
     });
   }, [navigation]);
 
-  if (loading || !data?.selectOneUser) {
+  if (loading) {
     return <Loader />;
+  }
+
+  if (error) {
+    profileLogger.error("Profile subscription error", { error });
+    return <Error />;
+  }
+
+  if (!data?.selectOneUser) {
+    // No error surfaced, but no payload either. Avoid infinite loader.
+    profileLogger.error("Profile subscription returned no user", { userId });
+    return <Error />;
   }
 
   return (

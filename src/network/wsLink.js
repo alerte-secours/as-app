@@ -81,6 +81,7 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
         activeSocket = socket;
         reconnectAttempts = 0; // Reset attempts on successful connection
         networkActions.WSConnected();
+        networkActions.WSTouch();
         cancelReconnect(); // Cancel any pending reconnects
 
         // Clear any lingering ping timeouts
@@ -114,6 +115,7 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
       },
       ping: (received) => {
         // wsLogger.debug("WebSocket ping", { received });
+        networkActions.WSTouch();
         if (!received) {
           // Clear any existing ping timeout
           if (pingTimeout) {
@@ -138,6 +140,7 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
       },
       pong: (received) => {
         // wsLogger.debug("WebSocket pong", { received });
+        networkActions.WSTouch();
         if (received) {
           clearTimeout(pingTimeout); // pong is received, clear connection close timeout
         }
