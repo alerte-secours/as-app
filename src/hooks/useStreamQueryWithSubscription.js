@@ -9,6 +9,9 @@ const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000; // 1 second
 const MAX_BACKOFF_MS = 30000; // 30 seconds
 
+const DEFAULT_CONTEXT = {};
+const DEFAULT_SHOULD_INCLUDE_ITEM = () => true;
+
 export default function useStreamQueryWithSubscription(
   initialQuery,
   subscription,
@@ -20,15 +23,20 @@ export default function useStreamQueryWithSubscription(
     initialCursor = -1,
     skip = false,
     subscriptionKey = "default",
-    context = {},
-    shouldIncludeItem = () => true,
+    context = DEFAULT_CONTEXT,
+    shouldIncludeItem = DEFAULT_SHOULD_INCLUDE_ITEM,
     maxRetries = MAX_RETRIES, // Allow overriding default max retries
+    livenessStaleMs = null,
+    livenessCheckEveryMs = 15_000,
     ...queryParams
   } = {},
 ) {
   const variables = useShallowMemo(() => paramVariables, paramVariables);
 
-  const { wsClosedDate } = useNetworkState(["wsClosedDate"]);
+  const { wsClosedDate, wsConnected } = useNetworkState([
+    "wsClosedDate",
+    "wsConnected",
+  ]);
 
   // State to force re-render and retry subscription
   const [retryTrigger, setRetryTrigger] = useState(0);
@@ -41,6 +49,52 @@ export default function useStreamQueryWithSubscription(
   const subscriptionErrorRef = useRef(null);
   const timeoutIdRef = useRef(null);
   const unsubscribeRef = useRef(null);
+
+  // Avoid resubscribe loops caused by unstable inline params (object/function identity).
+  // We deliberately do NOT put these in the subscribe effect dependency array.
+  const contextRef = useRef(context);
+  const shouldIncludeItemRef = useRef(shouldIncludeItem);
+  useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
+  useEffect(() => {
+    shouldIncludeItemRef.current = shouldIncludeItem;
+  }, [shouldIncludeItem]);
+
+  // Per-subscription liveness watchdog: if WS is connected but this subscription
+  // hasn't delivered any payload for some time, trigger a resubscribe.
+  const lastSubscriptionDataAtRef = useRef(Date.now());
+  const lastLivenessKickAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!livenessStaleMs) return;
+    if (skip) return;
+
+    const interval = setInterval(() => {
+      if (!wsConnected) return;
+      const age = Date.now() - lastSubscriptionDataAtRef.current;
+      if (age < livenessStaleMs) return;
+
+      const now = Date.now();
+      // Avoid spamming resubscribe triggers.
+      if (now - lastLivenessKickAtRef.current < livenessStaleMs) return;
+      lastLivenessKickAtRef.current = now;
+
+      console.warn(
+        `[${subscriptionKey}] Liveness stale (${age}ms >= ${livenessStaleMs}ms), forcing resubscribe`,
+      );
+      lastSubscriptionDataAtRef.current = now;
+      setRetryTrigger((prev) => prev + 1);
+    }, livenessCheckEveryMs);
+
+    return () => clearInterval(interval);
+  }, [
+    livenessStaleMs,
+    livenessCheckEveryMs,
+    skip,
+    subscriptionKey,
+    wsConnected,
+  ]);
 
   useEffect(() => {
     const currentVarsHash = JSON.stringify(variables);
@@ -212,7 +266,7 @@ export default function useStreamQueryWithSubscription(
             [cursorVar]: lastCursorRef.current,
           },
           context: {
-            ...context,
+            ...contextRef.current,
             subscriptionKey,
           },
           onError: (error) => {
@@ -243,6 +297,7 @@ export default function useStreamQueryWithSubscription(
             if (subscriptionData.data) {
               retryCountRef.current = 0;
               subscriptionErrorRef.current = null;
+              lastSubscriptionDataAtRef.current = Date.now();
             }
 
             if (!subscriptionData.data) return prev;
@@ -258,14 +313,14 @@ export default function useStreamQueryWithSubscription(
             const itemMap = new Map();
             existingItems.forEach((item) => {
               // If the user's filter says "include," we add it
-              if (shouldIncludeItem(item, context)) {
+              if (shouldIncludeItemRef.current(item, contextRef.current)) {
                 itemMap.set(item[uniqKey], item);
               }
             });
 
             // 2) Merge new items
             newItems.forEach((item) => {
-              if (!shouldIncludeItem(item, context)) {
+              if (!shouldIncludeItemRef.current(item, contextRef.current)) {
                 return;
               }
 
@@ -371,10 +426,10 @@ export default function useStreamQueryWithSubscription(
     uniqKey,
     cursorKey,
     subscriptionKey,
-    context,
-    shouldIncludeItem,
     retryTrigger,
     maxRetries,
+    livenessStaleMs,
+    livenessCheckEveryMs,
   ]);
 
   return {
