@@ -40,6 +40,7 @@ export default function useStreamQueryWithSubscription(
   const retryCountRef = useRef(0);
   const subscriptionErrorRef = useRef(null);
   const timeoutIdRef = useRef(null);
+  const unsubscribeRef = useRef(null);
 
   useEffect(() => {
     const currentVarsHash = JSON.stringify(variables);
@@ -123,6 +124,18 @@ export default function useStreamQueryWithSubscription(
   useEffect(() => {
     if (skip) return; // If skipping, do nothing
     if (!subscribeToMore) return;
+
+    // If we're about to (re)subscribe, always cleanup any previous subscription first.
+    // This is critical because React effect cleanups must be returned synchronously
+    // from the effect, not from inside async callbacks.
+    if (unsubscribeRef.current) {
+      try {
+        unsubscribeRef.current();
+      } catch (_e) {
+        // ignore
+      }
+      unsubscribeRef.current = null;
+    }
 
     // Check if max retries reached and we have an error - this check must be done regardless of other conditions
     if (retryCountRef.current >= maxRetries && subscriptionErrorRef.current) {
@@ -289,15 +302,7 @@ export default function useStreamQueryWithSubscription(
           },
         });
 
-        // Cleanup on unmount or re-run
-        return () => {
-          console.log(`[${subscriptionKey}] Cleaning up subscription`);
-          if (timeoutIdRef.current) {
-            clearTimeout(timeoutIdRef.current);
-            timeoutIdRef.current = null;
-          }
-          unsubscribe();
-        };
+        unsubscribeRef.current = unsubscribe;
       } catch (error) {
         // Handle setup errors (like malformed queries)
         console.error(
@@ -337,21 +342,23 @@ export default function useStreamQueryWithSubscription(
             console.error("Failed to report to Sentry:", sentryError);
           }
         }
-
-        return () => {
-          if (timeoutIdRef.current) {
-            clearTimeout(timeoutIdRef.current);
-            timeoutIdRef.current = null;
-          }
-        };
       }
     }, backoffDelay);
 
     // Cleanup function that will run when component unmounts or effect re-runs
     return () => {
+      console.log(`[${subscriptionKey}] Cleaning up subscription`);
       if (timeoutIdRef.current) {
         clearTimeout(timeoutIdRef.current);
         timeoutIdRef.current = null;
+      }
+      if (unsubscribeRef.current) {
+        try {
+          unsubscribeRef.current();
+        } catch (_e) {
+          // ignore
+        }
+        unsubscribeRef.current = null;
       }
     };
   }, [

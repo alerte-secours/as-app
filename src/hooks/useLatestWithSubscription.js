@@ -47,6 +47,7 @@ export default function useLatestWithSubscription(
   const retryCountRef = useRef(0);
   const subscriptionErrorRef = useRef(null);
   const timeoutIdRef = useRef(null);
+  const unsubscribeRef = useRef(null);
 
   useEffect(() => {
     const currentVarsHash = JSON.stringify(variables);
@@ -133,6 +134,17 @@ export default function useLatestWithSubscription(
     if (skip) return; // If skipping, do nothing
     if (!subscribeToMore) return;
     if (highestIdRef.current === null) return; // Wait until we have the highest ID
+
+    // Always cleanup any previous active subscription before creating a new one.
+    // React only runs the cleanup returned directly from the effect.
+    if (unsubscribeRef.current) {
+      try {
+        unsubscribeRef.current();
+      } catch (_e) {
+        // ignore
+      }
+      unsubscribeRef.current = null;
+    }
 
     // Check if max retries reached and we have an error
     if (retryCountRef.current >= maxRetries && subscriptionErrorRef.current) {
@@ -283,15 +295,7 @@ export default function useLatestWithSubscription(
           },
         });
 
-        // Cleanup on unmount or re-run
-        return () => {
-          console.log(`[${subscriptionKey}] Cleaning up subscription`);
-          if (timeoutIdRef.current) {
-            clearTimeout(timeoutIdRef.current);
-            timeoutIdRef.current = null;
-          }
-          unsubscribe();
-        };
+        unsubscribeRef.current = unsubscribe;
       } catch (error) {
         // Handle setup errors (like malformed queries)
         console.error(
@@ -331,21 +335,23 @@ export default function useLatestWithSubscription(
             console.error("Failed to report to Sentry:", sentryError);
           }
         }
-
-        return () => {
-          if (timeoutIdRef.current) {
-            clearTimeout(timeoutIdRef.current);
-            timeoutIdRef.current = null;
-          }
-        };
       }
     }, backoffDelay);
 
     // Cleanup function that will run when component unmounts or effect re-runs
     return () => {
+      console.log(`[${subscriptionKey}] Cleaning up subscription`);
       if (timeoutIdRef.current) {
         clearTimeout(timeoutIdRef.current);
         timeoutIdRef.current = null;
+      }
+      if (unsubscribeRef.current) {
+        try {
+          unsubscribeRef.current();
+        } catch (_e) {
+          // ignore
+        }
+        unsubscribeRef.current = null;
       }
     };
   }, [

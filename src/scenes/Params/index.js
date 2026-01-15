@@ -17,10 +17,13 @@ export default withConnectivity(function Params() {
       deviceId,
     },
   });
-  if (loading || !data) {
+  if (loading) {
     return <Loader />;
   }
   if (error) {
+    return <Error />;
+  }
+  if (!data) {
     return <Error />;
   }
   return <ParamsView data={data} />;
