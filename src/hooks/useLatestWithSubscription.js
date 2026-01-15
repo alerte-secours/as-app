@@ -9,6 +9,9 @@ const MAX_RETRIES = 5;
 const INITIAL_BACKOFF_MS = 1000; // 1 second
 const MAX_BACKOFF_MS = 30000; // 30 seconds
 
+const DEFAULT_CONTEXT = {};
+const DEFAULT_SHOULD_INCLUDE_ITEM = () => true;
+
 /**
  * Hook that queries for items with custom sorting (e.g., acknowledged first, then by newest)
  * while still using ID-based cursor for subscriptions to new items.
@@ -27,15 +30,20 @@ export default function useLatestWithSubscription(
     variables: paramVariables = {},
     skip = false,
     subscriptionKey = "default",
-    context = {},
-    shouldIncludeItem = () => true,
+    context = DEFAULT_CONTEXT,
+    shouldIncludeItem = DEFAULT_SHOULD_INCLUDE_ITEM,
     maxRetries = MAX_RETRIES,
+    livenessStaleMs = null,
+    livenessCheckEveryMs = 15_000,
     ...queryParams
   } = {},
 ) {
   const variables = useShallowMemo(() => paramVariables, paramVariables);
 
-  const { wsClosedDate } = useNetworkState(["wsClosedDate"]);
+  const { wsClosedDate, wsConnected } = useNetworkState([
+    "wsClosedDate",
+    "wsConnected",
+  ]);
 
   // State to force re-render and retry subscription
   const [retryTrigger, setRetryTrigger] = useState(0);
@@ -48,6 +56,50 @@ export default function useLatestWithSubscription(
   const subscriptionErrorRef = useRef(null);
   const timeoutIdRef = useRef(null);
   const unsubscribeRef = useRef(null);
+
+  // Avoid resubscribe loops caused by unstable inline params (object/function identity).
+  // We deliberately do NOT put these in the subscribe effect dependency array.
+  const contextRef = useRef(context);
+  const shouldIncludeItemRef = useRef(shouldIncludeItem);
+  useEffect(() => {
+    contextRef.current = context;
+  }, [context]);
+  useEffect(() => {
+    shouldIncludeItemRef.current = shouldIncludeItem;
+  }, [shouldIncludeItem]);
+
+  // Per-subscription liveness watchdog
+  const lastSubscriptionDataAtRef = useRef(Date.now());
+  const lastLivenessKickAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!livenessStaleMs) return;
+    if (skip) return;
+
+    const interval = setInterval(() => {
+      if (!wsConnected) return;
+      const age = Date.now() - lastSubscriptionDataAtRef.current;
+      if (age < livenessStaleMs) return;
+
+      const now = Date.now();
+      if (now - lastLivenessKickAtRef.current < livenessStaleMs) return;
+      lastLivenessKickAtRef.current = now;
+
+      console.warn(
+        `[${subscriptionKey}] Liveness stale (${age}ms >= ${livenessStaleMs}ms), forcing resubscribe`,
+      );
+      lastSubscriptionDataAtRef.current = now;
+      setRetryTrigger((prev) => prev + 1);
+    }, livenessCheckEveryMs);
+
+    return () => clearInterval(interval);
+  }, [
+    livenessStaleMs,
+    livenessCheckEveryMs,
+    skip,
+    subscriptionKey,
+    wsConnected,
+  ]);
 
   useEffect(() => {
     const currentVarsHash = JSON.stringify(variables);
@@ -221,7 +273,7 @@ export default function useLatestWithSubscription(
             [cursorVar]: highestIdRef.current,
           },
           context: {
-            ...context,
+            ...contextRef.current,
             subscriptionKey,
           },
           onError: (error) => {
@@ -252,6 +304,7 @@ export default function useLatestWithSubscription(
             if (subscriptionData.data) {
               retryCountRef.current = 0;
               subscriptionErrorRef.current = null;
+              lastSubscriptionDataAtRef.current = Date.now();
             }
 
             if (!subscriptionData.data) return prev;
@@ -266,7 +319,7 @@ export default function useLatestWithSubscription(
             // Filter new items
             const filteredNewItems = newItems.filter(
               (item) =>
-                shouldIncludeItem(item, context) &&
+                shouldIncludeItemRef.current(item, contextRef.current) &&
                 !existingItems.some(
                   (existing) => existing[uniqKey] === item[uniqKey],
                 ),
@@ -364,10 +417,10 @@ export default function useLatestWithSubscription(
     uniqKey,
     cursorKey,
     subscriptionKey,
-    context,
-    shouldIncludeItem,
     retryTrigger,
     maxRetries,
+    livenessStaleMs,
+    livenessCheckEveryMs,
   ]);
 
   return {

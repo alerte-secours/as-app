@@ -34,6 +34,9 @@ const AggregatedMessagesSubscription = () => {
       subscriptionKey: "aggregated-messages",
       fetchPolicy: "network-only",
       nextFetchPolicy: "cache-first",
+      // Chat is latency-sensitive; if the WS transport is up but this subscription
+      // delivers nothing for a while, force a resubscribe.
+      livenessStaleMs: 60_000,
     },
   );
 
