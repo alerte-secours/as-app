@@ -199,7 +199,6 @@
 				A891237ADBD54747890A99FB /* Fix Xcode 15 Bug */,
 				9E272D599E42446BB8DFD8D0 /* Fix Xcode 15 Bug */,
 				884372829D0E4436B7BC6F91 /* Fix Xcode 15 Bug */,
-				F778935A7C8642C4851AE054 /* Remove signature files (Xcode workaround) */,
 				A1D9EF7E0B4442DF8860F6A5 /* Fix Xcode 15 Bug */,
 				B6A277D5FA3848ECACDAF93C /* Remove signature files (Xcode workaround) */,
 			);
