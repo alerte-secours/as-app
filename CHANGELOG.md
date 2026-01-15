@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.3](https://github.com/alerte-secours/as-app/compare/v1.16.2...v1.16.3) (2026-01-15)
+
+
+### Bug Fixes
+
+* a11y regression audio msg sending ([a12bd59](https://github.com/alerte-secours/as-app/commit/a12bd593520299953bc9f883c410b611f4794289))
+* **audio-message:** ios + up to expo-audio ([4d71c22](https://github.com/alerte-secours/as-app/commit/4d71c229d6a1f904e62bd96270817f0e6a2df42b))
+* **sentry:** enlight removing replay and cleaning useless error ([bc5129f](https://github.com/alerte-secours/as-app/commit/bc5129f7bfb0b637f8d4e130c7f4e4cc7879e22a))
+* **ws:** stabilization try 1 ([147e514](https://github.com/alerte-secours/as-app/commit/147e514d03a43e74b5e7d6361183b4006dc1186d))
+
 ## [1.16.2](https://github.com/alerte-secours/as-app/compare/v1.16.1...v1.16.2) (2026-01-12)
 
 ## [1.16.1](https://github.com/alerte-secours/as-app/compare/v1.15.0...v1.16.1) (2026-01-12)
