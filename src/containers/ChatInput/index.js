@@ -163,6 +163,15 @@ export default React.memo(function ChatInput({
       return;
     }
     requestingMicRef.current = true;
+    const startTs = Date.now();
+    const logStep = (step, extra) => {
+      console.log("[ChatInput] startRecording step", {
+        step,
+        platform: Platform.OS,
+        t: Date.now() - startTs,
+        ...(extra ? extra : {}),
+      });
+    };
     try {
       console.log("[ChatInput] startRecording invoked", {
         platform: Platform.OS,
@@ -176,6 +185,7 @@ export default React.memo(function ChatInput({
         return;
       }
 
+      logStep("permission:begin");
       console.log("Requesting microphone permission..");
       if (Platform.OS === "android") {
         const { granted, status } = await ensureMicPermission();
@@ -199,6 +209,8 @@ export default React.memo(function ChatInput({
       } else {
         // iOS microphone permission is handled inside useVoiceRecorder via expo-audio
       }
+      logStep("permission:end");
+
       // stop playback
       if (player !== null) {
         try {
@@ -211,7 +223,13 @@ export default React.memo(function ChatInput({
         console.log(
           "[ChatInput] startRecording delegating to useVoiceRecorder.start",
         );
-        await startVoiceRecorder();
+        logStep("useVoiceRecorder.start:begin");
+        await startVoiceRecorder({
+          // Android: permission is already handled via react-native-permissions in this component.
+          // expo-audio's requestRecordingPermissionsAsync can hang on Android 16.
+          skipPermissionRequest: Platform.OS === "android",
+        });
+        logStep("useVoiceRecorder.start:end");
 
         // Announce once when recording starts.
         if (lastRecordingAnnouncementRef.current !== "started") {
@@ -658,5 +676,6 @@ const useStyles = createStyles(({ fontSize, wp, theme: { colors } }) => ({
   recordingExponentText: {
     height: 32,
     fontSize: 16,
+    color: colors.onSurface,
   },
 }));
