@@ -125,8 +125,8 @@ const initializeSentry = async () => {
       }
       return breadcrumb;
     },
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 0,
     integrations: [
       // Sentry.mobileReplayIntegration({
       //   maskAllText: false,
