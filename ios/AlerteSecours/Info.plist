@@ -25,30 +25,30 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>202601121722</string>
+    <string>1.16.3</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
     <array>
       <dict>
-        <key>CFBundleURLName</key>
-        <string>com.alertesecours.alertesecours</string>
         <key>CFBundleURLSchemes</key>
         <array>
           <string>com.alertesecours.alertesecours</string>
         </array>
+        <key>CFBundleURLName</key>
+        <string>com.alertesecours.alertesecours</string>
       </dict>
       <dict>
-        <key>CFBundleURLName</key>
-        <string>com.alertesecours.alertesecours.expo</string>
         <key>CFBundleURLSchemes</key>
         <array>
           <string>exp+alerte-secours</string>
         </array>
+        <key>CFBundleURLName</key>
+        <string>com.alertesecours.alertesecours.expo</string>
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>202601121722</string>
+    <string>234</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSApplicationQueriesSchemes</key>

@@ -83,8 +83,8 @@ android {
         applicationId 'com.alertesecours'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 231
-        versionName "1.16.0"
+        versionCode 234
+        versionName "1.16.3"
         multiDexEnabled true
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
