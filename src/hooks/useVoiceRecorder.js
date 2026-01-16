@@ -339,8 +339,18 @@ export default function useVoiceRecorder() {
     // Cancel any pending start when the app transitions away from active.
     // This prevents a stalled promise from completing later and starting recording unexpectedly.
     const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active") {
-        startAttemptRef.current += 1;
+      if (Platform.OS === "android") {
+        // Android: cancel on any transition away from active (prevents delayed auto-start).
+        if (state !== "active") {
+          startAttemptRef.current += 1;
+        }
+      } else {
+        // iOS: permission prompts commonly put the app into `inactive` temporarily.
+        // Cancelling on `inactive` breaks first-run permission flow.
+        // Only cancel when truly backgrounded.
+        if (state === "background") {
+          startAttemptRef.current += 1;
+        }
       }
     });
     return () => {
