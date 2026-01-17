@@ -31,7 +31,7 @@ export const AGGREGATED_MESSAGES_SUBSCRIPTION = gql`
   subscription aggregatedMessagesSubscription($cursor: Int) {
     selectStreamMessage(
       cursor: { initial_value: { id: $cursor }, ordering: ASC }
-      batch_size: 100
+      batch_size: 30
     ) {
       ...AggMessageFields
     }

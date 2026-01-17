@@ -1,7 +1,9 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
 import * as Sentry from "@sentry/react-native";
-import { useNetworkState } from "~/stores";
+import { AppState } from "react-native";
+import { useNetworkState, networkActions } from "~/stores";
+import network from "~/network";
 import useShallowMemo from "./useShallowMemo";
 
 // Constants for retry configuration
@@ -28,18 +30,23 @@ export default function useStreamQueryWithSubscription(
     maxRetries = MAX_RETRIES, // Allow overriding default max retries
     livenessStaleMs = null,
     livenessCheckEveryMs = 15_000,
+    refetchOnReconnect = false,
     ...queryParams
   } = {},
 ) {
   const variables = useShallowMemo(() => paramVariables, paramVariables);
 
-  const { wsClosedDate, wsConnected } = useNetworkState([
-    "wsClosedDate",
-    "wsConnected",
-  ]);
+  const { wsClosedDate, wsConnected, wsLastHeartbeatDate, wsLastRecoveryDate } =
+    useNetworkState([
+      "wsClosedDate",
+      "wsConnected",
+      "wsLastHeartbeatDate",
+      "wsLastRecoveryDate",
+    ]);
 
   // State to force re-render and retry subscription
   const [retryTrigger, setRetryTrigger] = useState(0);
+  const [reconnectSyncTrigger, setReconnectSyncTrigger] = useState(0);
 
   const variableHashRef = useRef(JSON.stringify(variables));
   const lastCursorRef = useRef(initialCursor);
@@ -65,12 +72,105 @@ export default function useStreamQueryWithSubscription(
   // hasn't delivered any payload for some time, trigger a resubscribe.
   const lastSubscriptionDataAtRef = useRef(Date.now());
   const lastLivenessKickAtRef = useRef(0);
+  const consecutiveStaleKicksRef = useRef(0);
+  const lastWsRestartAtRef = useRef(0);
+  const lastReloadAtRef = useRef(0);
+  const wsLastHeartbeatDateRef = useRef(wsLastHeartbeatDate);
+  const appStateRef = useRef(AppState.currentState);
+  const wsLastRecoveryDateRef = useRef(wsLastRecoveryDate);
+
+  // Optional refetch-on-reconnect support.
+  // Goal: if WS was reconnected (wsClosedDate changes), force a base refetch once before resubscribing
+  // to reduce chances of cursor gaps.
+  const reconnectRefetchPendingRef = useRef(false);
+  const lastReconnectRefetchKeyRef = useRef(null);
+
+  useEffect(() => {
+    wsLastHeartbeatDateRef.current = wsLastHeartbeatDate;
+  }, [wsLastHeartbeatDate]);
+
+  useEffect(() => {
+    wsLastRecoveryDateRef.current = wsLastRecoveryDate;
+  }, [wsLastRecoveryDate]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      appStateRef.current = next;
+      if (next === "active") {
+        // Timers may have been paused/throttled; reset stale timers to avoid false kicks.
+        lastSubscriptionDataAtRef.current = Date.now();
+        lastLivenessKickAtRef.current = 0;
+        consecutiveStaleKicksRef.current = 0;
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!refetchOnReconnect) return;
+    if (skip) return;
+    if (appStateRef.current !== "active") return;
+    if (!wsClosedDate) return;
+    if (!refetch) return;
+
+    // Only refetch once per wsClosedDate value.
+    if (lastReconnectRefetchKeyRef.current === wsClosedDate) return;
+    lastReconnectRefetchKeyRef.current = wsClosedDate;
+    reconnectRefetchPendingRef.current = true;
+
+    (async () => {
+      try {
+        try {
+          Sentry.addBreadcrumb({
+            category: "graphql-subscription",
+            level: "info",
+            message: "refetch-on-reconnect start",
+            data: { subscriptionKey, wsClosedDate },
+          });
+        } catch (_e) {
+          // ignore
+        }
+        console.log(
+          `[${subscriptionKey}] WS reconnect detected, refetching base query to prevent gaps`,
+          { wsClosedDate },
+        );
+        await refetch();
+      } catch (e) {
+        console.warn(
+          `[${subscriptionKey}] Refetch-on-reconnect failed (continuing with resubscribe)`,
+          e,
+        );
+
+        try {
+          Sentry.captureException(e, {
+            tags: {
+              subscriptionKey,
+              context: "refetch-on-reconnect",
+            },
+            extra: { wsClosedDate },
+          });
+        } catch (_e2) {
+          // ignore
+        }
+      } finally {
+        reconnectRefetchPendingRef.current = false;
+        setReconnectSyncTrigger((x) => x + 1);
+      }
+    })();
+  }, [refetch, refetchOnReconnect, skip, subscriptionKey, wsClosedDate]);
 
   useEffect(() => {
     if (!livenessStaleMs) return;
     if (skip) return;
 
+    const STALE_KICKS_BEFORE_WS_RESTART = 2;
+    const STALE_KICKS_BEFORE_RELOAD = 4;
+    const GLOBAL_RECOVERY_COOLDOWN_MS = 30_000;
+    // Separate throttle for escalations; resubscribe kicks are already throttled by livenessStaleMs.
+    const MIN_ESCALATION_INTERVAL_MS = 60_000;
+
     const interval = setInterval(() => {
+      if (appStateRef.current !== "active") return;
       if (!wsConnected) return;
       const age = Date.now() - lastSubscriptionDataAtRef.current;
       if (age < livenessStaleMs) return;
@@ -80,9 +180,131 @@ export default function useStreamQueryWithSubscription(
       if (now - lastLivenessKickAtRef.current < livenessStaleMs) return;
       lastLivenessKickAtRef.current = now;
 
+      consecutiveStaleKicksRef.current += 1;
+
+      const wsHeartbeatAgeMs = (() => {
+        const hb = wsLastHeartbeatDateRef.current;
+        if (!hb) return null;
+        const last = Date.parse(hb);
+        return Number.isFinite(last) ? Date.now() - last : null;
+      })();
+
       console.warn(
-        `[${subscriptionKey}] Liveness stale (${age}ms >= ${livenessStaleMs}ms), forcing resubscribe`,
+        `[${subscriptionKey}] Liveness stale (${age}ms >= ${livenessStaleMs}ms), forcing resubscribe (wsHeartbeatAgeMs=${
+          wsHeartbeatAgeMs ?? "n/a"
+        }, kicks=${consecutiveStaleKicksRef.current})`,
       );
+
+      try {
+        Sentry.addBreadcrumb({
+          category: "graphql-subscription",
+          level: "warning",
+          message: "liveness stale kick",
+          data: {
+            subscriptionKey,
+            ageMs: age,
+            livenessStaleMs,
+            wsHeartbeatAgeMs,
+            kicks: consecutiveStaleKicksRef.current,
+          },
+        });
+      } catch (_e) {
+        // ignore
+      }
+
+      // Escalation policy for repeated consecutive stale kicks.
+      if (
+        consecutiveStaleKicksRef.current >= STALE_KICKS_BEFORE_RELOAD &&
+        now - lastReloadAtRef.current >= MIN_ESCALATION_INTERVAL_MS
+      ) {
+        const lastRecovery = wsLastRecoveryDateRef.current
+          ? Date.parse(wsLastRecoveryDateRef.current)
+          : NaN;
+        if (
+          Number.isFinite(lastRecovery) &&
+          now - lastRecovery < GLOBAL_RECOVERY_COOLDOWN_MS
+        ) {
+          return;
+        }
+
+        lastReloadAtRef.current = now;
+        networkActions.WSRecoveryTouch();
+        console.warn(
+          `[${subscriptionKey}] Escalation: triggering reload after ${consecutiveStaleKicksRef.current} stale kicks`,
+        );
+
+        try {
+          Sentry.captureMessage("subscription escalated to reload", {
+            level: "warning",
+            tags: { subscriptionKey, context: "liveness" },
+            extra: {
+              consecutiveKicks: consecutiveStaleKicksRef.current,
+              wsHeartbeatAgeMs,
+              ageMs: age,
+              livenessStaleMs,
+            },
+          });
+        } catch (_e) {
+          // ignore
+        }
+
+        networkActions.triggerReload();
+      } else if (
+        consecutiveStaleKicksRef.current >= STALE_KICKS_BEFORE_WS_RESTART &&
+        now - lastWsRestartAtRef.current >= MIN_ESCALATION_INTERVAL_MS
+      ) {
+        const lastRecovery = wsLastRecoveryDateRef.current
+          ? Date.parse(wsLastRecoveryDateRef.current)
+          : NaN;
+        if (
+          Number.isFinite(lastRecovery) &&
+          now - lastRecovery < GLOBAL_RECOVERY_COOLDOWN_MS
+        ) {
+          return;
+        }
+
+        lastWsRestartAtRef.current = now;
+        networkActions.WSRecoveryTouch();
+        try {
+          console.warn(
+            `[${subscriptionKey}] Escalation: restarting WS after ${consecutiveStaleKicksRef.current} stale kicks`,
+          );
+
+          try {
+            Sentry.captureMessage("subscription escalated to ws restart", {
+              level: "warning",
+              tags: { subscriptionKey, context: "liveness" },
+              extra: {
+                consecutiveKicks: consecutiveStaleKicksRef.current,
+                wsHeartbeatAgeMs,
+                ageMs: age,
+                livenessStaleMs,
+              },
+            });
+          } catch (_e2) {
+            // ignore
+          }
+
+          network.apolloClient?.restartWS?.();
+        } catch (error) {
+          console.warn(
+            `[${subscriptionKey}] Escalation: WS restart failed`,
+            error,
+          );
+
+          try {
+            Sentry.captureException(error, {
+              tags: {
+                subscriptionKey,
+                context: "liveness-ws-restart-failed",
+              },
+            });
+          } catch (_e2) {
+            // ignore
+          }
+        }
+      }
+
       lastSubscriptionDataAtRef.current = now;
       setRetryTrigger((prev) => prev + 1);
     }, livenessCheckEveryMs);
@@ -123,6 +345,7 @@ export default function useStreamQueryWithSubscription(
     loading,
     error,
     subscribeToMore,
+    refetch,
   } = useQuery(initialQuery, {
     ...queryParams,
     variables: queryVariables,
@@ -178,6 +401,18 @@ export default function useStreamQueryWithSubscription(
   useEffect(() => {
     if (skip) return; // If skipping, do nothing
     if (!subscribeToMore) return;
+
+    if (appStateRef.current !== "active") return;
+
+    // If we opted into refetch-on-reconnect and a reconnect refetch is still pending,
+    // wait to (re)subscribe until the base query has been refreshed.
+    if (
+      refetchOnReconnect &&
+      wsClosedDate &&
+      reconnectRefetchPendingRef.current
+    ) {
+      return;
+    }
 
     // If we're about to (re)subscribe, always cleanup any previous subscription first.
     // This is critical because React effect cleanups must be returned synchronously
@@ -298,6 +533,7 @@ export default function useStreamQueryWithSubscription(
               retryCountRef.current = 0;
               subscriptionErrorRef.current = null;
               lastSubscriptionDataAtRef.current = Date.now();
+              consecutiveStaleKicksRef.current = 0;
             }
 
             if (!subscriptionData.data) return prev;
@@ -308,6 +544,74 @@ export default function useStreamQueryWithSubscription(
 
             const newItems = subscriptionData.data[subscriptionRootKey] || [];
             const existingItems = prev[queryRootKey] || [];
+
+            const mergeStart = Date.now();
+
+            // Fast path: when uniqKey === cursorKey, cursor ordering is ASC, and incoming items
+            // are strictly newer than the last existing item, we can append without rebuilding
+            // a full map + sort (avoids O(N log N) work on large lists).
+            if (uniqKey === cursorKey && existingItems.length > 0) {
+              const lastExistingCursor =
+                existingItems[existingItems.length - 1]?.[cursorKey];
+
+              // Filter items first (and update cursor), while verifying monotonicity.
+              let monotonic = true;
+              const filteredNewItems = [];
+
+              for (const item of newItems) {
+                if (!shouldIncludeItemRef.current(item, contextRef.current)) {
+                  continue;
+                }
+
+                const itemCursor = item[cursorKey];
+                if (itemCursor == null) continue;
+
+                if (
+                  typeof lastExistingCursor === "number" &&
+                  typeof itemCursor === "number" &&
+                  itemCursor <= lastExistingCursor
+                ) {
+                  monotonic = false;
+                  break;
+                }
+
+                // Update last cursor if item is newer
+                if (
+                  !lastCursorRef.current ||
+                  itemCursor > lastCursorRef.current
+                ) {
+                  lastCursorRef.current = itemCursor;
+                }
+
+                filteredNewItems.push(item);
+              }
+
+              if (monotonic) {
+                if (filteredNewItems.length === 0) {
+                  const tookMs = Date.now() - mergeStart;
+                  if (tookMs > 100) {
+                    console.warn(
+                      `[${subscriptionKey}] updateQuery merge took ${tookMs}ms (fast-path, existing=${existingItems.length}, new=${newItems.length}, result=${existingItems.length})`,
+                    );
+                  }
+                  return prev;
+                }
+
+                const resultItems = [...existingItems, ...filteredNewItems];
+
+                const tookMs = Date.now() - mergeStart;
+                if (tookMs > 100) {
+                  console.warn(
+                    `[${subscriptionKey}] updateQuery merge took ${tookMs}ms (fast-path, existing=${existingItems.length}, new=${newItems.length}, result=${resultItems.length})`,
+                  );
+                }
+
+                return {
+                  ...prev,
+                  [queryRootKey]: resultItems,
+                };
+              }
+            }
 
             // 1) Build a map from existing items
             const itemMap = new Map();
@@ -350,6 +654,13 @@ export default function useStreamQueryWithSubscription(
               const bCursor = b[cursorKey];
               return aCursor - bCursor;
             });
+
+            const tookMs = Date.now() - mergeStart;
+            if (tookMs > 100) {
+              console.warn(
+                `[${subscriptionKey}] updateQuery merge took ${tookMs}ms (existing=${existingItems.length}, new=${newItems.length}, result=${sortedItems.length})`,
+              );
+            }
 
             return {
               [queryRootKey]: sortedItems,
@@ -430,6 +741,8 @@ export default function useStreamQueryWithSubscription(
     maxRetries,
     livenessStaleMs,
     livenessCheckEveryMs,
+    refetchOnReconnect,
+    reconnectSyncTrigger,
   ]);
 
   return {
