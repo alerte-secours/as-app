@@ -15,80 +15,59 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
 
   const PING_INTERVAL = 10_000;
   const PING_TIMEOUT = 5_000;
-  const MAX_RECONNECT_DELAY = 30000; // 30 seconds max delay
-  // const MAX_RECONNECT_ATTEMPTS = 5; // Limit reconnection attempts
-  const MAX_RECONNECT_ATTEMPTS = Infinity; // Limit reconnection attempts
 
-  // Graceful degradation: after prolonged WS reconnecting, surface app-level recovery
-  // via the existing reload mechanism (NetworkProviders will recreate Apollo).
-  const MAX_RECONNECT_TIME_MS = 5 * 60 * 1000;
-  let firstFailureAt = null;
-
-  let reconnectAttempts = 0;
-  function getReconnectDelay() {
-    // Exponential backoff with max delay
-    const delay = Math.min(
-      1000 * Math.pow(2, reconnectAttempts),
-      MAX_RECONNECT_DELAY,
-    );
-    return delay * (0.5 + Math.random()); // Add jitter
-  }
-
-  let reconnectTimeout;
-  function scheduleReconnect() {
-    // Clear any existing reconnect attempts
-    clearTimeout(reconnectTimeout);
-
-    // Schedule a single reconnect attempt with exponential backoff
-    reconnectTimeout = setTimeout(() => {
-      try {
-        wsLogger.debug("Attempting scheduled reconnect", {
-          attempt: reconnectAttempts + 1,
-          delay: getReconnectDelay(),
-        });
-        wsLink.client.restart();
-      } catch (error) {
-        wsLogger.error("Failed to reconnect", { error });
-      }
-      reconnectTimeout = null;
-    }, getReconnectDelay());
-  }
-
-  function cancelReconnect() {
-    if (reconnectTimeout) {
-      wsLogger.debug("Canceling scheduled reconnect");
-      clearTimeout(reconnectTimeout);
-      reconnectTimeout = null;
-    }
-  }
+  // Let `graphql-ws` manage reconnection.
+  // Our own reconnect scheduling was causing overlapping connection attempts
+  // and intermittent RN Android `client is null` (send called on already-closed native socket).
+  const MAX_RECONNECT_ATTEMPTS = Infinity;
 
   const wsLink = new WebSocketLink({
     url: GRAPHQL_WS_URL,
     connectionParams: () => {
       const { userToken } = getAuthState();
-      const headers = {
-        "Sec-WebSocket-Protocol": "graphql-transport-ws",
-      };
-      setBearerHeader(headers, userToken);
+      const headers = {};
+
+      // Important: only attach Authorization when we have a real token.
+      // Sending `Authorization: Bearer undefined` breaks WS auth on some backends.
+      if (userToken) {
+        setBearerHeader(headers, userToken);
+      } else {
+        wsLogger.warn("WS connectionParams without userToken", {
+          url: GRAPHQL_WS_URL,
+        });
+      }
+
+      // Note: Sec-WebSocket-Protocol is negotiated at the handshake level.
+      // Putting it in `connection_init.payload.headers` is ineffective and can
+      // confuse server-side auth header parsing.
       return { headers };
     },
+    // Do not use lazy sockets: some RN Android builds intermittently hit
+    // WebSocketModule send() with null client when the socket is created/
+    // torn down rapidly around app-state transitions.
+    lazy: false,
     keepAlive: PING_INTERVAL,
     retryAttempts: MAX_RECONNECT_ATTEMPTS,
     retryWait: async () => {
-      const delay = getReconnectDelay();
+      // `graphql-ws` passes the retry count to `retryWait(retries)`.
+      // Use a jittered exponential backoff, capped.
+      const retries = arguments[0] ?? 0;
+      const base = Math.min(1000 * Math.pow(2, retries), 30_000);
+      const delay = base * (0.5 + Math.random());
       await new Promise((resolve) => setTimeout(resolve, delay));
     },
     shouldRetry: () => true,
-    lazy: true,
     on: {
+      opened: () => {
+        wsLogger.info("WebSocket opened", {
+          url: GRAPHQL_WS_URL,
+        });
+      },
       connected: (socket) => {
         wsLogger.info("WebSocket connected");
         activeSocket = socket;
-        reconnectAttempts = 0; // Reset attempts on successful connection
-        firstFailureAt = null;
         networkActions.WSConnected();
         networkActions.WSTouch();
-        cancelReconnect(); // Cancel any pending reconnects
 
         // Clear any lingering ping timeouts
         if (pingTimeout) {
@@ -104,37 +83,11 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
         });
         networkActions.WSClosed();
 
-        if (!firstFailureAt) {
-          firstFailureAt = Date.now();
-        }
-
         // Clear socket and timeouts
         activeSocket = undefined;
         if (pingTimeout) {
           clearTimeout(pingTimeout);
           pingTimeout = null;
-        }
-
-        // Schedule reconnect unless explicitly closed (1000) or going away (1001)
-        if (event.code !== 1000 && event.code !== 1001) {
-          const reconnectAge = Date.now() - firstFailureAt;
-          if (reconnectAge >= MAX_RECONNECT_TIME_MS) {
-            wsLogger.warn(
-              "WebSocket reconnecting too long, triggering app reload",
-              {
-                reconnectAgeMs: reconnectAge,
-                reconnectAttempts,
-                lastCloseCode: event.code,
-              },
-            );
-            networkActions.triggerReload();
-            return;
-          }
-
-          reconnectAttempts++;
-          scheduleReconnect();
-        } else {
-          wsLogger.debug("Clean WebSocket closure - not reconnecting");
         }
       },
       ping: (received) => {
@@ -168,6 +121,12 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
         if (received) {
           clearTimeout(pingTimeout); // pong is received, clear connection close timeout
         }
+      },
+      error: (error) => {
+        wsLogger.error("WebSocket error", {
+          message: error?.message,
+          url: GRAPHQL_WS_URL,
+        });
       },
     },
   });

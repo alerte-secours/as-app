@@ -38,16 +38,16 @@ export function createRestartableClient(options) {
     },
   });
 
-  return {
-    ...client,
-    restart: () => {
-      const now = Date.now();
-      if (now - lastRestartTime < 2000) {
-        // Ignore restart request if less than 2 seconds since last restart
-        return;
-      }
-      lastRestartTime = now;
-      restart();
-    },
+  // Important: keep the original `graphql-ws` client object identity.
+  client.restart = () => {
+    const now = Date.now();
+    if (now - lastRestartTime < 2000) {
+      // Ignore restart request if less than 2 seconds since last restart
+      return;
+    }
+    lastRestartTime = now;
+    restart();
   };
+
+  return client;
 }

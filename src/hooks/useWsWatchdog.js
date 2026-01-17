@@ -14,6 +14,7 @@ const watchdogLogger = createLogger({
 const HEARTBEAT_STALE_MS = 45_000;
 const CHECK_EVERY_MS = 10_000;
 const MIN_RESTART_INTERVAL_MS = 30_000;
+const CONNECT_STALE_MS = 20_000;
 
 export default function useWsWatchdog({ enabled = true } = {}) {
   const {
@@ -32,6 +33,7 @@ export default function useWsWatchdog({ enabled = true } = {}) {
   const wsLastHeartbeatDateRef = useRef(wsLastHeartbeatDate);
   const appStateRef = useRef(AppState.currentState);
   const wsLastRecoveryDateRef = useRef(wsLastRecoveryDate);
+  const connectBeganAtRef = useRef(null);
 
   useEffect(() => {
     wsLastHeartbeatDateRef.current = wsLastHeartbeatDate;
@@ -58,7 +60,68 @@ export default function useWsWatchdog({ enabled = true } = {}) {
     const interval = setInterval(() => {
       if (appStateRef.current !== "active") return;
       if (!hasInternetConnection) return;
-      if (!wsConnected) return;
+
+      // If the app has internet but WS is not connected for too long,
+      // proactively restart the WS transport.
+      if (!wsConnected) {
+        if (!connectBeganAtRef.current) {
+          connectBeganAtRef.current = Date.now();
+        }
+
+        const age = Date.now() - connectBeganAtRef.current;
+        if (age < CONNECT_STALE_MS) return;
+
+        const now = Date.now();
+        if (now - lastRestartRef.current < MIN_RESTART_INTERVAL_MS) return;
+
+        // Global recovery throttle: avoid double restarts from multiple sources.
+        const lastRecovery = wsLastRecoveryDateRef.current
+          ? Date.parse(wsLastRecoveryDateRef.current)
+          : NaN;
+        if (Number.isFinite(lastRecovery)) {
+          const recoveryAge = now - lastRecovery;
+          if (recoveryAge < MIN_RESTART_INTERVAL_MS) return;
+        }
+
+        lastRestartRef.current = now;
+        networkActions.WSRecoveryTouch();
+
+        watchdogLogger.warn(
+          "WS not connected while internet is up, restarting",
+          {
+            ageMs: age,
+          },
+        );
+
+        try {
+          Sentry.addBreadcrumb({
+            category: "websocket",
+            level: "warning",
+            message: "ws watchdog not connected",
+            data: { ageMs: age },
+          });
+        } catch (_e) {
+          // ignore
+        }
+
+        try {
+          network.apolloClient?.restartWS?.();
+        } catch (error) {
+          watchdogLogger.error("WS restart failed", { error });
+          try {
+            Sentry.captureException(error, {
+              tags: { context: "ws-watchdog-restart-failed" },
+            });
+          } catch (_e) {
+            // ignore
+          }
+        }
+
+        return;
+      }
+
+      // Reset connect timer once connected.
+      connectBeganAtRef.current = null;
       if (!wsLastHeartbeatDateRef.current) return;
 
       const last = Date.parse(wsLastHeartbeatDateRef.current);

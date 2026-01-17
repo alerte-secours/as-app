@@ -16,7 +16,13 @@ export default withConnectivity(function Params() {
     variables: {
       deviceId,
     },
+    skip: !deviceId,
   });
+
+  if (!deviceId) {
+    return <Loader />;
+  }
+
   if (loading) {
     return <Loader />;
   }

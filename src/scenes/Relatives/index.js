@@ -31,9 +31,13 @@ export default withConnectivity(function Relatives({ navigation, route }) {
     variables: {
       userId,
     },
+    skip: !userId,
   });
 
   const { loading, error, data } = relativesSubscription;
+  if (!userId) {
+    return <Loader />;
+  }
   if (loading) {
     return <Loader />;
   }
