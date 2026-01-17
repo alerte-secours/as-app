@@ -12,6 +12,13 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
   });
 
   let activeSocket, pingTimeout;
+  let lastConnectionHadToken = false;
+  let lastTokenRestartAt = 0;
+
+  // If we connect before auth is ready, Hasura will treat the whole WS session as unauthenticated
+  // (auth is evaluated on `connection_init`). When the user token becomes available later,
+  // we must restart the WS transport once so `connectionParams` includes the token.
+  const TOKEN_RESTART_MIN_INTERVAL_MS = 10_000;
 
   const PING_INTERVAL = 10_000;
   const PING_TIMEOUT = 5_000;
@@ -26,6 +33,8 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
     connectionParams: () => {
       const { userToken } = getAuthState();
       const headers = {};
+
+      lastConnectionHadToken = !!userToken;
 
       // Important: only attach Authorization when we have a real token.
       // Sending `Authorization: Bearer undefined` breaks WS auth on some backends.
@@ -48,11 +57,11 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
     lazy: false,
     keepAlive: PING_INTERVAL,
     retryAttempts: MAX_RECONNECT_ATTEMPTS,
-    retryWait: async () => {
-      // `graphql-ws` passes the retry count to `retryWait(retries)`.
+    retryWait: async (retries = 0) => {
+      // `graphql-ws` calls `retryWait(retries)`.
       // Use a jittered exponential backoff, capped.
-      const retries = arguments[0] ?? 0;
-      const base = Math.min(1000 * Math.pow(2, retries), 30_000);
+      const safeRetries = Number.isFinite(retries) ? retries : 0;
+      const base = Math.min(1000 * Math.pow(2, safeRetries), 30_000);
       const delay = base * (0.5 + Math.random());
       await new Promise((resolve) => setTimeout(resolve, delay));
     },
@@ -68,6 +77,33 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
         activeSocket = socket;
         networkActions.WSConnected();
         networkActions.WSTouch();
+
+        // If we connected without a token, and a token is now available, restart once.
+        // This avoids `ApolloError: no subscriptions exist` caused by an unauthenticated WS session.
+        const { userToken } = getAuthState();
+        if (!lastConnectionHadToken && userToken) {
+          const now = Date.now();
+          if (now - lastTokenRestartAt >= TOKEN_RESTART_MIN_INTERVAL_MS) {
+            lastTokenRestartAt = now;
+            networkActions.WSRecoveryTouch();
+            wsLogger.warn(
+              "WS connected before auth; restarting to apply user token",
+              {
+                url: GRAPHQL_WS_URL,
+              },
+            );
+            try {
+              wsLink.client?.restart?.();
+            } catch (error) {
+              wsLogger.error(
+                "Failed to restart WS after token became available",
+                {
+                  error,
+                },
+              );
+            }
+          }
+        }
 
         // Clear any lingering ping timeouts
         if (pingTimeout) {
@@ -130,6 +166,44 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
       },
     },
   });
+
+  // Also listen to token changes and restart if we already have an unauthenticated WS session.
+  // This catches the common startup sequence:
+  // - WS opens/CONNECTS with no token
+  // - auth store later obtains userToken
+  if (typeof store?.subscribeAuthState === "function") {
+    store.subscribeAuthState(
+      (s) => s?.userToken,
+      (userToken) => {
+        if (!userToken) return;
+        if (lastConnectionHadToken) return;
+        if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) return;
+
+        const now = Date.now();
+        if (now - lastTokenRestartAt < TOKEN_RESTART_MIN_INTERVAL_MS) return;
+
+        lastTokenRestartAt = now;
+        networkActions.WSRecoveryTouch();
+        wsLogger.warn(
+          "Auth token became available; restarting unauthenticated WS",
+          {
+            url: GRAPHQL_WS_URL,
+          },
+        );
+        try {
+          wsLink.client?.restart?.();
+        } catch (error) {
+          wsLogger.error("Failed to restart WS on auth token change", {
+            error,
+          });
+        }
+      },
+    );
+  } else {
+    wsLogger.warn("WS link could not subscribe to auth changes", {
+      reason: "store.subscribeAuthState is not a function",
+    });
+  }
 
   return wsLink;
 }

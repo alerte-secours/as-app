@@ -43,47 +43,6 @@ const lifecycleLogger = createLogger({
   feature: "error-handling",
 });
 
-// Initialize stores with error handling
-const initializeStores = () => {
-  try {
-    appLogger.info("Initializing core stores and subscriptions");
-
-    // Initialize each store with error handling
-    const initializeStore = async (name, initFn) => {
-      try {
-        await initFn();
-        appLogger.debug(`${name} initialized successfully`);
-      } catch (error) {
-        lifecycleLogger.error(`Failed to initialize ${name}`, {
-          error: error?.message,
-          store: name,
-        });
-        errorHandler(error);
-      }
-    };
-
-    // Initialize memory stores first
-    initializeStore("memorySecureStore", secureStore.init);
-    initializeStore("memoryAsyncStorage", memoryAsyncStorage.init);
-
-    // Then initialize other stores sequentially
-    initializeStore("authActions", authActions.init);
-    initializeStore("permissionWizard", permissionWizardActions.init);
-    initializeStore("paramsActions", paramsActions.init);
-    initializeStore("storeSubscriptions", storeSubscriptions.init);
-
-    appLogger.info("Core initialization complete");
-  } catch (error) {
-    lifecycleLogger.error("Critical: Store initialization failed", {
-      error: error?.message,
-    });
-    errorHandler(error);
-  }
-};
-
-// Initialize stores immediately
-initializeStores();
-
 // Enhanced error handler with comprehensive error normalization and handling
 const errorHandler = (error, stackTrace) => {
   try {
@@ -219,8 +178,53 @@ const setupGlobalErrorHandlers = () => {
 // Initialize error handlers immediately
 setupGlobalErrorHandlers();
 
+// Initialize stores with error handling
+const initializeStores = async () => {
+  try {
+    appLogger.info("Initializing core stores and subscriptions");
+
+    // Initialize each store with error handling
+    const initializeStore = async (name, initFn) => {
+      try {
+        await initFn();
+        appLogger.debug(`${name} initialized successfully`);
+      } catch (error) {
+        lifecycleLogger.error(`Failed to initialize ${name}`, {
+          error: error?.message,
+          store: name,
+        });
+        errorHandler(error);
+      }
+    };
+
+    // Initialize memory stores first (needed by auth/params stores)
+    await initializeStore("memorySecureStore", secureStore.init);
+    await initializeStore("memoryAsyncStorage", memoryAsyncStorage.init);
+
+    // Then initialize other stores sequentially
+    await initializeStore("authActions", authActions.init);
+    await initializeStore("permissionWizard", permissionWizardActions.init);
+    await initializeStore("paramsActions", paramsActions.init);
+    await initializeStore("storeSubscriptions", storeSubscriptions.init);
+
+    appLogger.info("Core initialization complete");
+  } catch (error) {
+    lifecycleLogger.error("Critical: Store initialization failed", {
+      error: error?.message,
+    });
+    errorHandler(error);
+  }
+};
+
+// Initialize stores immediately (after errorHandler is defined)
+void initializeStores();
+
 function AppContent() {
-  appLogger.info("Initializing app features");
+  // Avoid logging inside render (this component re-renders frequently due to store updates).
+  useEffect(() => {
+    appLogger.info("Initializing app features");
+  }, []);
+
   useFcm();
   useUpdates();
   useNetworkListener();
@@ -293,7 +297,7 @@ function AppContent() {
     };
   }, []);
 
-  appLogger.info("App initialization complete");
+  // Avoid logging inside render (see effect above).
   return (
     <>
       <AppLifecycleListener />

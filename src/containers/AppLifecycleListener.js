@@ -180,22 +180,41 @@ const AppLifecycleListener = () => {
   const lastWsRestartAtRef = useRef(0);
   const MIN_WS_RESTART_INTERVAL_MS = 15_000;
   const { completed } = usePermissionWizardState(["completed"]);
+
+  // Important: don't put rapidly-changing network state in the main effect deps,
+  // otherwise we re-register the AppState listener and rerun the "initial permission check"
+  // in a tight loop (causing freezes + log spam).
   const { hasInternetConnection, wsConnected, wsLastHeartbeatDate } =
     useNetworkState([
       "hasInternetConnection",
       "wsConnected",
       "wsLastHeartbeatDate",
     ]);
+  const hasInternetConnectionRef = useRef(hasInternetConnection);
+  const wsConnectedRef = useRef(wsConnected);
+  const wsLastHeartbeatDateRef = useRef(wsLastHeartbeatDate);
+
+  useEffect(() => {
+    hasInternetConnectionRef.current = hasInternetConnection;
+  }, [hasInternetConnection]);
+
+  useEffect(() => {
+    wsConnectedRef.current = wsConnected;
+  }, [wsConnected]);
+
+  useEffect(() => {
+    wsLastHeartbeatDateRef.current = wsLastHeartbeatDate;
+  }, [wsLastHeartbeatDate]);
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
       lifecycleLogger.debug("App state changing", {
         from: appState.current,
         to: nextAppState,
-        hasInternet: hasInternetConnection,
+        hasInternet: hasInternetConnectionRef.current,
       });
 
-      if (!hasInternetConnection) {
+      if (!hasInternetConnectionRef.current) {
         lifecycleLogger.debug("Skipping state change handling - no internet");
         return;
       }
@@ -248,16 +267,29 @@ const AppLifecycleListener = () => {
               return;
             }
 
-            const hbMs = wsLastHeartbeatDate
-              ? Date.parse(wsLastHeartbeatDate)
+            const hbMs = wsLastHeartbeatDateRef.current
+              ? Date.parse(wsLastHeartbeatDateRef.current)
               : NaN;
             const heartbeatAgeMs = Number.isFinite(hbMs) ? now - hbMs : null;
 
             lifecycleLogger.info("Foreground WS check", {
               inactiveTime: timeSinceLastActive,
-              wsConnected,
+              wsConnected: wsConnectedRef.current,
               heartbeatAgeMs,
             });
+
+            // Only restart the WS transport when it looks unhealthy.
+            // Restarting while already connected causes unnecessary 4205 closes
+            // and cascades into subscription teardown/resubscribe loops.
+            const shouldRestart =
+              !wsConnectedRef.current ||
+              heartbeatAgeMs === null ||
+              heartbeatAgeMs > 45_000 ||
+              timeSinceLastActive > 30_000;
+
+            if (!shouldRestart) {
+              return;
+            }
 
             lastWsRestartAtRef.current = now;
             lifecycleLogger.info("Restarting WebSocket connection");
@@ -291,7 +323,7 @@ const AppLifecycleListener = () => {
         activeTimeout.current = null;
       }
     };
-  }, [completed, hasInternetConnection, wsConnected, wsLastHeartbeatDate]);
+  }, [completed]);
 
   return null;
 };
