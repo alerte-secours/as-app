@@ -46,12 +46,17 @@ export default withConnectivity(function Profile({ navigation, route }) {
   );
 
   useEffect(() => {
+    // If the subscription is currently skipped (no userId yet),
+    // `restart` might not be available depending on Apollo version.
+    if (!userId) return;
+    if (typeof restart !== "function") return;
     restart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   useEffect(() => {
     if (!wsClosedDate) return;
+    if (typeof restart !== "function") return;
     // WS was closed/reconnected; restart the subscription to avoid being stuck.
     try {
       profileLogger.info(
@@ -92,6 +97,7 @@ export default withConnectivity(function Profile({ navigation, route }) {
       });
       try {
         lastDataAtRef.current = Date.now();
+        if (typeof restart !== "function") return;
         restart();
       } catch (_e) {
         // ignore
