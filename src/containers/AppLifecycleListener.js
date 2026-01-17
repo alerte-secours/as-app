@@ -177,8 +177,15 @@ const AppLifecycleListener = () => {
   const appState = useRef(AppState.currentState);
   const activeTimeout = useRef(null);
   const lastActiveTimestamp = useRef(Date.now());
+  const lastWsRestartAtRef = useRef(0);
+  const MIN_WS_RESTART_INTERVAL_MS = 15_000;
   const { completed } = usePermissionWizardState(["completed"]);
-  const { hasInternetConnection } = useNetworkState(["hasInternetConnection"]);
+  const { hasInternetConnection, wsConnected, wsLastHeartbeatDate } =
+    useNetworkState([
+      "hasInternetConnection",
+      "wsConnected",
+      "wsLastHeartbeatDate",
+    ]);
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
@@ -202,9 +209,10 @@ const AppLifecycleListener = () => {
         (appState.current === "background" || appState.current === "inactive")
       ) {
         const timeSinceLastActive = Date.now() - lastActiveTimestamp.current;
-        if (timeSinceLastActive > 10000) {
-          clearTimeout(activeTimeout.current);
+        clearTimeout(activeTimeout.current);
 
+        // Permissions/sync are heavier; keep them for longer background durations.
+        if (timeSinceLastActive > 10_000) {
           // First check permissions immediately
           lifecycleLogger.info(
             "App returned to foreground, checking permissions",
@@ -230,20 +238,37 @@ const AppLifecycleListener = () => {
               error: error.message,
             });
           });
-
-          // Then handle WebSocket reconnection with proper error handling
-          activeTimeout.current = setTimeout(() => {
-            try {
-              lifecycleLogger.info("Restarting WebSocket connection");
-              networkActions.WSRecoveryTouch();
-              network.apolloClient.restartWS();
-            } catch (error) {
-              lifecycleLogger.error("Failed to restart WebSocket", { error });
-            } finally {
-              activeTimeout.current = null;
-            }
-          }, 2000);
         }
+
+        // Always consider restarting WS on foreground (iOS can suspend sockets even for short durations).
+        activeTimeout.current = setTimeout(() => {
+          try {
+            const now = Date.now();
+            if (now - lastWsRestartAtRef.current < MIN_WS_RESTART_INTERVAL_MS) {
+              return;
+            }
+
+            const hbMs = wsLastHeartbeatDate
+              ? Date.parse(wsLastHeartbeatDate)
+              : NaN;
+            const heartbeatAgeMs = Number.isFinite(hbMs) ? now - hbMs : null;
+
+            lifecycleLogger.info("Foreground WS check", {
+              inactiveTime: timeSinceLastActive,
+              wsConnected,
+              heartbeatAgeMs,
+            });
+
+            lastWsRestartAtRef.current = now;
+            lifecycleLogger.info("Restarting WebSocket connection");
+            networkActions.WSRecoveryTouch();
+            network.apolloClient.restartWS();
+          } catch (error) {
+            lifecycleLogger.error("Failed to restart WebSocket", { error });
+          } finally {
+            activeTimeout.current = null;
+          }
+        }, 1500);
       }
 
       appState.current = nextAppState;
@@ -266,7 +291,7 @@ const AppLifecycleListener = () => {
         activeTimeout.current = null;
       }
     };
-  }, [completed, hasInternetConnection]);
+  }, [completed, hasInternetConnection, wsConnected, wsLastHeartbeatDate]);
 
   return null;
 };

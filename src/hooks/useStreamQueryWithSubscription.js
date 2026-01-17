@@ -31,18 +31,26 @@ export default function useStreamQueryWithSubscription(
     livenessStaleMs = null,
     livenessCheckEveryMs = 15_000,
     refetchOnReconnect = false,
+    refetchOnStale = false,
+    refetchOnStaleCooldownMs = 60_000,
     ...queryParams
   } = {},
 ) {
   const variables = useShallowMemo(() => paramVariables, paramVariables);
 
-  const { wsClosedDate, wsConnected, wsLastHeartbeatDate, wsLastRecoveryDate } =
-    useNetworkState([
-      "wsClosedDate",
-      "wsConnected",
-      "wsLastHeartbeatDate",
-      "wsLastRecoveryDate",
-    ]);
+  const {
+    wsClosedDate,
+    wsConnected,
+    wsLastHeartbeatDate,
+    wsLastRecoveryDate,
+    hasInternetConnection,
+  } = useNetworkState([
+    "wsClosedDate",
+    "wsConnected",
+    "wsLastHeartbeatDate",
+    "wsLastRecoveryDate",
+    "hasInternetConnection",
+  ]);
 
   // State to force re-render and retry subscription
   const [retryTrigger, setRetryTrigger] = useState(0);
@@ -72,6 +80,7 @@ export default function useStreamQueryWithSubscription(
   // hasn't delivered any payload for some time, trigger a resubscribe.
   const lastSubscriptionDataAtRef = useRef(Date.now());
   const lastLivenessKickAtRef = useRef(0);
+  const lastStaleRefetchAtRef = useRef(0);
   const consecutiveStaleKicksRef = useRef(0);
   const lastWsRestartAtRef = useRef(0);
   const lastReloadAtRef = useRef(0);
@@ -171,11 +180,49 @@ export default function useStreamQueryWithSubscription(
 
     const interval = setInterval(() => {
       if (appStateRef.current !== "active") return;
+      if (!hasInternetConnection) return;
       if (!wsConnected) return;
       const age = Date.now() - lastSubscriptionDataAtRef.current;
       if (age < livenessStaleMs) return;
 
       const now = Date.now();
+
+      // Catch-up refetch: if enabled, first try an HTTP refetch (base query)
+      // to fill potential gaps, then proceed with resubscribe logic.
+      if (
+        refetchOnStale &&
+        refetch &&
+        now - lastStaleRefetchAtRef.current >= refetchOnStaleCooldownMs
+      ) {
+        lastStaleRefetchAtRef.current = now;
+        try {
+          Sentry.addBreadcrumb({
+            category: "graphql-subscription",
+            level: "warning",
+            message: "refetch-on-stale start",
+            data: {
+              subscriptionKey,
+              ageMs: age,
+              livenessStaleMs,
+            },
+          });
+        } catch (_e) {
+          // ignore
+        }
+
+        Promise.resolve()
+          .then(() => refetch())
+          .catch((e) => {
+            try {
+              Sentry.captureException(e, {
+                tags: { subscriptionKey, context: "refetch-on-stale" },
+                extra: { ageMs: age, livenessStaleMs },
+              });
+            } catch (_e2) {
+              // ignore
+            }
+          });
+      }
       // Avoid spamming resubscribe triggers.
       if (now - lastLivenessKickAtRef.current < livenessStaleMs) return;
       lastLivenessKickAtRef.current = now;
@@ -313,9 +360,13 @@ export default function useStreamQueryWithSubscription(
   }, [
     livenessStaleMs,
     livenessCheckEveryMs,
+    refetchOnStale,
+    refetchOnStaleCooldownMs,
+    refetch,
     skip,
     subscriptionKey,
     wsConnected,
+    hasInternetConnection,
   ]);
 
   useEffect(() => {

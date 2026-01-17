@@ -34,9 +34,13 @@ const AggregatedMessagesSubscription = () => {
       subscriptionKey: "aggregated-messages",
       fetchPolicy: "network-only",
       nextFetchPolicy: "cache-first",
+      notifyOnNetworkStatusChange: false,
       // Chat is latency-sensitive; if the WS transport is up but this subscription
       // delivers nothing for a while, force a resubscribe.
       livenessStaleMs: 60_000,
+      // If we detect staleness, first do a base refetch to catch-up, then resubscribe.
+      refetchOnStale: true,
+      refetchOnStaleCooldownMs: 60_000,
 
       // If WS reconnects, refetch base query once before resubscribing to reduce cursor gaps.
       refetchOnReconnect: true,
