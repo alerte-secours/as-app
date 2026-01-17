@@ -12,6 +12,13 @@ let hasLoggedAudioMode = false;
 
 const nowMs = () => Date.now();
 
+const debugLog = (...args) => {
+  if (__DEV__) {
+    // eslint-disable-next-line no-console
+    console.log(...args);
+  }
+};
+
 const withTimeout = async (promise, timeoutMs, label) => {
   if (!timeoutMs || timeoutMs <= 0) {
     return promise;
@@ -128,7 +135,7 @@ export default function useVoiceRecorder() {
       const attemptId = ++startAttemptRef.current;
       const attemptStart = nowMs();
       const logStep = (step, extra) => {
-        console.log("[useVoiceRecorder] start step", {
+        debugLog("[useVoiceRecorder] start step", {
           step,
           platform: Platform.OS,
           attemptId,
@@ -204,7 +211,7 @@ export default function useVoiceRecorder() {
       };
 
       if (!hasLoggedAudioMode) {
-        console.log("[useVoiceRecorder] audio mode set", recordingAudioMode);
+        debugLog("[useVoiceRecorder] audio mode set", recordingAudioMode);
         hasLoggedAudioMode = true;
       }
 
@@ -227,7 +234,7 @@ export default function useVoiceRecorder() {
         logStep("setIsAudioActiveAsync:end");
         assertNotCancelled();
 
-        console.log("[useVoiceRecorder] preparing recorder");
+        debugLog("[useVoiceRecorder] preparing recorder");
         logStep("prepareToRecordAsync:begin");
         await withTimeout(
           recorder.prepareToRecordAsync(),
@@ -237,7 +244,7 @@ export default function useVoiceRecorder() {
         logStep("prepareToRecordAsync:end");
         assertNotCancelled();
 
-        console.log("[useVoiceRecorder] starting recorder");
+        debugLog("[useVoiceRecorder] starting recorder");
         logStep("record:invoke");
         recorder.record();
 
@@ -262,7 +269,7 @@ export default function useVoiceRecorder() {
       try {
         await prepareAndStart();
       } catch (error) {
-        console.log("[useVoiceRecorder] recorder start failed", error);
+        debugLog("[useVoiceRecorder] recorder start failed", error);
 
         // One controlled retry for iOS: reset the audio session and try once more.
         try {
@@ -272,7 +279,7 @@ export default function useVoiceRecorder() {
           await prepareAndStart();
           return;
         } catch (_retryError) {
-          console.log("[useVoiceRecorder] recorder retry failed", _retryError);
+          debugLog("[useVoiceRecorder] recorder retry failed", _retryError);
         }
 
         // One controlled retry for Android if we hit a timeout/hang.
@@ -288,7 +295,7 @@ export default function useVoiceRecorder() {
             logStep("androidRetry:success");
             return;
           } catch (_androidRetryError) {
-            console.log(
+            debugLog(
               "[useVoiceRecorder] android retry failed",
               _androidRetryError,
             );
