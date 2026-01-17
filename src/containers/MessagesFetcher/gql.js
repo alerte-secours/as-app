@@ -33,7 +33,7 @@ export const SELECT_STREAM_MESSAGE_SUBSCRIPTION = gql`
     selectStreamMessage(
       where: { alertId: { _eq: $alertId } }
       cursor: { initial_value: { id: $cursor }, ordering: ASC }
-      batch_size: 100
+      batch_size: 30
     ) {
       ...MessageFields
     }

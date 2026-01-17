@@ -25,10 +25,15 @@ const AlertingSubscription = () => {
       uniqKey: "id",
       initialCursor: -1,
       subscriptionKey: "alerting",
+      notifyOnNetworkStatusChange: false,
       // Alerting is latency-sensitive; add per-subscription liveness so it can't go stale
       // while WS transport heartbeat stays fresh.
       livenessStaleMs: 45_000,
       livenessCheckEveryMs: 12_000,
+
+      // If we detect staleness, first do a base refetch to catch-up, then resubscribe.
+      refetchOnStale: true,
+      refetchOnStaleCooldownMs: 60_000,
 
       // If WS reconnects, refetch base query once before resubscribing to reduce cursor gaps.
       refetchOnReconnect: true,

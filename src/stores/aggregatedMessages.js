@@ -156,6 +156,26 @@ export default createAtom(({ merge, set, get, reset }) => {
     mergeMessagesList({ realMessagesList: messages });
   };
 
+  const replaceMessagesForAlert = (alertId, messagesForAlert) => {
+    const { realMessagesList } = get();
+
+    const remaining = realMessagesList.filter(
+      (m) => m.alertId !== alertId && m.alertId !== Number(alertId),
+    );
+
+    const next = [...remaining, ...(messagesForAlert || [])];
+
+    // Preserve global ordering by id asc.
+    next.sort((a, b) => {
+      const aId = a?.id;
+      const bId = b?.id;
+      if (typeof aId === "number" && typeof bId === "number") return aId - bId;
+      return String(aId).localeCompare(String(bId));
+    });
+
+    mergeMessagesList({ realMessagesList: next });
+  };
+
   const debouncedUpdateMessagesList = debounce(updateMessagesList, 300, {
     trailing: true,
   });
@@ -218,6 +238,7 @@ export default createAtom(({ merge, set, get, reset }) => {
       init,
       reset,
       updateMessagesList,
+      replaceMessagesForAlert,
       debouncedUpdateMessagesList,
       initializeAlert: (alert) => {
         addVirtualFirstMessage(alert);
