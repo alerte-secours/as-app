@@ -37,6 +37,9 @@ const AggregatedMessagesSubscription = () => {
       // Chat is latency-sensitive; if the WS transport is up but this subscription
       // delivers nothing for a while, force a resubscribe.
       livenessStaleMs: 60_000,
+
+      // If WS reconnects, refetch base query once before resubscribing to reduce cursor gaps.
+      refetchOnReconnect: true,
     },
   );
 

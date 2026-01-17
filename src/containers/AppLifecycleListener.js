@@ -10,6 +10,7 @@ import {
   permissionsActions,
   usePermissionWizardState,
   useNetworkState,
+  networkActions,
 } from "~/stores";
 import { secureStore } from "~/storage/memorySecureStore";
 import memoryAsyncStorage from "~/storage/memoryAsyncStorage";
@@ -234,6 +235,7 @@ const AppLifecycleListener = () => {
           activeTimeout.current = setTimeout(() => {
             try {
               lifecycleLogger.info("Restarting WebSocket connection");
+              networkActions.WSRecoveryTouch();
               network.apolloClient.restartWS();
             } catch (error) {
               lifecycleLogger.error("Failed to restart WebSocket", { error });

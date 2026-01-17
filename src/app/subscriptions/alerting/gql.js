@@ -58,7 +58,7 @@ export const ALERTING_SUBSCRIPTION = gql`
   subscription alertingSubscription($cursor: bigint!) {
     selectStreamAlerting(
       cursor: { initial_value: { updatedSeq: $cursor }, ordering: ASC }
-      batch_size: 100
+      batch_size: 30
     ) {
       ...AlertingFields
     }
