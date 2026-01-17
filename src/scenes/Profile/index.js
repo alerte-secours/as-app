@@ -41,6 +41,7 @@ export default withConnectivity(function Profile({ navigation, route }) {
       variables: {
         userId,
       },
+      skip: !userId,
     },
   );
 
@@ -112,6 +113,10 @@ export default withConnectivity(function Profile({ navigation, route }) {
       openAccountModal: undefined,
     });
   }, [navigation]);
+
+  if (!userId) {
+    return <Loader />;
+  }
 
   if (loading) {
     return <Loader />;
