@@ -140,7 +140,12 @@ export default function useLatestWithSubscription(
           `[${subscriptionKey}] WS reconnect detected, refetching base query to prevent gaps`,
           { wsClosedDate },
         );
-        await refetch();
+        // Don't block re-subscription forever if refetch is slow/stuck.
+        const maxWaitMs = 8000;
+        await Promise.race([
+          Promise.resolve().then(() => refetch()),
+          new Promise((resolve) => setTimeout(resolve, maxWaitMs)),
+        ]);
       } catch (e) {
         console.warn(
           `[${subscriptionKey}] Refetch-on-reconnect failed (continuing with resubscribe)`,

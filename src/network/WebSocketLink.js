@@ -3,6 +3,7 @@ import { print } from "graphql";
 // import { createClient } from "graphql-ws";
 import { createRestartableClient } from "./graphqlWs";
 import network from "~/network";
+import { networkActions } from "~/stores";
 
 export default class WebSocketLink extends ApolloLink {
   constructor(options) {
@@ -18,7 +19,16 @@ export default class WebSocketLink extends ApolloLink {
       return this.client.subscribe(
         { ...operation, query: print(operation.query) },
         {
-          next: sink.next.bind(sink),
+          next: (value) => {
+            // Any subscription payload means the transport is alive.
+            // Touch WS heartbeat so watchdog/liveness logic doesn't falsely conclude staleness.
+            try {
+              networkActions.WSTouch();
+            } catch (_e) {
+              // ignore
+            }
+            sink.next(value);
+          },
           complete: sink.complete.bind(sink),
           error: (err) => {
             // Don't propagate client restart events as errors
