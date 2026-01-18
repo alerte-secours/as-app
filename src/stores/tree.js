@@ -15,7 +15,7 @@ export default createAtom(({ merge, getActions }) => {
   const networkActions = getActions("network");
 
   const alertActions = getActions("alert");
-  const navActions = getActions("alert");
+  const navActions = getActions("nav");
   const fcmActions = getActions("fcm");
   const paramsActions = getActions("params");
   const notificationsActions = getActions("notifications");

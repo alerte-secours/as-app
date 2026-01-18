@@ -3,6 +3,7 @@ import useStreamQueryWithSubscription from "~/hooks/useStreamQueryWithSubscripti
 import { aggregatedMessagesActions } from "~/stores";
 import { createLogger } from "~/lib/logger";
 import { FEATURE_SCOPES, NETWORK_SCOPES } from "~/lib/logger/scopes";
+import { AppState } from "react-native";
 
 import {
   AGGREGATED_MESSAGES_QUERY,
@@ -17,12 +18,14 @@ const messagesLogger = createLogger({
 const AggregatedMessagesSubscription = () => {
   // Ref to track if we've already run the cleanup
   const initRunRef = useRef(false);
+  const lastForegroundCatchupAtRef = useRef(0);
 
   // Aggregated messages subscription
   const {
     data: messagesData,
     error: messagesError,
     loading,
+    refetch,
   } = useStreamQueryWithSubscription(
     AGGREGATED_MESSAGES_QUERY,
     AGGREGATED_MESSAGES_SUBSCRIPTION,
@@ -46,6 +49,37 @@ const AggregatedMessagesSubscription = () => {
       refetchOnReconnect: true,
     },
   );
+
+  // Foreground catch-up: on mobile, WS can take time to resume after background.
+  // Do a lightweight refresh shortly after the app becomes active.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+
+      const now = Date.now();
+      // Avoid spamming refetches if the app toggles state quickly.
+      if (now - lastForegroundCatchupAtRef.current < 15_000) return;
+      lastForegroundCatchupAtRef.current = now;
+
+      if (!refetch) return;
+      try {
+        messagesLogger.info(
+          "Foreground catch-up: refetching aggregated messages",
+        );
+        Promise.resolve()
+          .then(() => refetch())
+          .catch((e) => {
+            messagesLogger.warn("Foreground catch-up refetch failed", {
+              error: e?.message,
+            });
+          });
+      } catch (_e) {
+        // ignore
+      }
+    });
+
+    return () => sub.remove();
+  }, [refetch]);
 
   // Update loading state
   useEffect(() => {
