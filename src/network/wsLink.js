@@ -11,8 +11,15 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
     service: "graphql",
   });
 
+  const getTokenFingerprint = (token) => {
+    if (!token || typeof token !== "string") return null;
+    // Avoid logging full secrets; this is only for comparing changes.
+    return token.slice(-8);
+  };
+
   let activeSocket, pingTimeout;
   let lastConnectionHadToken = false;
+  let lastConnectionTokenFingerprint = null;
   let lastTokenRestartAt = 0;
 
   // If we connect before auth is ready, Hasura will treat the whole WS session as unauthenticated
@@ -35,6 +42,7 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
       const headers = {};
 
       lastConnectionHadToken = !!userToken;
+      lastConnectionTokenFingerprint = getTokenFingerprint(userToken);
 
       // Important: only attach Authorization when we have a real token.
       // Sending `Authorization: Bearer undefined` breaks WS auth on some backends.
@@ -176,8 +184,16 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
       (s) => s?.userToken,
       (userToken) => {
         if (!userToken) return;
-        if (lastConnectionHadToken) return;
         if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) return;
+
+        const nextFingerprint = getTokenFingerprint(userToken);
+        const tokenChanged =
+          !!nextFingerprint &&
+          nextFingerprint !== lastConnectionTokenFingerprint;
+
+        // If we are connected without a token OR the token changed while the socket is open,
+        // restart the transport so the new token is applied at `connection_init`.
+        if (lastConnectionHadToken && !tokenChanged) return;
 
         const now = Date.now();
         if (now - lastTokenRestartAt < TOKEN_RESTART_MIN_INTERVAL_MS) return;
@@ -185,9 +201,13 @@ export default function createWsLink({ store, GRAPHQL_WS_URL }) {
         lastTokenRestartAt = now;
         networkActions.WSRecoveryTouch();
         wsLogger.warn(
-          "Auth token became available; restarting unauthenticated WS",
+          tokenChanged
+            ? "Auth token changed; restarting WS to apply new token"
+            : "Auth token became available; restarting unauthenticated WS",
           {
             url: GRAPHQL_WS_URL,
+            previousTokenFingerprint: lastConnectionTokenFingerprint,
+            nextTokenFingerprint: nextFingerprint,
           },
         );
         try {
