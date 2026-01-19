@@ -55,6 +55,8 @@ export default function useStreamQueryWithSubscription(
   // State to force re-render and retry subscription
   const [retryTrigger, setRetryTrigger] = useState(0);
   const [reconnectSyncTrigger, setReconnectSyncTrigger] = useState(0);
+  // State to force a resubscribe when returning to foreground (mobile lock/unlock).
+  const [foregroundKick, setForegroundKick] = useState(0);
 
   const variableHashRef = useRef(JSON.stringify(variables));
   const lastCursorRef = useRef(initialCursor);
@@ -69,12 +71,16 @@ export default function useStreamQueryWithSubscription(
   // We deliberately do NOT put these in the subscribe effect dependency array.
   const contextRef = useRef(context);
   const shouldIncludeItemRef = useRef(shouldIncludeItem);
+  const subscriptionKeyRef = useRef(subscriptionKey);
   useEffect(() => {
     contextRef.current = context;
   }, [context]);
   useEffect(() => {
     shouldIncludeItemRef.current = shouldIncludeItem;
   }, [shouldIncludeItem]);
+  useEffect(() => {
+    subscriptionKeyRef.current = subscriptionKey;
+  }, [subscriptionKey]);
 
   // Per-subscription liveness watchdog: if WS is connected but this subscription
   // hasn't delivered any payload for some time, trigger a resubscribe.
@@ -87,6 +93,8 @@ export default function useStreamQueryWithSubscription(
   const wsLastHeartbeatDateRef = useRef(wsLastHeartbeatDate);
   const appStateRef = useRef(AppState.currentState);
   const wsLastRecoveryDateRef = useRef(wsLastRecoveryDate);
+  const lastBecameInactiveAtRef = useRef(null);
+  const lastForegroundKickAtRef = useRef(0);
 
   // Optional refetch-on-reconnect support.
   // Goal: if WS was reconnected (wsClosedDate changes), force a base refetch once before resubscribing
@@ -104,12 +112,56 @@ export default function useStreamQueryWithSubscription(
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
+      const now = Date.now();
       appStateRef.current = next;
+
+      if (next === "background" || next === "inactive") {
+        lastBecameInactiveAtRef.current = now;
+        return;
+      }
+
       if (next === "active") {
+        const becameInactiveAt = lastBecameInactiveAtRef.current;
+        const inactiveMs = becameInactiveAt ? now - becameInactiveAt : null;
+
         // Timers may have been paused/throttled; reset stale timers to avoid false kicks.
-        lastSubscriptionDataAtRef.current = Date.now();
+        lastSubscriptionDataAtRef.current = now;
         lastLivenessKickAtRef.current = 0;
         consecutiveStaleKicksRef.current = 0;
+
+        // Some devices keep the WS transport "connected" after a lock/unlock, but the
+        // per-operation subscription stops delivering. Trigger a controlled resubscribe.
+        const FOREGROUND_KICK_MIN_INACTIVE_MS = 3_000;
+        const FOREGROUND_KICK_MIN_INTERVAL_MS = 15_000;
+
+        if (
+          typeof inactiveMs === "number" &&
+          inactiveMs >= FOREGROUND_KICK_MIN_INACTIVE_MS
+        ) {
+          if (
+            now - lastForegroundKickAtRef.current >=
+            FOREGROUND_KICK_MIN_INTERVAL_MS
+          ) {
+            lastForegroundKickAtRef.current = now;
+            try {
+              Sentry.addBreadcrumb({
+                category: "graphql-subscription",
+                level: "info",
+                message: "foreground resubscribe kick",
+                data: {
+                  subscriptionKey: subscriptionKeyRef.current,
+                  inactiveMs,
+                },
+              });
+            } catch (_e) {
+              // ignore
+            }
+            console.log(
+              `[${subscriptionKeyRef.current}] Foreground resubscribe kick (inactiveMs=${inactiveMs})`,
+            );
+            setForegroundKick((x) => x + 1);
+          }
+        }
       }
     });
     return () => sub.remove();
@@ -513,7 +565,12 @@ export default function useStreamQueryWithSubscription(
     //  - either initial setup not done yet
     //  - or a new wsClosedDate (WS reconnect)
     //  - or a retry trigger
-    if (initialSetupDoneRef.current && !wsClosedDate && retryTrigger === 0) {
+    if (
+      initialSetupDoneRef.current &&
+      !wsClosedDate &&
+      retryTrigger === 0 &&
+      foregroundKick === 0
+    ) {
       return;
     }
 
@@ -794,6 +851,7 @@ export default function useStreamQueryWithSubscription(
     cursorKey,
     subscriptionKey,
     retryTrigger,
+    foregroundKick,
     maxRetries,
     livenessStaleMs,
     livenessCheckEveryMs,
