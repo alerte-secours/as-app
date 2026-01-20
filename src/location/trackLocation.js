@@ -21,6 +21,7 @@ import env from "~/env";
 
 import {
   BASE_GEOLOCATION_CONFIG,
+  BASE_GEOLOCATION_INVARIANTS,
   TRACKING_PROFILES,
 } from "~/location/backgroundGeolocationConfig";
 import {
@@ -129,6 +130,8 @@ export default function trackLocation() {
       }
       if (currentProfile === profileName) return;
 
+      const applyStartedAt = Date.now();
+
       const profile = TRACKING_PROFILES[profileName];
       if (!profile) {
         locationLogger.warn("Unknown tracking profile", { profileName });
@@ -147,14 +150,71 @@ export default function trackLocation() {
 
         // Motion state strategy:
         // - ACTIVE: force moving to begin aggressive tracking immediately.
-        // - IDLE: do NOT force stationary.  Let the SDK's motion detection manage
-        //   moving/stationary transitions so we still get distance-based updates
-        //   (target: new point when moved ~50m+ even without an open alert).
+        // - IDLE: ensure we are not stuck in moving mode from a prior ACTIVE session.
+        //   We explicitly exit moving mode to avoid periodic drift-generated locations
+        //   being produced + uploaded while the user is stationary (reported on Android).
+        //   After that, let the SDK's motion detection manage moving/stationary
+        //   transitions so we still get distance-based updates when the user truly moves.
         if (profileName === "active") {
-          await BackgroundGeolocation.changePace(true);
+          const state = await BackgroundGeolocation.getState();
+          if (!state?.isMoving) {
+            await BackgroundGeolocation.changePace(true);
+          }
+
+          // Guarantee a rapid first fix for ACTIVE: request a high-accuracy persisted location
+          // immediately after entering moving mode.  This is preferred over relying solely on
+          // motion-detection / distanceFilter to produce the first point.
+          try {
+            const beforeFix = Date.now();
+            const fix = await BackgroundGeolocation.getCurrentPosition({
+              samples: 3,
+              persist: true,
+              timeout: 30,
+              maximumAge: 0,
+              desiredAccuracy: 10,
+              extras: {
+                active_profile_enter: true,
+              },
+            });
+            locationLogger.info("ACTIVE immediate fix acquired", {
+              ms: Date.now() - beforeFix,
+              accuracy: fix?.coords?.accuracy,
+              latitude: fix?.coords?.latitude,
+              longitude: fix?.coords?.longitude,
+              timestamp: fix?.timestamp,
+            });
+          } catch (error) {
+            locationLogger.warn("ACTIVE immediate fix failed", {
+              error: error?.message,
+              code: error?.code,
+              stack: error?.stack,
+            });
+          }
+        } else {
+          const state = await BackgroundGeolocation.getState();
+          if (state?.isMoving) {
+            await BackgroundGeolocation.changePace(false);
+          }
         }
 
         currentProfile = profileName;
+
+        try {
+          const state = await BackgroundGeolocation.getState();
+          locationLogger.info("Tracking profile applied", {
+            profileName,
+            ms: Date.now() - applyStartedAt,
+            enabled: state?.enabled,
+            isMoving: state?.isMoving,
+            trackingMode: state?.trackingMode,
+          });
+        } catch (e) {
+          locationLogger.debug("Tracking profile applied (state unavailable)", {
+            profileName,
+            ms: Date.now() - applyStartedAt,
+            error: e?.message,
+          });
+        }
       } catch (error) {
         locationLogger.error("Failed to apply tracking profile", {
           profileName,
@@ -338,6 +398,40 @@ export default function trackLocation() {
           status: response?.status,
           responseText: response?.responseText,
         });
+
+        // Instrumentation: when we see periodic HTTP without a corresponding location event,
+        // we want to know if BGGeo is retrying an upload queue or flushing new records.
+        // This helps diagnose reports like "server receives updates every ~5 minutes while stationary".
+        try {
+          const [state, count] = await Promise.all([
+            BackgroundGeolocation.getState(),
+            BackgroundGeolocation.getCount(),
+          ]);
+          locationLogger.debug("HTTP instrumentation", {
+            enabled: state?.enabled,
+            isMoving: state?.isMoving,
+            trackingMode: state?.trackingMode,
+            schedulerEnabled: state?.schedulerEnabled,
+            pendingCount: count,
+          });
+        } catch (e) {
+          locationLogger.warn("Failed HTTP instrumentation", {
+            error: e?.message,
+          });
+        }
+      },
+      onHeartbeat: (event) => {
+        // If heartbeat is configured, it can trigger sync attempts even without new locations.
+        locationLogger.info("Heartbeat", {
+          enabled: event?.state?.enabled,
+          isMoving: event?.state?.isMoving,
+          location: event?.location?.coords,
+        });
+      },
+      onSchedule: (event) => {
+        locationLogger.info("Schedule", {
+          state: event?.state,
+        });
       },
       onMotionChange: (event) => {
         locationLogger.info("Motion change", {
@@ -373,6 +467,17 @@ export default function trackLocation() {
     try {
       locationLogger.info("Initializing background geolocation");
       await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+
+      // Ensure critical config cannot drift due to persisted plugin state.
+      // (We intentionally keep auth headers separate and set them in handleAuth.)
+      try {
+        await BackgroundGeolocation.setConfig(BASE_GEOLOCATION_INVARIANTS);
+      } catch (e) {
+        locationLogger.warn("Failed to apply BGGeo base invariants", {
+          error: e?.message,
+          stack: e?.stack,
+        });
+      }
 
       // Only set the permission state if we already have the permission
       const state = await BackgroundGeolocation.getState();

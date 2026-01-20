@@ -54,6 +54,8 @@ export function setBackgroundGeolocationEventHandlers({
   onLocation,
   onLocationError,
   onHttp,
+  onHeartbeat,
+  onSchedule,
   onMotionChange,
   onActivityChange,
   onProviderChange,
@@ -65,6 +67,8 @@ export function setBackgroundGeolocationEventHandlers({
   const sig = [
     onLocation ? "L1" : "L0",
     onHttp ? "H1" : "H0",
+    onHeartbeat ? "HB1" : "HB0",
+    onSchedule ? "S1" : "S0",
     onMotionChange ? "M1" : "M0",
     onActivityChange ? "A1" : "A0",
     onProviderChange ? "P1" : "P0",
@@ -85,6 +89,22 @@ export function setBackgroundGeolocationEventHandlers({
   }
   if (onHttp) {
     subscriptions.push(BackgroundGeolocation.onHttp(onHttp));
+  }
+
+  if (onHeartbeat) {
+    if (typeof BackgroundGeolocation.onHeartbeat === "function") {
+      subscriptions.push(BackgroundGeolocation.onHeartbeat(onHeartbeat));
+    } else {
+      bgGeoLogger.warn("BackgroundGeolocation.onHeartbeat is not available");
+    }
+  }
+
+  if (onSchedule) {
+    if (typeof BackgroundGeolocation.onSchedule === "function") {
+      subscriptions.push(BackgroundGeolocation.onSchedule(onSchedule));
+    } else {
+      bgGeoLogger.warn("BackgroundGeolocation.onSchedule is not available");
+    }
   }
   if (onMotionChange) {
     subscriptions.push(BackgroundGeolocation.onMotionChange(onMotionChange));

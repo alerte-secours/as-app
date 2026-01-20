@@ -1,9 +1,12 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
-import { TRACK_MOVE } from "~/misc/devicePrefs";
 import env from "~/env";
 
 // Common config: keep always-on tracking enabled, but default to an IDLE low-power profile.
 // High-accuracy and moving mode are enabled only when an active alert is open.
+//
+// Product goals:
+// - IDLE (no open alert): minimize battery; server updates are acceptable only on OS-level significant movement.
+// - ACTIVE (open alert): first location should reach server within seconds, then continuous distance-based updates.
 //
 // Notes:
 // - We avoid `reset: true` in production because it can unintentionally wipe persisted / configured state.
@@ -18,10 +21,21 @@ export const BASE_GEOLOCATION_CONFIG = {
 
   // Default to the IDLE profile behaviour: we still want distance-based updates
   // even with no open alert (see TRACKING_PROFILES.idle).
-  distanceFilter: 50,
+  distanceFilter: 200,
+
+  // Activity-recognition stop-detection.
+  // NOTE: Transistorsoft defaults `stopTimeout` to 5 minutes (see
+  // [`node_modules/react-native-background-geolocation/src/declarations/interfaces/Config.d.ts:79`](node_modules/react-native-background-geolocation/src/declarations/interfaces/Config.d.ts:79)).
+  // We keep the default in BASE and override it in the IDLE profile to reduce
+  // 5-minute stationary cycles observed on Android.
+  stopTimeout: 5,
 
   // debug: true,
-  logLevel: BackgroundGeolocation.LOG_LEVEL_VERBOSE,
+  // Logging can become large and also adds overhead; keep verbose logs to dev/staging.
+  logLevel:
+    __DEV__ || env.IS_STAGING
+      ? BackgroundGeolocation.LOG_LEVEL_VERBOSE
+      : BackgroundGeolocation.LOG_LEVEL_ERROR,
 
   // Permission request strategy
   locationAuthorizationRequest: "Always",
@@ -31,7 +45,9 @@ export const BASE_GEOLOCATION_CONFIG = {
   startOnBoot: true,
 
   // Background scheduling
-  heartbeatInterval: 3600,
+  // Disable heartbeats by default to avoid periodic background wakeups while stationary.
+  // ACTIVE profile will explicitly enable a fast heartbeat when needed.
+  heartbeatInterval: 0,
 
   // Android foreground service
   foregroundService: true,
@@ -71,15 +87,52 @@ export const BASE_GEOLOCATION_CONFIG = {
   disableProviderChangeRecord: true,
 };
 
+// Options we want to be stable across launches even when the plugin loads a persisted config.
+// NOTE: We intentionally do *not* include HTTP auth headers here.
+export const BASE_GEOLOCATION_INVARIANTS = {
+  enableHeadless: true,
+  stopOnTerminate: false,
+  startOnBoot: true,
+  foregroundService: true,
+  disableProviderChangeRecord: true,
+  // Filter extreme GPS teleports that can create false uploads while stationary.
+  // Units: meters/second. 100 m/s ~= 360 km/h.
+  speedJumpFilter: 100,
+  method: "POST",
+  httpRootProperty: "location",
+  maxRecordsToPersist: 1000,
+  maxDaysToPersist: 7,
+};
+
 export const TRACKING_PROFILES = {
   idle: {
     desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
-    distanceFilter: 50,
-    heartbeatInterval: 3600,
+    // Max battery-saving strategy for IDLE:
+    // Use Android/iOS low-power significant-change tracking where the OS produces
+    // only periodic fixes (several times/hour).  Note many config options like
+    // `distanceFilter` / `stationaryRadius` are documented as having little/no
+    // effect in this mode.
+    useSignificantChangesOnly: true,
+
+    // Defensive: if some devices/platform conditions fall back to standard tracking,
+    // keep the distanceFilter conservative to avoid battery drain.
+    distanceFilter: 200,
+
+    // Keep the default stop-detection timing (minutes).  In significant-changes
+    // mode, stop-detection is not the primary driver of updates.
+    stopTimeout: 5,
+
+    // No periodic wakeups while idle.
+    heartbeatInterval: 0,
   },
   active: {
     desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
-    distanceFilter: TRACK_MOVE,
-    heartbeatInterval: 900,
+    // Ensure we exit significant-changes mode when switching from IDLE.
+    useSignificantChangesOnly: false,
+    distanceFilter: 50,
+    heartbeatInterval: 60,
+
+    // Keep default responsiveness during an active alert.
+    stopTimeout: 5,
   },
 };
