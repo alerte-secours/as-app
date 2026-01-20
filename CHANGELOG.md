@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.4](https://github.com/alerte-secours/as-app/compare/v1.16.3...v1.16.4) (2026-01-20)
+
+
+### Bug Fixes
+
+* **audio-message:** iOS regression ([5951f36](https://github.com/alerte-secours/as-app/commit/5951f36291ce9bc7837084b309786e5ff0dfc9fe))
+* **audio-messaging:** android + fix dark theme label ([a69321f](https://github.com/alerte-secours/as-app/commit/a69321f82e19bb199ce8655fe5dc7eac187fcda9))
+* chat subscription hangs up ([aade47b](https://github.com/alerte-secours/as-app/commit/aade47beb376a8736acbe975a479350dbd3b5e69))
+* **ws:** stabilization try 2 ([239ca4d](https://github.com/alerte-secours/as-app/commit/239ca4d86d78a9f74a78bde74a6bc84f96830e21))
+* **ws:** stabilization try 3 ([6e71707](https://github.com/alerte-secours/as-app/commit/6e717077f9acc2cbb853b5bf2f09bc3463a0a861))
+* **ws:** stabilization try 4 ([f7656be](https://github.com/alerte-secours/as-app/commit/f7656beb1aa4fc4ed504876252ac4ecc5dae4c1e))
+* **ws:** stabilization try 5 ([ef643f7](https://github.com/alerte-secours/as-app/commit/ef643f77cb5f88235a1f92ecd5292c8844124b3e))
+* **ws:** stabilization try 6 + typo ([5dfb064](https://github.com/alerte-secours/as-app/commit/5dfb064c2cda2f1a1ca9346d6d659d8339a25af9))
+* **ws:** stabilization try 7 ([42d5b18](https://github.com/alerte-secours/as-app/commit/42d5b18b35577eb438f64b38d309f65ea30b7e3f))
+
 ## [1.16.3](https://github.com/alerte-secours/as-app/compare/v1.16.2...v1.16.3) (2026-01-15)
 
 
