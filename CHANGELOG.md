@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.5](https://github.com/alerte-secours/as-app/compare/v1.16.4...v1.16.5) (2026-01-20)
+
+
+### Bug Fixes
+
+* **android:** track location battery saving ([a2acbb6](https://github.com/alerte-secours/as-app/commit/a2acbb6d0b19d36803b4130c7360ba0a090ee5cb))
+
 ## [1.16.4](https://github.com/alerte-secours/as-app/compare/v1.16.3...v1.16.4) (2026-01-20)
 
 
