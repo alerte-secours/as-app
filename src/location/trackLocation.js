@@ -45,19 +45,169 @@ export default function trackLocation() {
     let stopAlertSubscription = null;
     let stopSessionSubscription = null;
 
+    // Pre-login behavior: keep BGGeo running (so we can collect a first point), but disable
+    // uploads until we have an auth token.
+    let didDisableUploadsForAnonymous = false;
+    let didSyncAfterAuth = false;
+    let didSyncAfterStartupFix = false;
+
+    // Track identity so we can force a first geopoint when the effective user changes.
+    let lastSessionUserId = null;
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const safeSync = async (reason) => {
+      // Sync can fail transiently (SDK busy, network warming up, etc).  Retry a few times.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const [state, pendingBefore] = await Promise.all([
+            BackgroundGeolocation.getState(),
+            BackgroundGeolocation.getCount(),
+          ]);
+
+          locationLogger.info("Attempting BGGeo sync", {
+            reason,
+            attempt,
+            enabled: state?.enabled,
+            isMoving: state?.isMoving,
+            trackingMode: state?.trackingMode,
+            pendingBefore,
+          });
+
+          const records = await BackgroundGeolocation.sync();
+          const pendingAfter = await BackgroundGeolocation.getCount();
+
+          locationLogger.info("BGGeo sync success", {
+            reason,
+            attempt,
+            synced: records?.length,
+            pendingAfter,
+          });
+          return true;
+        } catch (e) {
+          const msg =
+            typeof e === "string"
+              ? e
+              : e?.message || e?.error || JSON.stringify(e);
+          locationLogger.warn("BGGeo sync failed", {
+            reason,
+            attempt,
+            error: msg,
+            stack: e?.stack,
+          });
+          await sleep(attempt * 1000);
+        }
+      }
+      return false;
+    };
+
+    const requestIdentityPersistedFixAndSync = async ({ reason, userId }) => {
+      try {
+        const t0 = Date.now();
+        const location = await BackgroundGeolocation.getCurrentPosition({
+          samples: 1,
+          persist: true,
+          timeout: 30,
+          maximumAge: 0,
+          desiredAccuracy: 50,
+          extras: {
+            identity_fix: true,
+            identity_reason: reason,
+            session_user_id: userId,
+          },
+        });
+        locationLogger.info("Identity persisted fix acquired", {
+          reason,
+          userId,
+          ms: Date.now() - t0,
+          accuracy: location?.coords?.accuracy,
+          latitude: location?.coords?.latitude,
+          longitude: location?.coords?.longitude,
+          timestamp: location?.timestamp,
+        });
+      } catch (e) {
+        locationLogger.warn("Identity persisted fix failed", {
+          reason,
+          userId,
+          error: e?.message,
+          stack: e?.stack,
+        });
+      }
+
+      await safeSync(`identity-fix:${reason}`);
+    };
+
     // One-off startup refresh: when tracking is enabled at app launch, fetch a fresh fix once.
     // This follows Transistorsoft docs guidance to use getCurrentPosition rather than forcing
     // the SDK into moving mode with changePace(true).
     let didRequestStartupFix = false;
     let startupFixInFlight = null;
 
+    // Startup fix should be persisted so it can be auto-synced immediately (user expects
+    // to appear on server soon after first app open).  This is intentionally different
+    // from auth-refresh fixes, which are non-persisted to avoid unlock/resume noise.
+    const requestStartupPersistedFix = async () => {
+      try {
+        const before = await BackgroundGeolocation.getState();
+        locationLogger.info("Requesting startup persisted location fix", {
+          enabled: before.enabled,
+          trackingMode: before.trackingMode,
+          isMoving: before.isMoving,
+        });
+
+        const t0 = Date.now();
+        const location = await BackgroundGeolocation.getCurrentPosition({
+          samples: 1,
+          persist: true,
+          timeout: 30,
+          maximumAge: 10000,
+          desiredAccuracy: 100,
+          extras: {
+            startup_fix: true,
+          },
+        });
+
+        locationLogger.info("Startup persisted fix acquired", {
+          ms: Date.now() - t0,
+          accuracy: location?.coords?.accuracy,
+          latitude: location?.coords?.latitude,
+          longitude: location?.coords?.longitude,
+          timestamp: location?.timestamp,
+        });
+
+        // If uploads are currently disabled (pre-login), we'll flush this record once auth
+        // becomes available.
+
+        // If uploads are enabled, proactively flush now to guarantee server receives the
+        // first point quickly even if the SDK doesn't auto-sync immediately.
+        if (authReady && !didSyncAfterStartupFix) {
+          const ok = await safeSync("startup-fix");
+          if (ok) didSyncAfterStartupFix = true;
+        }
+      } catch (error) {
+        locationLogger.warn("Startup persisted fix failed", {
+          error: error?.message,
+          code: error?.code,
+          stack: error?.stack,
+        });
+      }
+    };
+
     // When auth changes, we want a fresh persisted point for the newly effective identity.
     // Debounced to avoid spamming `getCurrentPosition` if auth updates quickly (refresh/renew).
     let authFixDebounceTimerId = null;
     let authFixInFlight = null;
     const AUTH_FIX_DEBOUNCE_MS = 1500;
+    const AUTH_FIX_COOLDOWN_MS = 15 * 60 * 1000;
+    let lastAuthFixAt = 0;
 
     const scheduleAuthFreshFix = () => {
+      // Avoid generating persisted + auto-synced locations as a side-effect of frequent
+      // auth refreshes (eg app resume / screen unlock).
+      if (Date.now() - lastAuthFixAt < AUTH_FIX_COOLDOWN_MS) {
+        return authFixInFlight;
+      }
+
       if (authFixDebounceTimerId) {
         clearTimeout(authFixDebounceTimerId);
         authFixDebounceTimerId = null;
@@ -74,16 +224,38 @@ export default function trackLocation() {
             isMoving: before.isMoving,
           });
 
+          // If we're already in ACTIVE, the profile transition will request an immediate
+          // high-accuracy persisted fix.  Avoid duplicating work here.
+          if (currentProfile === "active") {
+            return;
+          }
+
           const location = await BackgroundGeolocation.getCurrentPosition({
-            samples: 3,
-            persist: true,
-            timeout: 30,
-            maximumAge: 5000,
-            desiredAccuracy: 50,
+            samples: 1,
+            // IMPORTANT: do not persist by default.
+            // Persisting will create a DB record and the SDK may upload it on resume,
+            // which is the source of "updates while not moved" on some devices.
+            persist: false,
+            timeout: 20,
+            maximumAge: 10000,
+            desiredAccuracy: 100,
             extras: {
               auth_token_update: true,
             },
           });
+
+          // If the fix is very poor accuracy, treat it as noise and do nothing.
+          // (We intentionally do not persist in this path.)
+          const acc = location?.coords?.accuracy;
+          if (typeof acc === "number" && acc > 100) {
+            locationLogger.info(
+              "Auth-change fix ignored due to poor accuracy",
+              {
+                accuracy: acc,
+              },
+            );
+            return;
+          }
 
           locationLogger.info("Auth-change location fix acquired", {
             accuracy: location?.coords?.accuracy,
@@ -91,6 +263,8 @@ export default function trackLocation() {
             longitude: location?.coords?.longitude,
             timestamp: location?.timestamp,
           });
+
+          lastAuthFixAt = Date.now();
         } catch (error) {
           locationLogger.warn("Auth-change location fix failed", {
             error: error?.message,
@@ -238,25 +412,52 @@ export default function trackLocation() {
       locationLogger.info("Handling auth token update", {
         hasToken: !!userToken,
       });
-      if (!userToken) {
-        locationLogger.info("No auth token, stopping location tracking");
 
-        // Prevent any further uploads before stopping.
-        // This guards against persisted HTTP config continuing to flush queued records.
+      // Compute identity from session store; this is our source of truth.
+      // (A token refresh for the same user should not force a new persisted fix.)
+      let currentSessionUserId = null;
+      try {
+        currentSessionUserId = getSessionState()?.userId ?? null;
+      } catch (e) {
+        currentSessionUserId = null;
+      }
+      if (!userToken) {
+        // Pre-login mode: keep tracking enabled but disable uploads.
+        // Also applies to logout: keep tracking on (per product requirement: track all the time),
+        // but stop sending anything to server without auth.
+        locationLogger.info(
+          "No auth token: disabling BGGeo uploads (keeping tracking on)",
+        );
+
         try {
           await BackgroundGeolocation.setConfig({
             url: "",
             autoSync: false,
             headers: {},
           });
+          didDisableUploadsForAnonymous = true;
+          didSyncAfterAuth = false;
         } catch (e) {
-          locationLogger.warn("Failed to clear BGGeo HTTP config on logout", {
+          locationLogger.warn("Failed to disable BGGeo uploads (anonymous)", {
             error: e?.message,
           });
         }
 
-        await BackgroundGeolocation.stop();
-        locationLogger.debug("Location tracking stopped");
+        const state = await BackgroundGeolocation.getState();
+        if (!state.enabled) {
+          try {
+            await BackgroundGeolocation.start();
+            locationLogger.debug("Location tracking started in anonymous mode");
+          } catch (error) {
+            locationLogger.error(
+              "Failed to start location tracking in anonymous mode",
+              {
+                error: error.message,
+                stack: error.stack,
+              },
+            );
+          }
+        }
 
         // Cleanup subscriptions when logged out.
         try {
@@ -275,12 +476,22 @@ export default function trackLocation() {
           authFixDebounceTimerId = null;
         }
         authFixInFlight = null;
+
+        // Still request a one-time persisted fix at startup in anonymous mode so we have
+        // something to flush immediately after auth.
+        if (!didRequestStartupFix) {
+          didRequestStartupFix = true;
+          startupFixInFlight = requestStartupPersistedFix();
+        }
+
+        lastSessionUserId = null;
         return;
       }
       // unsub();
       locationLogger.debug("Updating background geolocation config");
       await BackgroundGeolocation.setConfig({
         url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
+        autoSync: true,
         headers: {
           Authorization: `Bearer ${userToken}`,
         },
@@ -320,6 +531,38 @@ export default function trackLocation() {
         }
       }
 
+      // If identity has changed (including first login), force a persisted fix for this identity
+      // and sync immediately so the new identity has an immediate first geopoint.
+      if (currentSessionUserId && currentSessionUserId !== lastSessionUserId) {
+        const reason = lastSessionUserId ? "user-switch" : "first-login";
+        locationLogger.info("Identity change detected", {
+          reason,
+          from: lastSessionUserId,
+          to: currentSessionUserId,
+        });
+        lastSessionUserId = currentSessionUserId;
+        await requestIdentityPersistedFixAndSync({
+          reason,
+          userId: currentSessionUserId,
+        });
+      }
+
+      // If we were previously in anonymous mode, flush any queued persisted locations now.
+      if (didDisableUploadsForAnonymous && !didSyncAfterAuth) {
+        try {
+          if (startupFixInFlight) {
+            await startupFixInFlight;
+          }
+          const ok = await safeSync("pre-auth-flush");
+          didSyncAfterAuth = ok;
+        } catch (e) {
+          locationLogger.warn("Pre-auth flush failed", {
+            error: e?.message,
+            stack: e?.stack,
+          });
+        }
+      }
+
       // Always request a fresh persisted point on any token update.
       // This ensures a newly connected user gets an immediate point even if they don't move.
       scheduleAuthFreshFix();
@@ -329,7 +572,7 @@ export default function trackLocation() {
       // - We do NOT force moving mode.
       if (!didRequestStartupFix) {
         didRequestStartupFix = true;
-        startupFixInFlight = scheduleAuthFreshFix();
+        startupFixInFlight = requestStartupPersistedFix();
       } else if (authFixInFlight) {
         // Avoid concurrent fix calls if auth updates race.
         await authFixInFlight;
