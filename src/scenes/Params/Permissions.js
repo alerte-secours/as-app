@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   TouchableOpacity,
@@ -309,8 +309,10 @@ const PermissionItem = ({
 };
 
 export default function Permissions() {
-  // Create permissions list based on platform
-  const getPermissionsList = () => {
+  // IMPORTANT: keep a stable permissions list across renders.
+  // If this array changes identity each render, it re-creates callbacks and can
+  // trigger a re-render loop via permission checks + store updates.
+  const permissionsList = useMemo(() => {
     const basePermissions = [
       "fcm",
       "phoneCall",
@@ -319,29 +321,31 @@ export default function Permissions() {
       "motion",
       "readContacts",
     ];
-
-    // Add battery optimization only on Android
-    if (Platform.OS === "android") {
-      return [...basePermissions, "batteryOptimizationDisabled"];
-    }
-
-    return basePermissions;
-  };
-
-  const permissionsList = getPermissionsList();
+    return Platform.OS === "android"
+      ? [...basePermissions, "batteryOptimizationDisabled"]
+      : basePermissions;
+  }, []);
   const permissionsState = usePermissionsState(permissionsList);
 
   const titleRef = useRef(null);
   const lastAnnouncementRef = useRef({});
+  const lastSetPermissionRef = useRef({});
+  const lastBlockedMapRef = useRef(null);
 
   // We keep a minimal, best-effort blocked map for a11y/UX.
   const [blockedMap, setBlockedMap] = React.useState({});
 
-  // Memoize the check permissions function
+  // Memoize the check permissions function.
+  // NOTE: Do NOT depend on permissionsState here (it changes on each store update),
+  // or we can re-run effects and create a log spam loop.
   const checkAllPermissions = useCallback(async () => {
+    // Update store only when values actually change, to avoid churn.
     for (const permission of permissionsList) {
       const status = await checkPermissionStatus(permission);
-      setPermissions[permission](status);
+      if (lastSetPermissionRef.current[permission] !== status) {
+        lastSetPermissionRef.current[permission] = status;
+        setPermissions[permission](status);
+      }
     }
 
     // Also refresh "blocked" state used for a11y guidance.
@@ -350,7 +354,13 @@ export default function Permissions() {
       const meta = await getPermissionA11yMeta(permission);
       nextBlocked[permission] = !!meta.blocked;
     }
-    setBlockedMap(nextBlocked);
+
+    // Avoid re-setting state if unchanged (prevents extra re-renders).
+    const nextBlockedKey = JSON.stringify(nextBlocked);
+    if (lastBlockedMapRef.current !== nextBlockedKey) {
+      lastBlockedMapRef.current = nextBlockedKey;
+      setBlockedMap(nextBlocked);
+    }
   }, [permissionsList]);
 
   // Check all permissions when component mounts
