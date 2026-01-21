@@ -1,4 +1,5 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
+import { Platform } from "react-native";
 import env from "~/env";
 
 // Common config: keep always-on tracking enabled, but default to an IDLE low-power profile.
@@ -112,11 +113,18 @@ export const TRACKING_PROFILES = {
     // only periodic fixes (several times/hour).  Note many config options like
     // `distanceFilter` / `stationaryRadius` are documented as having little/no
     // effect in this mode.
-    useSignificantChangesOnly: true,
+    // Some iOS devices / user settings can result in unreliable significant-change wakeups.
+    // We keep SLC for Android (battery), but fall back to standard motion tracking on iOS
+    // with a conservative distanceFilter.
+    useSignificantChangesOnly: Platform.OS !== "ios",
 
     // Defensive: if some devices/platform conditions fall back to standard tracking,
     // keep the distanceFilter conservative to avoid battery drain.
     distanceFilter: 200,
+
+    // Android-only: reduce false-positive motion triggers due to screen-on/unlock.
+    // (This is ignored on iOS.)
+    motionTriggerDelay: 30000,
 
     // Keep the default stop-detection timing (minutes).  In significant-changes
     // mode, stop-detection is not the primary driver of updates.
@@ -131,6 +139,9 @@ export const TRACKING_PROFILES = {
     useSignificantChangesOnly: false,
     distanceFilter: 50,
     heartbeatInterval: 60,
+
+    // Android-only: do not delay motion triggers while ACTIVE.
+    motionTriggerDelay: 0,
 
     // Keep default responsiveness during an active alert.
     stopTimeout: 5,
