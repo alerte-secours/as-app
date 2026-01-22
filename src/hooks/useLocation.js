@@ -26,6 +26,9 @@ export default function useLocation() {
   const [location, setLocation] = useState({ coords: DEFAULT_COORDS });
   const [isLastKnown, setIsLastKnown] = useState(false);
   const [lastKnownTimestamp, setLastKnownTimestamp] = useState(null);
+  // UI-facing realtime tracking (foreground).
+  // We intentionally keep this separate from BGGeo background tracking.
+  // Note: this watcher should be managed by screen lifecycle (mounted maps).
   const watcher = useRef();
   const timeoutRef = useRef();
   const isWatchingRef = useRef(false);
@@ -41,7 +44,6 @@ export default function useLocation() {
       await watcher.current.remove();
       watcher.current = null;
     }
-
     // Reset flags
     isWatchingRef.current = false;
     hasLocationRef.current = false;

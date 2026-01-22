@@ -1,9 +1,18 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
-import { Platform } from "react-native";
 import env from "~/env";
 
 // Common config: keep always-on tracking enabled, but default to an IDLE low-power profile.
-// High-accuracy and moving mode are enabled only when an active alert is open.
+// High-accuracy and tighter distance thresholds are enabled only when an active alert is open.
+//
+// Expected behavior (both Android + iOS):
+// - Foreground: locations recorded only after moving beyond `distanceFilter`.
+// - Background: same rule; native service continues even if JS is suspended.
+// - Terminated:
+//   - Android: native service continues (`stopOnTerminate:false`); JS headless is NOT required.
+//   - iOS: OS will relaunch app on significant movement / stationary-geofence exit.
+//
+// NOTE: We avoid creating persisted records from UI-only lookups (eg map refresh), since
+// persisted records can trigger native HTTP uploads even while stationary.
 //
 // Product goals:
 // - IDLE (no open alert): minimize battery; server updates are acceptable only on OS-level significant movement.
@@ -14,8 +23,10 @@ import env from "~/env";
 //   In dev, `reset: true` is useful to avoid config drift while iterating.
 // - `maxRecordsToPersist` must be > 1 to support offline catch-up.
 export const BASE_GEOLOCATION_CONFIG = {
-  // Android Headless Mode (requires registering a headless task entrypoint in index.js)
-  enableHeadless: true,
+  // Android Headless Mode
+  // We do not require JS execution while terminated.  Native tracking + native HTTP upload
+  // are sufficient for our needs (stopOnTerminate:false).
+  enableHeadless: false,
 
   // Default to low-power (idle) profile; will be overridden when needed.
   desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
@@ -27,8 +38,6 @@ export const BASE_GEOLOCATION_CONFIG = {
   // Activity-recognition stop-detection.
   // NOTE: Transistorsoft defaults `stopTimeout` to 5 minutes (see
   // [`node_modules/react-native-background-geolocation/src/declarations/interfaces/Config.d.ts:79`](node_modules/react-native-background-geolocation/src/declarations/interfaces/Config.d.ts:79)).
-  // We keep the default in BASE and override it in the IDLE profile to reduce
-  // 5-minute stationary cycles observed on Android.
   stopTimeout: 5,
 
   // debug: true,
@@ -70,19 +79,24 @@ export const BASE_GEOLOCATION_CONFIG = {
   },
 
   // HTTP configuration
-  url: env.GEOLOC_SYNC_URL,
+  // IMPORTANT: Default to uploads disabled until we have an auth token.
+  // Authenticated mode will set `url` + `Authorization` header and enable `autoSync`.
+  url: "",
   method: "POST",
   httpRootProperty: "location",
-  batchSync: false,
-  // We intentionally disable autoSync and perform controlled uploads from explicit triggers
-  // (startup, identity-change, moving-edge, active-alert). This prevents stationary "ghost"
-  // uploads from low-quality locations produced by some Android devices.
+  // Keep uploads simple: 1 location record -> 1 HTTP request.
+  // (We intentionally keep only the latest record; batching provides no benefit.)
   autoSync: false,
+  // Ensure no persisted config can keep batching/threshold behavior.
+  batchSync: false,
+  autoSyncThreshold: 0,
 
-  // Persistence: keep enough records for offline catch-up.
-  // (The SDK already constrains with maxDaysToPersist; records are deleted after successful upload.)
-  maxRecordsToPersist: 1000,
-  maxDaysToPersist: 7,
+  // Persistence
+  // Product requirement: keep only the latest geopoint.  This reduces on-device storage
+  // and avoids building up a queue.
+  // NOTE: This means we intentionally do not support offline catch-up of multiple points.
+  maxRecordsToPersist: 1,
+  maxDaysToPersist: 1,
 
   // Development convenience
   reset: !!__DEV__,
@@ -94,7 +108,7 @@ export const BASE_GEOLOCATION_CONFIG = {
 // Options we want to be stable across launches even when the plugin loads a persisted config.
 // NOTE: We intentionally do *not* include HTTP auth headers here.
 export const BASE_GEOLOCATION_INVARIANTS = {
-  enableHeadless: true,
+  enableHeadless: false,
   stopOnTerminate: false,
   startOnBoot: true,
   foregroundService: true,
@@ -105,48 +119,32 @@ export const BASE_GEOLOCATION_INVARIANTS = {
   method: "POST",
   httpRootProperty: "location",
   autoSync: false,
-  maxRecordsToPersist: 1000,
-  maxDaysToPersist: 7,
+  batchSync: false,
+  autoSyncThreshold: 0,
+  maxRecordsToPersist: 1,
+  maxDaysToPersist: 1,
 };
 
 export const TRACKING_PROFILES = {
   idle: {
     desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
-    // Max battery-saving strategy for IDLE:
-    // Use Android/iOS low-power significant-change tracking where the OS produces
-    // only periodic fixes (several times/hour).  Note many config options like
-    // `distanceFilter` / `stationaryRadius` are documented as having little/no
-    // effect in this mode.
-    // Some devices / OEMs can be unreliable with significant-change only.
-    // Use standard motion tracking for reliability, with conservative distanceFilter.
-    useSignificantChangesOnly: false,
-
-    // Defensive: if some devices/platform conditions fall back to standard tracking,
-    // keep the distanceFilter conservative to avoid battery drain.
+    // Defensive: keep the distanceFilter conservative to avoid battery drain.
     distanceFilter: 200,
+
+    // Keep the plugin's speed-based distanceFilter scaling enabled (default).
+    // This yields fewer updates as speed increases (highway speeds) and helps battery.
+    // We intentionally do NOT set `disableElasticity: true`.
 
     // Android-only: reduce false-positive motion triggers due to screen-on/unlock.
     // (This is ignored on iOS.)
     motionTriggerDelay: 30000,
-
-    // Keep the default stop-detection timing (minutes).  In significant-changes
-    // mode, stop-detection is not the primary driver of updates.
-    stopTimeout: 5,
-
-    // No periodic wakeups while idle.
-    heartbeatInterval: 0,
   },
   active: {
     desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
-    // Ensure we exit significant-changes mode when switching from IDLE.
-    useSignificantChangesOnly: false,
-    distanceFilter: 50,
-    heartbeatInterval: 60,
+    // ACTIVE target: frequent updates while moving.
+    distanceFilter: 25,
 
     // Android-only: do not delay motion triggers while ACTIVE.
     motionTriggerDelay: 0,
-
-    // Keep default responsiveness during an active alert.
-    stopTimeout: 5,
   },
 };

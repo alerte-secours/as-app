@@ -61,9 +61,11 @@ export async function getCurrentLocation() {
         return null;
       }
 
+      // UI lookup: do not persist. Persisting can create a DB record and trigger
+      // native HTTP upload even if the user has not moved.
       const location = await BackgroundGeolocation.getCurrentPosition({
         timeout: 30,
-        persist: true,
+        persist: false,
         maximumAge: 5000,
         desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
         samples: 1,

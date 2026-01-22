@@ -46,6 +46,8 @@ export default function Developer() {
   const [emulatorMode, setEmulatorMode] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null); // null, 'syncing', 'success', 'error'
   const [syncResult, setSyncResult] = useState("");
+  const [bgGeoStatus, setBgGeoStatus] = useState(null); // null, 'loading', 'success', 'error'
+  const [bgGeoResult, setBgGeoResult] = useState("");
   const [logLevel, setLogLevel] = useState(LOG_LEVELS.DEBUG);
 
   // Initialize emulator mode and log level when component mounts
@@ -80,21 +82,54 @@ export default function Developer() {
 
       await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
 
+      const state = await BackgroundGeolocation.getState();
+
       // Get the count of pending records first
       const count = await BackgroundGeolocation.getCount();
 
       // Perform the sync
       const records = await BackgroundGeolocation.sync();
 
+      const pendingAfter = await BackgroundGeolocation.getCount();
+
       const result = `Synced ${
         records?.length || 0
-      } records (${count} pending)`;
+      } records (${count} pending before, ${pendingAfter} pending after). enabled=${String(
+        state?.enabled,
+      )} isMoving=${String(state?.isMoving)} trackingMode=${String(
+        state?.trackingMode,
+      )}`;
       setSyncResult(result);
       setSyncStatus("success");
     } catch (error) {
       console.error("Geolocation sync failed:", error);
       setSyncResult(`Sync failed: ${error.message}`);
       setSyncStatus("error");
+    }
+  };
+
+  const showBgGeoStatus = async () => {
+    try {
+      setBgGeoStatus("loading");
+      setBgGeoResult("");
+
+      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+      const [state, count] = await Promise.all([
+        BackgroundGeolocation.getState(),
+        BackgroundGeolocation.getCount(),
+      ]);
+
+      const result = `enabled=${String(state?.enabled)} isMoving=${String(
+        state?.isMoving,
+      )} trackingMode=${String(state?.trackingMode)} schedulerEnabled=${String(
+        state?.schedulerEnabled,
+      )} pending=${String(count)}`;
+      setBgGeoResult(result);
+      setBgGeoStatus("success");
+    } catch (error) {
+      console.error("BGGeo status failed:", error);
+      setBgGeoResult(`Status failed: ${error.message}`);
+      setBgGeoStatus("error");
     }
   };
   const triggerNullError = () => {
@@ -276,6 +311,32 @@ export default function Developer() {
             {syncResult}
           </Text>
         )}
+
+        <Button
+          onPress={showBgGeoStatus}
+          style={styles.button}
+          contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
+          loading={bgGeoStatus === "loading"}
+          disabled={bgGeoStatus === "loading"}
+        >
+          Show BGGeo Status
+        </Button>
+
+        {bgGeoStatus && bgGeoResult ? (
+          <Text
+            style={[
+              styles.statusText,
+              {
+                color:
+                  bgGeoStatus === "success" ? colors.primary : colors.error,
+                marginTop: 8,
+              },
+            ]}
+          >
+            {bgGeoResult}
+          </Text>
+        ) : null}
       </Section>
 
       <Divider style={styles.divider} />

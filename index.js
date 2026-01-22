@@ -22,11 +22,13 @@ notifee.onBackgroundEvent(notificationBackgroundEvent);
 messaging().setBackgroundMessageHandler(onMessageReceived);
 
 // Android Headless Mode for react-native-background-geolocation.
-// Required because [`enableHeadless`](src/location/backgroundGeolocationConfig.js:16) is enabled and
-// we run with [`stopOnTerminate: false`](src/location/backgroundGeolocationConfig.js:40).
 //
-// IMPORTANT: keep this handler lightweight. In headless state, the JS runtime may be launched
-// briefly and then torn down; long tasks can be terminated by the OS.
+// We currently run with `enableHeadless: false` (see
+// [`BASE_GEOLOCATION_CONFIG.enableHeadless`](src/location/backgroundGeolocationConfig.js:16)),
+// meaning we do not rely on JS callbacks while the app is terminated.
+//
+// This registration is kept only as a safety-net: if `enableHeadless` is ever turned on again,
+// we'll at least have a minimal handler.
 BackgroundGeolocation.registerHeadlessTask(async (event) => {
   // eslint-disable-next-line no-console
   console.log("[BGGeo HeadlessTask]", event?.name, event?.params);
