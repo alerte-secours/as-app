@@ -1,4 +1,5 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
+import { AppState } from "react-native";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 import jwtDecode from "jwt-decode";
@@ -42,6 +43,7 @@ export default function trackLocation() {
 
     let currentProfile = null;
     let authReady = false;
+    let appState = AppState.currentState;
     let stopAlertSubscription = null;
     let stopSessionSubscription = null;
 
@@ -58,37 +60,37 @@ export default function trackLocation() {
     // Track identity so we can force a first geopoint when the effective user changes.
     let lastSessionUserId = null;
 
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    const pruneBadLocations = async () => {
+    const updateTrackingContextExtras = async (reason) => {
       try {
-        const locations = await BackgroundGeolocation.getLocations();
-        if (!Array.isArray(locations) || !locations.length) return 0;
-
-        let deleted = 0;
-        // Defensive: only scan a bounded amount to avoid heavy work.
-        const toScan = locations.slice(-200);
-        for (const loc of toScan) {
-          const acc = loc?.coords?.accuracy;
-          const uuid = loc?.uuid;
-          if (
-            typeof acc === "number" &&
-            acc > BAD_ACCURACY_THRESHOLD_M &&
-            uuid
-          ) {
-            try {
-              await BackgroundGeolocation.destroyLocation(uuid);
-              deleted++;
-            } catch (e) {
-              // ignore
-            }
-          }
-        }
-        return deleted;
+        const { userId } = getSessionState();
+        await BackgroundGeolocation.setConfig({
+          extras: {
+            tracking_ctx: {
+              reason,
+              app_state: appState,
+              profile: currentProfile,
+              auth_ready: authReady,
+              session_user_id: userId || null,
+              at: new Date().toISOString(),
+            },
+          },
+        });
       } catch (e) {
-        return 0;
+        // Non-fatal: extras are only for observability/debugging.
+        locationLogger.debug("Failed to update BGGeo tracking extras", {
+          reason,
+          error: e?.message,
+        });
       }
     };
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // NOTE: Do not delete records from JS as a primary upload-filtering mechanism.
+    // When JS is suspended in background, deletions won't happen but native autoSync will.
+    // We keep this as a placeholder in case we later introduce a *server-side* filtering
+    // strategy or a safer native-side filter.
+    const pruneBadLocations = async () => 0;
 
     const safeSync = async (reason) => {
       // Sync can fail transiently (SDK busy, network warming up, etc).  Retry a few times.
@@ -181,8 +183,10 @@ export default function trackLocation() {
     let startupFixInFlight = null;
 
     // Startup fix should be persisted so it can be auto-synced immediately (user expects
-    // to appear on server soon after first app open).  This is intentionally different
-    // from auth-refresh fixes, which are non-persisted to avoid unlock/resume noise.
+    // to appear on server soon after first app open).
+    //
+    // IMPORTANT: restrict this to the ACTIVE profile only.
+    // Persisted startup fixes while IDLE can create "no-move" uploads on some devices.
     const requestStartupPersistedFix = async () => {
       try {
         const before = await BackgroundGeolocation.getState();
@@ -191,6 +195,13 @@ export default function trackLocation() {
           trackingMode: before.trackingMode,
           isMoving: before.isMoving,
         });
+
+        if (currentProfile !== "active") {
+          locationLogger.info("Skipping startup persisted fix (not ACTIVE)", {
+            currentProfile,
+          });
+          return;
+        }
 
         const t0 = Date.now();
         const location = await BackgroundGeolocation.getCurrentPosition({
@@ -230,7 +241,7 @@ export default function trackLocation() {
       }
     };
 
-    // When auth changes, we want a fresh persisted point for the newly effective identity.
+    // When auth changes, we want a fresh location fix (UI-only) to refresh the app state.
     // Debounced to avoid spamming `getCurrentPosition` if auth updates quickly (refresh/renew).
     let authFixDebounceTimerId = null;
     let authFixInFlight = null;
@@ -301,6 +312,9 @@ export default function trackLocation() {
             timestamp: location?.timestamp,
           });
 
+          // NOTE: This is a non-persisted fix; it updates UI only.
+          // We intentionally do not trigger sync here to avoid network activity
+          // without a movement-triggered persisted record.
           lastAuthFixAt = Date.now();
         } catch (error) {
           locationLogger.warn("Auth-change location fix failed", {
@@ -410,6 +424,9 @@ export default function trackLocation() {
 
         currentProfile = profileName;
 
+        // Update extras for observability (profile transitions are a key lifecycle change).
+        updateTrackingContextExtras(`profile:${profileName}`);
+
         try {
           const state = await BackgroundGeolocation.getState();
           locationLogger.info("Tracking profile applied", {
@@ -508,6 +525,9 @@ export default function trackLocation() {
         authReady = false;
         currentProfile = null;
 
+        // Ensure server/debug can see the app lifecycle context even pre-auth.
+        updateTrackingContextExtras("auth:anonymous");
+
         if (authFixDebounceTimerId) {
           clearTimeout(authFixDebounceTimerId);
           authFixDebounceTimerId = null;
@@ -528,13 +548,19 @@ export default function trackLocation() {
       locationLogger.debug("Updating background geolocation config");
       await BackgroundGeolocation.setConfig({
         url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
-        autoSync: false,
+        // IMPORTANT: enable native uploading when authenticated.
+        // This ensures uploads continue even if JS is suspended in background.
+        autoSync: true,
+        batchSync: false,
+        autoSyncThreshold: 0,
         headers: {
           Authorization: `Bearer ${userToken}`,
         },
       });
 
       authReady = true;
+
+      updateTrackingContextExtras("auth:ready");
 
       // Log the authorization header that was set
       locationLogger.debug(
@@ -600,16 +626,16 @@ export default function trackLocation() {
         }
       }
 
-      // Always request a fresh persisted point on any token update.
-      // This ensures a newly connected user gets an immediate point even if they don't move.
+      // Always request a fresh UI-only fix on any token update.
       scheduleAuthFreshFix();
 
       // Request a single fresh location-fix on each app launch when tracking is enabled.
       // - We do this only after auth headers are configured so the persisted point can sync.
       // - We do NOT force moving mode.
+      // - We only persist in ACTIVE.
       if (!didRequestStartupFix) {
         didRequestStartupFix = true;
-        startupFixInFlight = requestStartupPersistedFix();
+        // Profile isn't applied yet. We'll request the startup fix after we apply the profile.
       } else if (authFixInFlight) {
         // Avoid concurrent fix calls if auth updates race.
         await authFixInFlight;
@@ -619,6 +645,11 @@ export default function trackLocation() {
       // Default profile is idle unless an active alert requires higher accuracy.
       const shouldBeActive = computeHasOwnOpenAlert();
       await applyProfile(shouldBeActive ? "active" : "idle");
+
+      // Now that profile is applied, execute the persisted startup fix if needed.
+      if (didRequestStartupFix && !startupFixInFlight) {
+        startupFixInFlight = requestStartupPersistedFix();
+      }
 
       // Subscribe to changes that may require switching profiles.
       if (!stopSessionSubscription) {
@@ -655,27 +686,14 @@ export default function trackLocation() {
         // The final persisted location will arrive with sample=false.
         if (location.sample) return;
 
-        // Quality gate: delete very poor-accuracy locations to prevent them from being synced
-        // and ignore them for UI/state.
+        // Quality gate (UI-only): if accuracy is very poor, ignore for UI/state.
+        // Do NOT delete the record here; native uploads may happen while JS is suspended.
         const acc = location?.coords?.accuracy;
         if (typeof acc === "number" && acc > BAD_ACCURACY_THRESHOLD_M) {
           locationLogger.info("Ignoring poor-accuracy location", {
             accuracy: acc,
             uuid: location?.uuid,
           });
-          if (location?.uuid) {
-            try {
-              await BackgroundGeolocation.destroyLocation(location.uuid);
-              locationLogger.debug("Destroyed poor-accuracy location", {
-                uuid: location.uuid,
-              });
-            } catch (e) {
-              locationLogger.warn("Failed to destroy poor-accuracy location", {
-                uuid: location?.uuid,
-                error: e?.message,
-              });
-            }
-          }
           return;
         }
 
@@ -812,6 +830,24 @@ export default function trackLocation() {
       locationLogger.info("Initializing background geolocation");
       await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
 
+      // Tag app foreground/background transitions so we can reason about uploads & locations.
+      // Note: there is no reliable JS signal for "terminated" when `enableHeadless:false`.
+      try {
+        const sub = AppState.addEventListener("change", (next) => {
+          const prev = appState;
+          appState = next;
+          locationLogger.info("AppState changed", { from: prev, to: next });
+          updateTrackingContextExtras("app_state");
+        });
+        // Keep the subscription alive for the app lifetime.
+        // (trackLocation is a singleton init; no teardown is expected.)
+        void sub;
+      } catch (e) {
+        locationLogger.debug("Failed to register AppState listener", {
+          error: e?.message,
+        });
+      }
+
       // Ensure critical config cannot drift due to persisted plugin state.
       // (We intentionally keep auth headers separate and set them in handleAuth.)
       try {
@@ -822,6 +858,9 @@ export default function trackLocation() {
           stack: e?.stack,
         });
       }
+
+      // Initial extras snapshot (even before auth) for observability.
+      updateTrackingContextExtras("startup");
 
       // Only set the permission state if we already have the permission
       const state = await BackgroundGeolocation.getState();
