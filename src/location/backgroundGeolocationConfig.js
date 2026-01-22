@@ -74,7 +74,10 @@ export const BASE_GEOLOCATION_CONFIG = {
   method: "POST",
   httpRootProperty: "location",
   batchSync: false,
-  autoSync: true,
+  // We intentionally disable autoSync and perform controlled uploads from explicit triggers
+  // (startup, identity-change, moving-edge, active-alert). This prevents stationary "ghost"
+  // uploads from low-quality locations produced by some Android devices.
+  autoSync: false,
 
   // Persistence: keep enough records for offline catch-up.
   // (The SDK already constrains with maxDaysToPersist; records are deleted after successful upload.)
@@ -101,6 +104,7 @@ export const BASE_GEOLOCATION_INVARIANTS = {
   speedJumpFilter: 100,
   method: "POST",
   httpRootProperty: "location",
+  autoSync: false,
   maxRecordsToPersist: 1000,
   maxDaysToPersist: 7,
 };
@@ -113,10 +117,9 @@ export const TRACKING_PROFILES = {
     // only periodic fixes (several times/hour).  Note many config options like
     // `distanceFilter` / `stationaryRadius` are documented as having little/no
     // effect in this mode.
-    // Some iOS devices / user settings can result in unreliable significant-change wakeups.
-    // We keep SLC for Android (battery), but fall back to standard motion tracking on iOS
-    // with a conservative distanceFilter.
-    useSignificantChangesOnly: Platform.OS !== "ios",
+    // Some devices / OEMs can be unreliable with significant-change only.
+    // Use standard motion tracking for reliability, with conservative distanceFilter.
+    useSignificantChangesOnly: false,
 
     // Defensive: if some devices/platform conditions fall back to standard tracking,
     // keep the distanceFilter conservative to avoid battery drain.

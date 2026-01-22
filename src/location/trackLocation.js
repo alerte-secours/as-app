@@ -50,11 +50,45 @@ export default function trackLocation() {
     let didDisableUploadsForAnonymous = false;
     let didSyncAfterAuth = false;
     let didSyncAfterStartupFix = false;
+    let lastMovingEdgeAt = 0;
+    const MOVING_EDGE_COOLDOWN_MS = 5 * 60 * 1000;
+
+    const BAD_ACCURACY_THRESHOLD_M = 200;
 
     // Track identity so we can force a first geopoint when the effective user changes.
     let lastSessionUserId = null;
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const pruneBadLocations = async () => {
+      try {
+        const locations = await BackgroundGeolocation.getLocations();
+        if (!Array.isArray(locations) || !locations.length) return 0;
+
+        let deleted = 0;
+        // Defensive: only scan a bounded amount to avoid heavy work.
+        const toScan = locations.slice(-200);
+        for (const loc of toScan) {
+          const acc = loc?.coords?.accuracy;
+          const uuid = loc?.uuid;
+          if (
+            typeof acc === "number" &&
+            acc > BAD_ACCURACY_THRESHOLD_M &&
+            uuid
+          ) {
+            try {
+              await BackgroundGeolocation.destroyLocation(uuid);
+              deleted++;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+        return deleted;
+      } catch (e) {
+        return 0;
+      }
+    };
 
     const safeSync = async (reason) => {
       // Sync can fail transiently (SDK busy, network warming up, etc).  Retry a few times.
@@ -65,6 +99,8 @@ export default function trackLocation() {
             BackgroundGeolocation.getCount(),
           ]);
 
+          const pruned = await pruneBadLocations();
+
           locationLogger.info("Attempting BGGeo sync", {
             reason,
             attempt,
@@ -72,6 +108,7 @@ export default function trackLocation() {
             isMoving: state?.isMoving,
             trackingMode: state?.trackingMode,
             pendingBefore,
+            pruned,
           });
 
           const records = await BackgroundGeolocation.sync();
@@ -421,7 +458,7 @@ export default function trackLocation() {
       } catch (e) {
         currentSessionUserId = null;
       }
-      if (!userToken) {
+      if (!userToken && !currentSessionUserId) {
         // Pre-login mode: keep tracking enabled but disable uploads.
         // Also applies to logout: keep tracking on (per product requirement: track all the time),
         // but stop sending anything to server without auth.
@@ -491,7 +528,7 @@ export default function trackLocation() {
       locationLogger.debug("Updating background geolocation config");
       await BackgroundGeolocation.setConfig({
         url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
-        autoSync: true,
+        autoSync: false,
         headers: {
           Authorization: `Bearer ${userToken}`,
         },
@@ -618,6 +655,30 @@ export default function trackLocation() {
         // The final persisted location will arrive with sample=false.
         if (location.sample) return;
 
+        // Quality gate: delete very poor-accuracy locations to prevent them from being synced
+        // and ignore them for UI/state.
+        const acc = location?.coords?.accuracy;
+        if (typeof acc === "number" && acc > BAD_ACCURACY_THRESHOLD_M) {
+          locationLogger.info("Ignoring poor-accuracy location", {
+            accuracy: acc,
+            uuid: location?.uuid,
+          });
+          if (location?.uuid) {
+            try {
+              await BackgroundGeolocation.destroyLocation(location.uuid);
+              locationLogger.debug("Destroyed poor-accuracy location", {
+                uuid: location.uuid,
+              });
+            } catch (e) {
+              locationLogger.warn("Failed to destroy poor-accuracy location", {
+                uuid: location?.uuid,
+                error: e?.message,
+              });
+            }
+          }
+          return;
+        }
+
         if (
           location.coords &&
           location.coords.latitude &&
@@ -681,6 +742,46 @@ export default function trackLocation() {
           isMoving: event?.isMoving,
           location: event?.location?.coords,
         });
+
+        // Moving-edge strategy: when we enter moving state, force one persisted high-quality
+        // point + sync so the server gets a quick update.
+        //
+        // IMPORTANT: Restrict this to ACTIVE tracking only.  On Android, motion detection can
+        // produce false-positive moving transitions while the device is stationary (screen-off),
+        // which would otherwise trigger unwanted background uploads.
+        // Cooldown to avoid repeated work due to motion jitter.
+        if (event?.isMoving && authReady && currentProfile === "active") {
+          const now = Date.now();
+          if (now - lastMovingEdgeAt >= MOVING_EDGE_COOLDOWN_MS) {
+            lastMovingEdgeAt = now;
+            (async () => {
+              try {
+                const fix = await BackgroundGeolocation.getCurrentPosition({
+                  samples: 1,
+                  persist: true,
+                  timeout: 30,
+                  maximumAge: 0,
+                  desiredAccuracy: 50,
+                  extras: {
+                    moving_edge: true,
+                  },
+                });
+                locationLogger.info("Moving-edge fix acquired", {
+                  accuracy: fix?.coords?.accuracy,
+                  latitude: fix?.coords?.latitude,
+                  longitude: fix?.coords?.longitude,
+                  timestamp: fix?.timestamp,
+                });
+              } catch (e) {
+                locationLogger.warn("Moving-edge fix failed", {
+                  error: e?.message,
+                  stack: e?.stack,
+                });
+              }
+              await safeSync("moving-edge");
+            })();
+          }
+        }
       },
       onActivityChange: (event) => {
         locationLogger.info("Activity change", {
