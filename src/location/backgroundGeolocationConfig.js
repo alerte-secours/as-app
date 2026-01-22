@@ -98,8 +98,10 @@ export const BASE_GEOLOCATION_CONFIG = {
   maxRecordsToPersist: 1,
   maxDaysToPersist: 1,
 
-  // Development convenience
-  reset: !!__DEV__,
+  // IMPORTANT: Keep config deterministic across upgrades.
+  // `reset: false` causes the SDK to ignore changes in `ready(config)` after first install.
+  // This can leave old values (eg heartbeatInterval) lingering and creating periodic uploads.
+  reset: true,
 
   // Behavior tweaks
   disableProviderChangeRecord: true,
@@ -113,6 +115,8 @@ export const BASE_GEOLOCATION_INVARIANTS = {
   startOnBoot: true,
   foregroundService: true,
   disableProviderChangeRecord: true,
+  // Never allow background heartbeats by default (prevents time-based wakeups/uploads).
+  heartbeatInterval: 0,
   // Filter extreme GPS teleports that can create false uploads while stationary.
   // Units: meters/second. 100 m/s ~= 360 km/h.
   speedJumpFilter: 100,
@@ -131,6 +135,9 @@ export const TRACKING_PROFILES = {
     // Defensive: keep the distanceFilter conservative to avoid battery drain.
     distanceFilter: 200,
 
+    // Never use heartbeat-driven updates; only movement-driven.
+    heartbeatInterval: 0,
+
     // Keep the plugin's speed-based distanceFilter scaling enabled (default).
     // This yields fewer updates as speed increases (highway speeds) and helps battery.
     // We intentionally do NOT set `disableElasticity: true`.
@@ -143,6 +150,9 @@ export const TRACKING_PROFILES = {
     desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
     // ACTIVE target: frequent updates while moving.
     distanceFilter: 25,
+
+    // Never use heartbeat-driven updates; only movement-driven.
+    heartbeatInterval: 0,
 
     // Android-only: do not delay motion triggers while ACTIVE.
     motionTriggerDelay: 0,
