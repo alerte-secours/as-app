@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.6](https://github.com/alerte-secours/as-app/compare/v1.16.5...v1.16.6) (2026-01-22)
+
+
+### Bug Fixes
+
+* permissions screen ([6c8153b](https://github.com/alerte-secours/as-app/commit/6c8153bdb114582f9a597a50fd2604f7b90dd181))
+* **track-location:** try 3 ([41bb6fc](https://github.com/alerte-secours/as-app/commit/41bb6fcd2dc0999d212ceab0c9a6b6b64fe07cce))
+* **track-location:** try 4 ([c7d0b36](https://github.com/alerte-secours/as-app/commit/c7d0b36f1bd3e700ad15bbc3ecff987e61aadbd9))
+
 ## [1.16.5](https://github.com/alerte-secours/as-app/compare/v1.16.4...v1.16.5) (2026-01-20)
 
 
