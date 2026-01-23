@@ -64,14 +64,16 @@ export default function trackLocation() {
       try {
         const { userId } = getSessionState();
         await BackgroundGeolocation.setConfig({
-          extras: {
-            tracking_ctx: {
-              reason,
-              app_state: appState,
-              profile: currentProfile,
-              auth_ready: authReady,
-              session_user_id: userId || null,
-              at: new Date().toISOString(),
+          persistence: {
+            extras: {
+              tracking_ctx: {
+                reason,
+                app_state: appState,
+                profile: currentProfile,
+                auth_ready: authReady,
+                session_user_id: userId || null,
+                at: new Date().toISOString(),
+              },
             },
           },
         });
@@ -249,7 +251,17 @@ export default function trackLocation() {
     const AUTH_FIX_COOLDOWN_MS = 15 * 60 * 1000;
     let lastAuthFixAt = 0;
 
+    // Avoid periodic UI-only getCurrentPosition while app is backgrounded, since
+    // this is a common source of "updates while stationary" (it can also influence
+    // motion state / generate provider churn on some Android devices).
+    const shouldAllowUiFixes = () => appState === "active";
+
     const scheduleAuthFreshFix = () => {
+      // Do not perform UI refresh fixes while backgrounded.
+      if (!shouldAllowUiFixes()) {
+        return authFixInFlight;
+      }
+
       // Avoid generating persisted + auto-synced locations as a side-effect of frequent
       // auth refreshes (eg app resume / screen unlock).
       if (Date.now() - lastAuthFixAt < AUTH_FIX_COOLDOWN_MS) {
@@ -365,9 +377,9 @@ export default function trackLocation() {
 
       locationLogger.info("Applying tracking profile", {
         profileName,
-        desiredAccuracy: profile.desiredAccuracy,
-        distanceFilter: profile.distanceFilter,
-        heartbeatInterval: profile.heartbeatInterval,
+        desiredAccuracy: profile?.geolocation?.desiredAccuracy,
+        distanceFilter: profile?.geolocation?.distanceFilter,
+        heartbeatInterval: profile?.app?.heartbeatInterval,
       });
 
       try {
@@ -485,9 +497,11 @@ export default function trackLocation() {
 
         try {
           await BackgroundGeolocation.setConfig({
-            url: "",
-            autoSync: false,
-            headers: {},
+            http: {
+              url: "",
+              autoSync: false,
+              headers: {},
+            },
           });
           didDisableUploadsForAnonymous = true;
           didSyncAfterAuth = false;
@@ -547,14 +561,17 @@ export default function trackLocation() {
       // unsub();
       locationLogger.debug("Updating background geolocation config");
       await BackgroundGeolocation.setConfig({
-        url: env.GEOLOC_SYNC_URL, // Update the sync URL for when it's changed for staging
-        // IMPORTANT: enable native uploading when authenticated.
-        // This ensures uploads continue even if JS is suspended in background.
-        autoSync: true,
-        batchSync: false,
-        autoSyncThreshold: 0,
-        headers: {
-          Authorization: `Bearer ${userToken}`,
+        http: {
+          // Update the sync URL for when it's changed for staging
+          url: env.GEOLOC_SYNC_URL,
+          // IMPORTANT: enable native uploading when authenticated.
+          // This ensures uploads continue even if JS is suspended in background.
+          autoSync: true,
+          batchSync: false,
+          autoSyncThreshold: 0,
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
         },
       });
 
@@ -756,10 +773,49 @@ export default function trackLocation() {
         });
       },
       onMotionChange: (event) => {
+        // Diagnostic snapshot to understand periodic motion-change loops (eg Android ~5min).
+        // Keep it cheap: avoid heavy calls unless motion-change fires.
+        // NOTE: This is safe to run in background because it does not request a new location.
         locationLogger.info("Motion change", {
           isMoving: event?.isMoving,
           location: event?.location?.coords,
         });
+
+        // Async snapshot of BGGeo internal state/config at the time of motion-change.
+        // This helps correlate native behavior with our current profile + config.
+        (async () => {
+          try {
+            const state = await BackgroundGeolocation.getState();
+
+            locationLogger.info("Motion change diagnostic", {
+              isMoving: event?.isMoving,
+              appState: appState,
+              profile: currentProfile,
+              authReady,
+              // Time correlation
+              at: new Date().toISOString(),
+              // Core BGGeo runtime state
+              enabled: state?.enabled,
+              trackingMode: state?.trackingMode,
+              isMovingState: state?.isMoving,
+              schedulerEnabled: state?.schedulerEnabled,
+              // Critical config knobs related to periodic updates
+              distanceFilter: state?.geolocation?.distanceFilter,
+              heartbeatInterval: state?.app?.heartbeatInterval,
+              motionTriggerDelay: state?.activity?.motionTriggerDelay,
+              disableMotionActivityUpdates:
+                state?.activity?.disableMotionActivityUpdates,
+              stopTimeout: state?.geolocation?.stopTimeout,
+              // Location quality signal
+              accuracy: event?.location?.coords?.accuracy,
+              speed: event?.location?.coords?.speed,
+            });
+          } catch (e) {
+            locationLogger.warn("Motion change diagnostic failed", {
+              error: e?.message,
+            });
+          }
+        })();
 
         // Moving-edge strategy: when we enter moving state, force one persisted high-quality
         // point + sync so the server gets a quick update.

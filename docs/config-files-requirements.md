@@ -11,7 +11,6 @@ The app uses environment variables for configuration and sensitive information. 
 Copy `.env.default` to `.env.local` (which is git-ignored) and fill in the required values:
 
 - `BACKGROUND_GEOLOCATION_LICENSE`: License key for react-native-background-geolocation
-- `BACKGROUND_GEOLOCATION_HMS_LICENSE`: HMS license key for react-native-background-geolocation
 
 ### Production Environment
 

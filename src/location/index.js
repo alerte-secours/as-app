@@ -44,9 +44,9 @@ export async function getCurrentLocation() {
 
       const isAuthorized =
         authorizationStatus ===
-          BackgroundGeolocation.AUTHORIZATION_STATUS_ALWAYS ||
+          BackgroundGeolocation.AuthorizationStatus?.Always ||
         authorizationStatus ===
-          BackgroundGeolocation.AUTHORIZATION_STATUS_WHEN_IN_USE;
+          BackgroundGeolocation.AuthorizationStatus?.WhenInUse;
 
       if (!isAuthorized) {
         // If unable to get permissions, provide a link to settings
@@ -67,7 +67,7 @@ export async function getCurrentLocation() {
         timeout: 30,
         persist: false,
         maximumAge: 5000,
-        desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
+        desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
         samples: 1,
       });
       const coords = camelCaseKeys(location.coords);
