@@ -19,142 +19,166 @@ import env from "~/env";
 // - ACTIVE (open alert): first location should reach server within seconds, then continuous distance-based updates.
 //
 // Notes:
-// - We avoid `reset: true` in production because it can unintentionally wipe persisted / configured state.
-//   In dev, `reset: true` is useful to avoid config drift while iterating.
-// - `maxRecordsToPersist` must be > 1 to support offline catch-up.
+// - We keep config deterministic across launches to avoid stale persisted settings creating
+//   unexpected periodic wakeups/uploads.
+// - `maxRecordsToPersist: 1` matches product requirement (only latest geopoint).
 export const BASE_GEOLOCATION_CONFIG = {
-  // Android Headless Mode
-  // We do not require JS execution while terminated.  Native tracking + native HTTP upload
-  // are sufficient for our needs (stopOnTerminate:false).
-  enableHeadless: false,
-
-  // Default to low-power (idle) profile; will be overridden when needed.
-  desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
-
-  // Default to the IDLE profile behaviour: we still want distance-based updates
-  // even with no open alert (see TRACKING_PROFILES.idle).
-  distanceFilter: 200,
-
-  // Activity-recognition stop-detection.
-  // NOTE: Transistorsoft defaults `stopTimeout` to 5 minutes (see
-  // [`node_modules/react-native-background-geolocation/src/declarations/interfaces/Config.d.ts:79`](node_modules/react-native-background-geolocation/src/declarations/interfaces/Config.d.ts:79)).
-  stopTimeout: 5,
-
-  // debug: true,
-  // Logging can become large and also adds overhead; keep verbose logs to dev/staging.
-  logLevel:
-    __DEV__ || env.IS_STAGING
-      ? BackgroundGeolocation.LOG_LEVEL_VERBOSE
-      : BackgroundGeolocation.LOG_LEVEL_ERROR,
-
-  // Permission request strategy
-  locationAuthorizationRequest: "Always",
-
-  // Lifecycle
-  stopOnTerminate: false,
-  startOnBoot: true,
-
-  // Background scheduling
-  // Disable heartbeats by default to avoid periodic background wakeups while stationary.
-  // ACTIVE profile will explicitly enable a fast heartbeat when needed.
-  heartbeatInterval: 0,
-
-  // Android foreground service
-  foregroundService: true,
-  notification: {
-    title: "Alerte Secours",
-    text: "Suivi de localisation actif",
-    channelName: "Location tracking",
-    priority: BackgroundGeolocation.NOTIFICATION_PRIORITY_HIGH,
-  },
-
-  // Android 10+ rationale dialog
-  backgroundPermissionRationale: {
-    title:
-      "Autoriser Alerte-Secours à accéder à la localisation en arrière-plan",
-    message:
-      "Alerte-Secours nécessite la localisation en arrière-plan pour vous alerter en temps réel lorsqu'une personne à proximité a besoin d'aide urgente. Cette fonction est essentielle pour permettre une intervention rapide et efficace en cas d'urgence.",
-    positiveAction: "Autoriser",
-    negativeAction: "Désactiver",
-  },
-
-  // HTTP configuration
-  // IMPORTANT: Default to uploads disabled until we have an auth token.
-  // Authenticated mode will set `url` + `Authorization` header and enable `autoSync`.
-  url: "",
-  method: "POST",
-  httpRootProperty: "location",
-  // Keep uploads simple: 1 location record -> 1 HTTP request.
-  // (We intentionally keep only the latest record; batching provides no benefit.)
-  autoSync: false,
-  // Ensure no persisted config can keep batching/threshold behavior.
-  batchSync: false,
-  autoSyncThreshold: 0,
-
-  // Persistence
-  // Product requirement: keep only the latest geopoint.  This reduces on-device storage
-  // and avoids building up a queue.
-  // NOTE: This means we intentionally do not support offline catch-up of multiple points.
-  maxRecordsToPersist: 1,
-  maxDaysToPersist: 1,
-
-  // IMPORTANT: Keep config deterministic across upgrades.
-  // `reset: false` causes the SDK to ignore changes in `ready(config)` after first install.
-  // This can leave old values (eg heartbeatInterval) lingering and creating periodic uploads.
   reset: true,
 
-  // Behavior tweaks
-  disableProviderChangeRecord: true,
+  // Logger config
+  logger: {
+    // debug: true,
+    // Logging can become large and also adds overhead; keep verbose logs to dev/staging.
+    logLevel:
+      __DEV__ || env.IS_STAGING
+        ? BackgroundGeolocation.LogLevel.Verbose
+        : BackgroundGeolocation.LogLevel.Error,
+  },
+
+  // Geolocation config
+  geolocation: {
+    // Default profile is IDLE.
+    //
+    // Important: `DesiredAccuracy.Low` (wifi/cell) can yield very large errors (km-level).
+    // Those poor fixes can create false motion/geofence transitions on some Android devices,
+    // resulting in periodic uploads while the user is stationary.
+    //
+    // We default to a GPS-capable accuracy but rely on motion + distance thresholds to
+    // protect battery.
+    desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
+
+    // Default to the IDLE profile behaviour: we still want distance-based updates
+    // even with no open alert (see TRACKING_PROFILES.idle).
+    distanceFilter: 200,
+
+    // Stop-detection.
+    // NOTE: historically we set this at top-level.  In v5 the knob is under `geolocation`.
+    stopTimeout: 5,
+
+    // Permission request strategy
+    locationAuthorizationRequest: "Always",
+  },
+
+  // Application / lifecycle config
+  app: {
+    // Android Headless Mode
+    // We do not require JS execution while terminated.  Native tracking + native HTTP upload
+    // are sufficient for our needs (stopOnTerminate:false).
+    enableHeadless: false,
+
+    stopOnTerminate: false,
+    startOnBoot: true,
+
+    // Background scheduling
+    // Disable heartbeats to avoid periodic background wakeups while stationary.
+    heartbeatInterval: 0,
+
+    // Android foreground service notification
+    notification: {
+      title: "Alerte Secours",
+      text: "Suivi de localisation actif",
+      channelName: "Location tracking",
+      priority: BackgroundGeolocation.NotificationPriority.High,
+    },
+
+    // Android 10+ rationale dialog
+    backgroundPermissionRationale: {
+      title:
+        "Autoriser Alerte-Secours à accéder à la localisation en arrière-plan",
+      message:
+        "Alerte-Secours nécessite la localisation en arrière-plan pour vous alerter en temps réel lorsqu'une personne à proximité a besoin d'aide urgente. Cette fonction est essentielle pour permettre une intervention rapide et efficace en cas d'urgence.",
+      positiveAction: "Autoriser",
+      negativeAction: "Désactiver",
+    },
+  },
+
+  // HTTP config
+  // IMPORTANT: Default to uploads disabled until we have an auth token.
+  // Authenticated mode will set `http.url` + `Authorization` header and enable `autoSync`.
+  http: {
+    url: "",
+    method: BackgroundGeolocation.HttpMethod.POST,
+    rootProperty: "location",
+    // Keep uploads simple: 1 location record -> 1 HTTP request.
+    // (We intentionally keep only the latest record; batching provides no benefit.)
+    autoSync: false,
+    // Ensure no persisted config can keep batching/threshold behavior.
+    batchSync: false,
+    autoSyncThreshold: 0,
+  },
+
+  // Persistence config
+  persistence: {
+    // Product requirement: keep only the latest geopoint.
+    maxRecordsToPersist: 1,
+    maxDaysToPersist: 1,
+
+    // Behavior tweaks
+    disableProviderChangeRecord: true,
+  },
 };
 
 // Options we want to be stable across launches even when the plugin loads a persisted config.
 // NOTE: We intentionally do *not* include HTTP auth headers here.
 export const BASE_GEOLOCATION_INVARIANTS = {
-  enableHeadless: false,
-  stopOnTerminate: false,
-  startOnBoot: true,
-  foregroundService: true,
-  disableProviderChangeRecord: true,
-  // Never allow background heartbeats by default (prevents time-based wakeups/uploads).
-  heartbeatInterval: 0,
-  // Filter extreme GPS teleports that can create false uploads while stationary.
-  // Units: meters/second. 100 m/s ~= 360 km/h.
-  speedJumpFilter: 100,
-  method: "POST",
-  httpRootProperty: "location",
-  autoSync: false,
-  batchSync: false,
-  autoSyncThreshold: 0,
-  maxRecordsToPersist: 1,
-  maxDaysToPersist: 1,
+  app: {
+    enableHeadless: false,
+    stopOnTerminate: false,
+    startOnBoot: true,
+    // Never allow background heartbeats by default (prevents time-based wakeups/uploads).
+    heartbeatInterval: 0,
+  },
+  http: {
+    method: BackgroundGeolocation.HttpMethod.POST,
+    rootProperty: "location",
+    autoSync: false,
+    batchSync: false,
+    autoSyncThreshold: 0,
+  },
+  persistence: {
+    maxRecordsToPersist: 1,
+    maxDaysToPersist: 1,
+    disableProviderChangeRecord: true,
+  },
+  // NOTE: `speedJumpFilter` was a legacy Config knob; it is not part of v5 shared types.
+  // If we still want jump filtering, we'll need to implement a server-side filter or
+  // re-introduce a supported SDK filter (eg `geolocation.filter`) when available.
 };
 
 export const TRACKING_PROFILES = {
   idle: {
-    desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_LOW,
-    // Defensive: keep the distanceFilter conservative to avoid battery drain.
-    distanceFilter: 200,
-
-    // Never use heartbeat-driven updates; only movement-driven.
-    heartbeatInterval: 0,
-
-    // Keep the plugin's speed-based distanceFilter scaling enabled (default).
-    // This yields fewer updates as speed increases (highway speeds) and helps battery.
-    // We intentionally do NOT set `disableElasticity: true`.
-
-    // Android-only: reduce false-positive motion triggers due to screen-on/unlock.
-    // (This is ignored on iOS.)
-    motionTriggerDelay: 30000,
+    geolocation: {
+      // Same rationale as BASE: prefer GPS-capable accuracy to avoid km-level coarse fixes
+      // that can trigger false motion/geofence transitions on Android.
+      desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
+      // Defensive: keep the distanceFilter conservative to avoid battery drain.
+      distanceFilter: 200,
+    },
+    app: {
+      // Never use heartbeat-driven updates; only movement-driven.
+      heartbeatInterval: 0,
+    },
+    activity: {
+      // Android-only: reduce false-positive motion triggers due to screen-on/unlock.
+      // We keep Motion API enabled (battery-optimized) but add a large delay so brief
+      // activity-jitter cannot repeatedly toggle moving/stationary while the user is idle.
+      // (This is ignored on iOS.)
+      motionTriggerDelay: 300000,
+    },
   },
   active: {
-    desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
-    // ACTIVE target: frequent updates while moving.
-    distanceFilter: 25,
-
-    // Never use heartbeat-driven updates; only movement-driven.
-    heartbeatInterval: 0,
-
-    // Android-only: do not delay motion triggers while ACTIVE.
-    motionTriggerDelay: 0,
+    geolocation: {
+      desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
+      // ACTIVE target: frequent updates while moving.
+      distanceFilter: 25,
+    },
+    app: {
+      // Never use heartbeat-driven updates; only movement-driven.
+      heartbeatInterval: 0,
+    },
+    activity: {
+      // Android-only: do not delay motion triggers while ACTIVE.
+      motionTriggerDelay: 0,
+    },
   },
 };

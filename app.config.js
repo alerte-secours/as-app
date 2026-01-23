@@ -140,15 +140,9 @@ let config = {
         ],
       },
       UIBackgroundModes: ["location", "fetch", "processing"],
+      TSLocationManagerLicense: process.env.BACKGROUND_GEOLOCATION_LICENSE_IOS,
     },
     plugins: [
-      [
-        "react-native-background-geolocation",
-        {
-          license: process.env.BACKGROUND_GEOLOCATION_LICENSE,
-          hmsLicense: process.env.BACKGROUND_GEOLOCATION_HMS_LICENSE,
-        },
-      ],
       [
         "expo-gradle-ext-vars",
         {
