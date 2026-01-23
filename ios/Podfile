@@ -129,5 +129,22 @@ target 'AlerteSecours' do
         File.write(crop_toolbar_path, contents)
       end
     end
+
+    # Fix CocoaPods xcconfig merge error for expo-dev-menu subspec targets.
+    # CocoaPods sometimes generates different DEFINES_MODULE values for these targets,
+    # which breaks `pod install` when it tries to merge xcconfigs.
+    expo_dev_menu_targets = %w[
+      expo-dev-menu
+      Main
+      ReactNativeCompatibles
+      SafeAreaView
+      Vendored
+    ]
+    installer.pods_project.targets.each do |t|
+      next unless expo_dev_menu_targets.include?(t.name)
+      t.build_configurations.each do |config|
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+      end
+    end
   end
 end
