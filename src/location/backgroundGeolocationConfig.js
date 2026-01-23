@@ -1,6 +1,18 @@
 import BackgroundGeolocation from "react-native-background-geolocation";
 import env from "~/env";
 
+const LOCATION_ACCURACY_GATE_M = 100;
+
+// Native filter to reduce GPS drift and suppress stationary jitter.
+// This is the primary mechanism to prevent unwanted persisted/uploaded points while the device
+// is not moving (works even when JS is suspended).
+const DEFAULT_LOCATION_FILTER = {
+  policy: BackgroundGeolocation.LocationFilterPolicy.Conservative,
+  useKalman: true,
+  kalmanProfile: BackgroundGeolocation.KalmanProfile.Conservative,
+  trackingAccuracyThreshold: LOCATION_ACCURACY_GATE_M,
+};
+
 // Common config: keep always-on tracking enabled, but default to an IDLE low-power profile.
 // High-accuracy and tighter distance thresholds are enabled only when an active alert is open.
 //
@@ -54,6 +66,13 @@ export const BASE_GEOLOCATION_CONFIG = {
     // Stop-detection.
     // NOTE: historically we set this at top-level.  In v5 the knob is under `geolocation`.
     stopTimeout: 5,
+
+    // Prevent identical/noise locations from being persisted.
+    // This reduces DB churn and avoids triggering native HTTP uploads with redundant points.
+    allowIdenticalLocations: false,
+
+    // Native-side filter (see DEFAULT_LOCATION_FILTER above).
+    filter: DEFAULT_LOCATION_FILTER,
 
     // Permission request strategy
     locationAuthorizationRequest: "Always",
@@ -153,6 +172,10 @@ export const TRACKING_PROFILES = {
       desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
       // Defensive: keep the distanceFilter conservative to avoid battery drain.
       distanceFilter: 200,
+
+      // Keep filtering enabled across profile transitions.
+      filter: DEFAULT_LOCATION_FILTER,
+      allowIdenticalLocations: false,
     },
     app: {
       // Never use heartbeat-driven updates; only movement-driven.
@@ -171,6 +194,10 @@ export const TRACKING_PROFILES = {
       desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
       // ACTIVE target: frequent updates while moving.
       distanceFilter: 25,
+
+      // Apply the same native filter while ACTIVE.
+      filter: DEFAULT_LOCATION_FILTER,
+      allowIdenticalLocations: false,
     },
     app: {
       // Never use heartbeat-driven updates; only movement-driven.

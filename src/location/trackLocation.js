@@ -56,6 +56,49 @@ export default function trackLocation() {
     const MOVING_EDGE_COOLDOWN_MS = 5 * 60 * 1000;
 
     const BAD_ACCURACY_THRESHOLD_M = 200;
+    const PERSISTED_ACCURACY_GATE_M = 100;
+
+    const shouldUseLocationForUi = (location) => {
+      const acc = location?.coords?.accuracy;
+      return !(typeof acc === "number" && acc > BAD_ACCURACY_THRESHOLD_M);
+    };
+
+    // Gate persisted/uploaded points (native layer also filters, but this protects any
+    // JS-triggered persisted-fix code-paths).
+    const shouldAllowPersistedFix = (location) => {
+      const acc = location?.coords?.accuracy;
+      return !(typeof acc === "number" && acc > PERSISTED_ACCURACY_GATE_M);
+    };
+
+    const getCurrentPositionWithDiagnostics = async (
+      options,
+      { reason, persist },
+    ) => {
+      const opts = {
+        ...options,
+        persist,
+        extras: {
+          ...(options?.extras || {}),
+          // Attribution for log correlation.
+          req_reason: reason,
+          req_persist: !!persist,
+          req_at: new Date().toISOString(),
+          req_app_state: appState,
+          req_profile: currentProfile,
+        },
+      };
+
+      locationLogger.debug("Requesting getCurrentPosition", {
+        reason,
+        persist: !!persist,
+        desiredAccuracy: opts?.desiredAccuracy,
+        samples: opts?.samples,
+        maximumAge: opts?.maximumAge,
+        timeout: opts?.timeout,
+      });
+
+      return BackgroundGeolocation.getCurrentPosition(opts);
+    };
 
     // Track identity so we can force a first geopoint when the effective user changes.
     let lastSessionUserId = null;
@@ -145,18 +188,31 @@ export default function trackLocation() {
     const requestIdentityPersistedFixAndSync = async ({ reason, userId }) => {
       try {
         const t0 = Date.now();
-        const location = await BackgroundGeolocation.getCurrentPosition({
-          samples: 1,
-          persist: true,
-          timeout: 30,
-          maximumAge: 0,
-          desiredAccuracy: 50,
-          extras: {
-            identity_fix: true,
-            identity_reason: reason,
-            session_user_id: userId,
+        const location = await getCurrentPositionWithDiagnostics(
+          {
+            samples: 1,
+            timeout: 30,
+            maximumAge: 0,
+            desiredAccuracy: 50,
+            extras: {
+              identity_fix: true,
+              identity_reason: reason,
+              session_user_id: userId,
+            },
           },
-        });
+          { reason: `identity_fix:${reason}`, persist: true },
+        );
+
+        if (!shouldAllowPersistedFix(location)) {
+          locationLogger.info(
+            "Identity persisted fix ignored due to poor accuracy",
+            {
+              reason,
+              userId,
+              accuracy: location?.coords?.accuracy,
+            },
+          );
+        }
         locationLogger.info("Identity persisted fix acquired", {
           reason,
           userId,
@@ -206,16 +262,29 @@ export default function trackLocation() {
         }
 
         const t0 = Date.now();
-        const location = await BackgroundGeolocation.getCurrentPosition({
-          samples: 1,
-          persist: true,
-          timeout: 30,
-          maximumAge: 10000,
-          desiredAccuracy: 100,
-          extras: {
-            startup_fix: true,
+        const location = await getCurrentPositionWithDiagnostics(
+          {
+            samples: 1,
+            timeout: 30,
+            maximumAge: 10000,
+            desiredAccuracy: 100,
+            extras: {
+              startup_fix: true,
+            },
           },
-        });
+          { reason: "startup_fix", persist: true },
+        );
+
+        if (!shouldAllowPersistedFix(location)) {
+          locationLogger.info(
+            "Startup persisted fix ignored due to poor accuracy",
+            {
+              accuracy: location?.coords?.accuracy,
+              timestamp: location?.timestamp,
+            },
+          );
+          return;
+        }
 
         locationLogger.info("Startup persisted fix acquired", {
           ms: Date.now() - t0,
@@ -290,19 +359,18 @@ export default function trackLocation() {
             return;
           }
 
-          const location = await BackgroundGeolocation.getCurrentPosition({
-            samples: 1,
-            // IMPORTANT: do not persist by default.
-            // Persisting will create a DB record and the SDK may upload it on resume,
-            // which is the source of "updates while not moved" on some devices.
-            persist: false,
-            timeout: 20,
-            maximumAge: 10000,
-            desiredAccuracy: 100,
-            extras: {
-              auth_token_update: true,
+          const location = await getCurrentPositionWithDiagnostics(
+            {
+              samples: 1,
+              timeout: 20,
+              maximumAge: 10000,
+              desiredAccuracy: 100,
+              extras: {
+                auth_token_update: true,
+              },
             },
-          });
+            { reason: "auth_change_ui_fix", persist: false },
+          );
 
           // If the fix is very poor accuracy, treat it as noise and do nothing.
           // (We intentionally do not persist in this path.)
@@ -403,16 +471,28 @@ export default function trackLocation() {
           // motion-detection / distanceFilter to produce the first point.
           try {
             const beforeFix = Date.now();
-            const fix = await BackgroundGeolocation.getCurrentPosition({
-              samples: 3,
-              persist: true,
-              timeout: 30,
-              maximumAge: 0,
-              desiredAccuracy: 10,
-              extras: {
-                active_profile_enter: true,
+            const fix = await getCurrentPositionWithDiagnostics(
+              {
+                samples: 3,
+                timeout: 30,
+                maximumAge: 0,
+                desiredAccuracy: 10,
+                extras: {
+                  active_profile_enter: true,
+                },
               },
-            });
+              { reason: "active_profile_enter", persist: true },
+            );
+
+            if (!shouldAllowPersistedFix(fix)) {
+              locationLogger.info(
+                "ACTIVE immediate persisted fix ignored due to poor accuracy",
+                {
+                  accuracy: fix?.coords?.accuracy,
+                },
+              );
+              return;
+            }
             locationLogger.info("ACTIVE immediate fix acquired", {
               ms: Date.now() - beforeFix,
               accuracy: fix?.coords?.accuracy,
@@ -697,6 +777,7 @@ export default function trackLocation() {
           activity: location.activity,
           battery: location.battery,
           sample: location.sample,
+          extras: location.extras,
         });
 
         // Ignore sampling locations (eg, emitted during getCurrentPosition) to avoid UI/storage churn.
@@ -705,10 +786,9 @@ export default function trackLocation() {
 
         // Quality gate (UI-only): if accuracy is very poor, ignore for UI/state.
         // Do NOT delete the record here; native uploads may happen while JS is suspended.
-        const acc = location?.coords?.accuracy;
-        if (typeof acc === "number" && acc > BAD_ACCURACY_THRESHOLD_M) {
+        if (!shouldUseLocationForUi(location)) {
           locationLogger.info("Ignoring poor-accuracy location", {
-            accuracy: acc,
+            accuracy: location?.coords?.accuracy,
             uuid: location?.uuid,
           });
           return;
@@ -830,16 +910,28 @@ export default function trackLocation() {
             lastMovingEdgeAt = now;
             (async () => {
               try {
-                const fix = await BackgroundGeolocation.getCurrentPosition({
-                  samples: 1,
-                  persist: true,
-                  timeout: 30,
-                  maximumAge: 0,
-                  desiredAccuracy: 50,
-                  extras: {
-                    moving_edge: true,
+                const fix = await getCurrentPositionWithDiagnostics(
+                  {
+                    samples: 1,
+                    timeout: 30,
+                    maximumAge: 0,
+                    desiredAccuracy: 50,
+                    extras: {
+                      moving_edge: true,
+                    },
                   },
-                });
+                  { reason: "moving_edge", persist: true },
+                );
+
+                if (!shouldAllowPersistedFix(fix)) {
+                  locationLogger.info(
+                    "Moving-edge persisted fix ignored due to poor accuracy",
+                    {
+                      accuracy: fix?.coords?.accuracy,
+                    },
+                  );
+                  return;
+                }
                 locationLogger.info("Moving-edge fix acquired", {
                   accuracy: fix?.coords?.accuracy,
                   latitude: fix?.coords?.latitude,
