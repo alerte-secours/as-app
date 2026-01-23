@@ -24,6 +24,11 @@ Applies to the BackgroundGeolocation integration:
   - When authenticated, each persisted location should upload immediately via native HTTP (works while JS is suspended).
   - Pre-auth: tracking may persist locally but `http.url` is empty so nothing is uploaded until auth is ready.
 
+- Stationary noise suppression:
+  - Native accuracy gate for persisted/uploaded locations: `geolocation.filter.trackingAccuracyThreshold: 100`.
+  - Identical location suppression: `geolocation.allowIdenticalLocations: false`.
+  - Extra safety: any JS-triggered persisted fix requests are tagged and ignored if accuracy > 100m.
+
 ## Basic preconditions
 
 - Location permissions: foreground + background granted.
@@ -102,6 +107,14 @@ Applies to the BackgroundGeolocation integration:
 - Movement-only uploads:
   - IDLE distance threshold: `distanceFilter: 200` in [`TRACKING_PROFILES`](src/location/backgroundGeolocationConfig.js:148).
   - ACTIVE distance threshold: `distanceFilter: 25` in [`TRACKING_PROFILES`](src/location/backgroundGeolocationConfig.js:148).
+
+- Attribution for `getCurrentPosition`:
+  - `Location update received` logs include `extras.req_reason` and `extras.req_persist`.
+  - Persisted-fix reasons to expect: `active_profile_enter`, `moving_edge`, `startup_fix`, `identity_fix:*`.
+
+- Accuracy gate signals:
+  - A persisted-fix request can be logged but later ignored due to accuracy > 100m.
+  - If the server still receives periodic updates while stationary, check that the uploaded record has acceptable accuracy and that the device isn't flapping between moving/stationary.
 
 ## Debugging tips
 
