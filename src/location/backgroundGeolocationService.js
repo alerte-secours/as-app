@@ -53,6 +53,7 @@ export function getLastReadyState() {
 export function setBackgroundGeolocationEventHandlers({
   onLocation,
   onLocationError,
+  onGeofence,
   onHttp,
   onHeartbeat,
   onSchedule,
@@ -66,6 +67,7 @@ export function setBackgroundGeolocationEventHandlers({
   // We use a simple signature so calling with identical functions is a no-op.
   const sig = [
     onLocation ? "L1" : "L0",
+    onGeofence ? "G1" : "G0",
     onHttp ? "H1" : "H0",
     onHeartbeat ? "HB1" : "HB0",
     onSchedule ? "S1" : "S0",
@@ -86,6 +88,10 @@ export function setBackgroundGeolocationEventHandlers({
     subscriptions.push(
       BackgroundGeolocation.onLocation(onLocation, onLocationError),
     );
+  }
+
+  if (onGeofence) {
+    subscriptions.push(BackgroundGeolocation.onGeofence(onGeofence));
   }
   if (onHttp) {
     subscriptions.push(BackgroundGeolocation.onHttp(onHttp));

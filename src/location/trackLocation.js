@@ -16,7 +16,7 @@ import {
 } from "~/stores";
 
 import setLocationState from "~/location/setLocationState";
-import { storeLocation } from "~/location/storage";
+import { getStoredLocation, storeLocation } from "~/location/storage";
 
 import env from "~/env";
 
@@ -32,6 +32,12 @@ import {
 
 let trackLocationStartPromise = null;
 
+// Correlation ID to differentiate multiple JS runtimes (eg full `Updates.reloadAsync()`)
+// from tree-level reloads (auth/account switch).
+const TRACK_LOCATION_INSTANCE_ID = `${Date.now().toString(36)}-${Math.random()
+  .toString(16)
+  .slice(2, 8)}`;
+
 export default function trackLocation() {
   if (trackLocationStartPromise) return trackLocationStartPromise;
 
@@ -39,6 +45,11 @@ export default function trackLocation() {
     const locationLogger = createLogger({
       module: BACKGROUND_SCOPES.GEOLOCATION,
       feature: "tracking",
+    });
+
+    locationLogger.info("trackLocation() starting", {
+      instanceId: TRACK_LOCATION_INSTANCE_ID,
+      appState: AppState.currentState,
     });
 
     let currentProfile = null;
@@ -57,6 +68,160 @@ export default function trackLocation() {
 
     const BAD_ACCURACY_THRESHOLD_M = 200;
     const PERSISTED_ACCURACY_GATE_M = 100;
+
+    // NOTE: IDLE previously used `startGeofences()` + a managed geofence.
+    // We now rely on the SDK's stop-detection + stationary geofence
+    // (`stopOnStationary` + `stationaryRadius`) because it is more reliable
+    // in background/locked scenarios.
+
+    // Fallback: if the OS fails to deliver geofence EXIT while the phone is locked, allow
+    // exactly one persisted fix when we get strong evidence of movement (motion+activity).
+    const IDLE_MOVEMENT_FALLBACK_COOLDOWN_MS = 15 * 60 * 1000;
+    let lastActivity = null;
+    let lastActivityConfidence = 0;
+    let lastIdleMovementFallbackAt = 0;
+
+    // Diagnostics fields retained so server-side correlation can continue to work.
+    // (With Option 2, these are used as a reference center rather than a managed geofence.)
+    let lastEnsuredIdleGeofenceAt = 0;
+    let lastIdleGeofenceCenter = null;
+    let lastIdleGeofenceCenterAccuracyM = null;
+    let lastIdleGeofenceCenterTimestamp = null;
+    let lastIdleGeofenceCenterSource = null;
+    let lastIdleGeofenceRadiusM = null;
+
+    // A) Safeguard: when entering IDLE, ensure we have a reasonably accurate and recent
+    // reference point.  This does NOT persist/upload; it only updates our stored last-known
+    // location and tracking extras.
+    const IDLE_REFERENCE_TARGET_ACCURACY_M = 50;
+    const IDLE_REFERENCE_MAX_AGE_MS = 5 * 60 * 1000;
+    const ensureIdleReferenceFix = async () => {
+      try {
+        const stored = await getStoredLocation();
+        const storedCoords = stored?.coords;
+        const storedAcc =
+          typeof storedCoords?.accuracy === "number"
+            ? storedCoords.accuracy
+            : null;
+        const storedTs = stored?.timestamp;
+        const storedAgeMs = storedTs
+          ? Date.now() - new Date(storedTs).getTime()
+          : null;
+
+        const isRecentEnough =
+          typeof storedAgeMs === "number" && storedAgeMs >= 0
+            ? storedAgeMs <= IDLE_REFERENCE_MAX_AGE_MS
+            : false;
+        const isAccurateEnough =
+          typeof storedAcc === "number"
+            ? storedAcc <= IDLE_REFERENCE_TARGET_ACCURACY_M
+            : false;
+
+        if (
+          storedCoords?.latitude &&
+          storedCoords?.longitude &&
+          isRecentEnough &&
+          isAccurateEnough
+        ) {
+          lastIdleGeofenceCenter = {
+            latitude: storedCoords.latitude,
+            longitude: storedCoords.longitude,
+          };
+          lastIdleGeofenceCenterAccuracyM = storedAcc;
+          lastIdleGeofenceCenterTimestamp = storedTs ?? null;
+          lastIdleGeofenceCenterSource = "stored";
+          lastEnsuredIdleGeofenceAt = Date.now();
+          void updateTrackingContextExtras("idle_reference_ok");
+          return;
+        }
+
+        const fix = await getCurrentPositionWithDiagnostics(
+          {
+            samples: 2,
+            timeout: 30,
+            maximumAge: 0,
+            desiredAccuracy: IDLE_REFERENCE_TARGET_ACCURACY_M,
+            extras: {
+              idle_reference_fix: true,
+              idle_ref_prev_acc: storedAcc,
+              idle_ref_prev_age_ms: storedAgeMs,
+            },
+          },
+          { reason: "idle_reference_fix", persist: false },
+        );
+
+        if (fix?.coords?.latitude && fix?.coords?.longitude) {
+          storeLocation(fix.coords, fix.timestamp);
+          lastIdleGeofenceCenter = {
+            latitude: fix.coords.latitude,
+            longitude: fix.coords.longitude,
+          };
+          lastIdleGeofenceCenterAccuracyM =
+            typeof fix.coords.accuracy === "number"
+              ? fix.coords.accuracy
+              : null;
+          lastIdleGeofenceCenterTimestamp = fix.timestamp ?? null;
+          lastIdleGeofenceCenterSource = "idle_reference_fix";
+          lastEnsuredIdleGeofenceAt = Date.now();
+          void updateTrackingContextExtras("idle_reference_fixed");
+        }
+      } catch (e) {
+        locationLogger.debug("Failed to ensure IDLE reference fix", {
+          error: e?.message,
+        });
+      }
+    };
+
+    const maybeRequestIdleMovementFallbackFix = async (trigger) => {
+      if (currentProfile !== "idle" || !authReady) return;
+      if (
+        Date.now() - lastIdleMovementFallbackAt <
+        IDLE_MOVEMENT_FALLBACK_COOLDOWN_MS
+      ) {
+        return;
+      }
+
+      // Option 2: primary trigger is `onMotionChange(isMoving:true)`.
+      // Keep `onActivityChange` as a secondary signal (lower confidence threshold).
+      const movingActivities = new Set([
+        "walking",
+        "running",
+        "on_foot",
+        "in_vehicle",
+        "cycling",
+      ]);
+      const hasSomeActivitySignal =
+        movingActivities.has(lastActivity) && lastActivityConfidence >= 50;
+
+      if (trigger === "activitychange" && !hasSomeActivitySignal) return;
+
+      lastIdleMovementFallbackAt = Date.now();
+      locationLogger.info("IDLE movement fallback fix", {
+        trigger,
+        lastActivity,
+        lastActivityConfidence,
+      });
+
+      try {
+        await getCurrentPositionWithDiagnostics(
+          {
+            samples: 2,
+            timeout: 30,
+            maximumAge: 0,
+            desiredAccuracy: 50,
+            extras: {
+              idle_movement_fallback: true,
+            },
+          },
+          { reason: `idle_movement_fallback:${trigger}`, persist: true },
+        );
+      } catch (e) {
+        locationLogger.warn("IDLE movement fallback fix failed", {
+          trigger,
+          error: e?.message,
+        });
+      }
+    };
 
     const shouldUseLocationForUi = (location) => {
       const acc = location?.coords?.accuracy;
@@ -115,6 +280,18 @@ export default function trackLocation() {
                 profile: currentProfile,
                 auth_ready: authReady,
                 session_user_id: userId || null,
+                // Diagnostics: helps correlate server-side "no update" reports with
+                // the IDLE geofence placement parameters.
+                idle_geofence: {
+                  // Option 2: managed IDLE geofence removed.
+                  id: null,
+                  radius_m: lastIdleGeofenceRadiusM,
+                  center: lastIdleGeofenceCenter,
+                  center_accuracy_m: lastIdleGeofenceCenterAccuracyM,
+                  center_timestamp: lastIdleGeofenceCenterTimestamp,
+                  center_source: lastIdleGeofenceCenterSource,
+                  ensured_at: lastEnsuredIdleGeofenceAt || null,
+                },
                 at: new Date().toISOString(),
               },
             },
@@ -433,9 +610,81 @@ export default function trackLocation() {
         // We only apply profile once auth headers are configured.
         return;
       }
-      if (currentProfile === profileName) return;
+
+      // IMPORTANT:
+      // Do not assume the native SDK runtime mode still matches our JS `currentProfile`.
+      // During identity switch / tree reload, we can remain in the same logical profile
+      // while native state drifts (eg `trackingMode` remains geofence-only but geofences
+      // are missing, leading to "moving but no updates").
+      //
+      // If profile is unchanged, perform a lightweight runtime ensure:
+      // - IDLE: ensure we're in geofence-only mode and that the managed exit geofence exists.
+      // - ACTIVE: ensure we're NOT stuck in geofence-only mode.
+      if (currentProfile === profileName) {
+        try {
+          const state = await BackgroundGeolocation.getState();
+
+          if (profileName === "idle") {
+            // Ensure we are not stuck in geofence-only mode.
+            if (state?.trackingMode === 0) {
+              await BackgroundGeolocation.start();
+            }
+            locationLogger.info("Profile unchanged; IDLE runtime ensured", {
+              instanceId: TRACK_LOCATION_INSTANCE_ID,
+              trackingMode: state?.trackingMode,
+              enabled: state?.enabled,
+            });
+            void ensureIdleReferenceFix();
+          }
+
+          if (profileName === "active") {
+            // If we previously called `startGeofences()`, the SDK can remain in geofence-only
+            // mode until we explicitly call `start()` again.
+            if (state?.trackingMode === 0) {
+              await BackgroundGeolocation.start();
+            }
+            locationLogger.info("Profile unchanged; ACTIVE runtime ensured", {
+              instanceId: TRACK_LOCATION_INSTANCE_ID,
+              trackingMode: state?.trackingMode,
+              enabled: state?.enabled,
+            });
+          }
+        } catch (e) {
+          locationLogger.debug(
+            "Failed to ensure runtime for unchanged profile",
+            {
+              profileName,
+              error: e?.message,
+            },
+          );
+        }
+        return;
+      }
 
       const applyStartedAt = Date.now();
+
+      // Diagnostic: track trackingMode transitions (especially geofence-only mode) across
+      // identity changes and profile switches.
+      let preState = null;
+      try {
+        preState = await BackgroundGeolocation.getState();
+        locationLogger.info("Applying tracking profile (pre-state)", {
+          profileName,
+          instanceId: TRACK_LOCATION_INSTANCE_ID,
+          enabled: preState?.enabled,
+          isMoving: preState?.isMoving,
+          trackingMode: preState?.trackingMode,
+          distanceFilter: preState?.geolocation?.distanceFilter,
+        });
+      } catch (e) {
+        locationLogger.debug(
+          "Failed to read BGGeo state before profile apply",
+          {
+            profileName,
+            error: e?.message,
+          },
+        );
+      }
 
       const profile = TRACKING_PROFILES[profileName];
       if (!profile) {
@@ -462,6 +711,15 @@ export default function trackLocation() {
         //   transitions so we still get distance-based updates when the user truly moves.
         if (profileName === "active") {
           const state = await BackgroundGeolocation.getState();
+
+          // If we were previously in geofence-only mode, switch back to standard tracking.
+          // Without this, calling `changePace(true)` is not sufficient on some devices,
+          // and the SDK can stay in `trackingMode: 0` (geofence-only), producing no
+          // distance-based updates while moving.
+          if (state?.trackingMode === 0) {
+            await BackgroundGeolocation.start();
+          }
+
           if (!state?.isMoving) {
             await BackgroundGeolocation.changePace(true);
           }
@@ -519,6 +777,43 @@ export default function trackLocation() {
         // Update extras for observability (profile transitions are a key lifecycle change).
         updateTrackingContextExtras(`profile:${profileName}`);
 
+        // For IDLE, ensure we are NOT in geofence-only tracking mode.
+        if (profileName === "idle") {
+          try {
+            const s = await BackgroundGeolocation.getState();
+            if (s?.trackingMode === 0) {
+              await BackgroundGeolocation.start();
+            }
+          } catch {
+            // ignore
+          }
+          void ensureIdleReferenceFix();
+        }
+
+        // Post-state snapshot to detect if we're unintentionally left in geofence-only mode
+        // after applying ACTIVE.
+        try {
+          const post = await BackgroundGeolocation.getState();
+          locationLogger.info("Tracking profile applied (post-state)", {
+            profileName,
+            instanceId: TRACK_LOCATION_INSTANCE_ID,
+            enabled: post?.enabled,
+            isMoving: post?.isMoving,
+            trackingMode: post?.trackingMode,
+            distanceFilter: post?.geolocation?.distanceFilter,
+            // Comparing against preState helps debug transitions.
+            prevTrackingMode: preState?.trackingMode ?? null,
+          });
+        } catch (e) {
+          locationLogger.debug(
+            "Failed to read BGGeo state after profile apply",
+            {
+              profileName,
+              error: e?.message,
+            },
+          );
+        }
+
         try {
           const state = await BackgroundGeolocation.getState();
           locationLogger.info("Tracking profile applied", {
@@ -557,7 +852,24 @@ export default function trackLocation() {
 
       locationLogger.info("Handling auth token update", {
         hasToken: !!userToken,
+        instanceId: TRACK_LOCATION_INSTANCE_ID,
       });
+
+      // Snapshot state early so we can detect if the SDK is currently in geofence-only mode
+      // when auth changes (common during IDLE profile).
+      try {
+        const s = await BackgroundGeolocation.getState();
+        locationLogger.debug("Auth-change BGGeo state snapshot", {
+          instanceId: TRACK_LOCATION_INSTANCE_ID,
+          enabled: s?.enabled,
+          isMoving: s?.isMoving,
+          trackingMode: s?.trackingMode,
+        });
+      } catch (e) {
+        locationLogger.debug("Auth-change BGGeo state snapshot failed", {
+          error: e?.message,
+        });
+      }
 
       // Compute identity from session store; this is our source of truth.
       // (A token refresh for the same user should not force a new persisted fix.)
@@ -802,7 +1114,32 @@ export default function trackLocation() {
           setLocationState(location.coords);
           // Also store in AsyncStorage for last known location fallback
           storeLocation(location.coords, location.timestamp);
+
+          // If we're IDLE, update reference center for later correlation.
+          if (currentProfile === "idle") {
+            lastIdleGeofenceCenter = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            };
+            lastIdleGeofenceCenterAccuracyM =
+              typeof location.coords.accuracy === "number"
+                ? location.coords.accuracy
+                : null;
+            lastIdleGeofenceCenterTimestamp = location.timestamp ?? null;
+            lastIdleGeofenceCenterSource = "onLocation";
+            lastEnsuredIdleGeofenceAt = Date.now();
+            void updateTrackingContextExtras("idle_reference_updated");
+          }
         }
+      },
+      onGeofence: (event) => {
+        // Minimal instrumentation to diagnose action semantics.
+        locationLogger.info("Geofence event", {
+          identifier: event?.identifier,
+          action: event?.action,
+          timestamp: event?.timestamp,
+          hasGeofence: !!event?.geofence,
+        });
       },
       onLocationError: (error) => {
         locationLogger.warn("Location error", {
@@ -881,8 +1218,18 @@ export default function trackLocation() {
               schedulerEnabled: state?.schedulerEnabled,
               // Critical config knobs related to periodic updates
               distanceFilter: state?.geolocation?.distanceFilter,
+              disableElasticity: state?.geolocation?.disableElasticity,
+              stationaryRadius: state?.geolocation?.stationaryRadius,
+              stopOnStationary: state?.geolocation?.stopOnStationary,
+              useSignificantChangesOnly:
+                state?.geolocation?.useSignificantChangesOnly,
+              allowIdenticalLocations:
+                state?.geolocation?.allowIdenticalLocations,
+              filter: state?.geolocation?.filter,
               heartbeatInterval: state?.app?.heartbeatInterval,
               motionTriggerDelay: state?.activity?.motionTriggerDelay,
+              activityStopOnStationary: state?.activity?.stopOnStationary,
+              disableStopDetection: state?.activity?.disableStopDetection,
               disableMotionActivityUpdates:
                 state?.activity?.disableMotionActivityUpdates,
               stopTimeout: state?.geolocation?.stopTimeout,
@@ -948,12 +1295,25 @@ export default function trackLocation() {
             })();
           }
         }
+
+        // IDLE fallback: if we get a real motion transition while locked but geofence EXIT
+        // is not delivered reliably, request one persisted fix (gated + cooled down).
+        if (event?.isMoving && currentProfile === "idle" && authReady) {
+          void maybeRequestIdleMovementFallbackFix("motionchange");
+        }
       },
       onActivityChange: (event) => {
         locationLogger.info("Activity change", {
           activity: event?.activity,
           confidence: event?.confidence,
         });
+
+        lastActivity = event?.activity;
+        lastActivityConfidence = event?.confidence ?? 0;
+
+        if (currentProfile === "idle" && authReady) {
+          void maybeRequestIdleMovementFallbackFix("activitychange");
+        }
       },
       onProviderChange: (event) => {
         locationLogger.info("Provider change", {

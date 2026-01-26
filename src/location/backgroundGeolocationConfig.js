@@ -63,9 +63,20 @@ export const BASE_GEOLOCATION_CONFIG = {
     // even with no open alert (see TRACKING_PROFILES.idle).
     distanceFilter: 200,
 
+    // Prevent dynamic distanceFilter shrink.
+    // Elasticity can lower the effective threshold (eg while stationary), resulting in
+    // unexpected frequent updates.
+    disableElasticity: true,
+
     // Stop-detection.
     // NOTE: historically we set this at top-level.  In v5 the knob is under `geolocation`.
     stopTimeout: 5,
+
+    // True-stationary strategy: once stop-detection decides we're stationary, stop active
+    // tracking and rely on the stationary geofence to detect significant movement.
+    // This is intended to eliminate periodic stationary updates on Android.
+    stopOnStationary: true,
+    stationaryRadius: 200,
 
     // Prevent identical/noise locations from being persisted.
     // This reduces DB churn and avoids triggering native HTTP uploads with redundant points.
@@ -170,8 +181,19 @@ export const TRACKING_PROFILES = {
       // Same rationale as BASE: prefer GPS-capable accuracy to avoid km-level coarse fixes
       // that can trigger false motion/geofence transitions on Android.
       desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
-      // Defensive: keep the distanceFilter conservative to avoid battery drain.
+
+      // IDLE runtime relies on the SDK's stop-detection + stationary geofence (stopOnStationary).
+      // Keep geolocation config conservative for any incidental lookups.
       distanceFilter: 200,
+      disableElasticity: true,
+
+      // IMPORTANT: ACTIVE sets stopOnStationary:false.
+      // Ensure we restore it when transitioning back to IDLE, otherwise the SDK may
+      // continue recording while stationary.
+      stopOnStationary: true,
+
+      // QA helper: allow easier validation in dev/staging while keeping production at 200m.
+      stationaryRadius: __DEV__ || env.IS_STAGING ? 30 : 200,
 
       // Keep filtering enabled across profile transitions.
       filter: DEFAULT_LOCATION_FILTER,
@@ -183,8 +205,6 @@ export const TRACKING_PROFILES = {
     },
     activity: {
       // Android-only: reduce false-positive motion triggers due to screen-on/unlock.
-      // We keep Motion API enabled (battery-optimized) but add a large delay so brief
-      // activity-jitter cannot repeatedly toggle moving/stationary while the user is idle.
       // (This is ignored on iOS.)
       motionTriggerDelay: 300000,
     },
@@ -194,6 +214,12 @@ export const TRACKING_PROFILES = {
       desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
       // ACTIVE target: frequent updates while moving.
       distanceFilter: 25,
+
+      disableElasticity: true,
+
+      // While ACTIVE, do not stop updates simply because the device appears stationary.
+      // Motion-detection + distanceFilter should govern updates.
+      stopOnStationary: false,
 
       // Apply the same native filter while ACTIVE.
       filter: DEFAULT_LOCATION_FILTER,
