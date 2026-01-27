@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.7](https://github.com/alerte-secours/as-app/compare/v1.16.6...v1.16.7) (2026-01-27)
+
+
+### Bug Fixes
+
+* **ios:** deps after up rnbl ([1980822](https://github.com/alerte-secours/as-app/commit/1980822919deda76bc6e186ab3e7addd7ed32618))
+* **track-location:** try 5 ([69753bc](https://github.com/alerte-secours/as-app/commit/69753bc7e18ebd27715d2c0f6472c3c9ea14c0e5))
+* **track-location:** try 6 ([b61aff7](https://github.com/alerte-secours/as-app/commit/b61aff70787e82e05500cbf9c3fda1d7882a040b))
+* **track-location:** try 7 (+ up rnbl to v5) ([f4f7708](https://github.com/alerte-secours/as-app/commit/f4f7708e71227301b9cd5624669da8a092a3a379))
+* **track-location:** try 8 ([33eb0cf](https://github.com/alerte-secours/as-app/commit/33eb0cfa13eb75308fc549f4289c6eaa15a3ac5c))
+* **track-location:** try 8 ([7ba78c7](https://github.com/alerte-secours/as-app/commit/7ba78c7334462d6de6e647d236d39c415fa9cb2b))
+* **track-location:** try 9 ([a18baf9](https://github.com/alerte-secours/as-app/commit/a18baf9ae6bf955f4be609d014c9f5cab8dc6268))
+
 ## [1.16.6](https://github.com/alerte-secours/as-app/compare/v1.16.5...v1.16.6) (2026-01-22)
 
 
