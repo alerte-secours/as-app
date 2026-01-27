@@ -16,7 +16,8 @@ Applies to the BackgroundGeolocation integration:
 
 - Movement-driven recording only:
   - IDLE relies on the SDK's **stop-detection + stationary geofence** (`geolocation.stopOnStationary` + `geolocation.stationaryRadius`) to avoid periodic stationary updates on Android.
-    - When transitioning to moving (`onMotionChange(isMoving:true)`), JS requests **one** persisted fix (native `autoSync` uploads it).
+    - We explicitly exit moving mode on entry to IDLE (`changePace(false)`) to prevent drift-generated periodic locations.
+    - If the SDK later reports a real move (`onMotionChange(isMoving:true)`), JS may request **one** persisted fix as a fallback.
     - We intentionally do not rely on time-based updates.
   - ACTIVE uses `geolocation.distanceFilter: 25`.
   - JS may request a persisted fix when entering ACTIVE (see [`applyProfile()`](src/location/trackLocation.js:351)).
@@ -32,6 +33,37 @@ Applies to the BackgroundGeolocation integration:
   - IDLE primarily relies on stop-detection + stationary geofence (`stopOnStationary: true`) to eliminate periodic stationary updates.
   - Elasticity disabled (`disableElasticity: true`) to avoid dynamic distanceFilter shrink.
   - Extra safety: any JS-triggered persisted fix requests are tagged and ignored if accuracy > 100m.
+
+## Concise testing checklist (Android + iOS)
+
+### 1) Baseline setup
+
+- App has foreground + background location permissions.
+- Motion/Activity permission granted (iOS motion, Android activity-recognition if prompted).
+- Logged-in (to validate native HTTP uploads).
+
+### 2) IDLE (no open alert)
+
+1. Launch app and confirm there is **no open alert** owned by the current user.
+2. Leave phone stationary for 10+ minutes (screen on and screen off).
+   - Expect: no periodic server uploads.
+3. Walk/drive ~250m.
+   - Expect: a movement-triggered persisted location + upload.
+
+### 3) ACTIVE (open alert)
+
+1. Open an alert owned by the current user.
+2. Move ~30m.
+   - Expect: at least one persisted location reaches server quickly.
+3. Continue moving.
+   - Expect: updates align with movement (distanceFilter-based), not time.
+
+### 4) Lifecycle coverage
+
+- Foreground → background: repeat IDLE and ACTIVE steps.
+- Terminated:
+  - Android: swipe-away from recents, then move the above distances and verify server updates.
+  - iOS: swipe-kill, then move significantly and verify app relaunch + upload after relaunch.
 
 ## Basic preconditions
 
@@ -107,9 +139,9 @@ Applies to the BackgroundGeolocation integration:
 ## What to look for in logs
 
 - App lifecycle tagging: [`updateTrackingContextExtras()`](src/location/trackLocation.js:63) should update `tracking_ctx.app_state` on AppState changes.
-- No time-based uploads: heartbeat is disabled (`heartbeatInterval: 0`), so no `Heartbeat` logs from [`onHeartbeat`](src/location/trackLocation.js:762).
+- No time-based uploads: heartbeat is disabled (`heartbeatInterval: 0`).
 - Movement-only uploads:
-  - IDLE: look for `Motion change` (isMoving=true) and `IDLE movement fallback fix`.
+  - IDLE: look for `Motion change` (isMoving=true) and (in rare cases) `IDLE movement fallback fix`.
   - ACTIVE distance threshold: `distanceFilter: 25` in [`TRACKING_PROFILES`](src/location/backgroundGeolocationConfig.js:148).
 
 - Attribution for `getCurrentPosition`:
