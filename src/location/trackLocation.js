@@ -2,7 +2,6 @@ import BackgroundGeolocation from "react-native-background-geolocation";
 import { AppState } from "react-native";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
-import jwtDecode from "jwt-decode";
 import { initEmulatorMode } from "./emulatorService";
 
 import {
@@ -25,6 +24,7 @@ import {
   BASE_GEOLOCATION_INVARIANTS,
   TRACKING_PROFILES,
 } from "~/location/backgroundGeolocationConfig";
+import buildBackgroundGeolocationSetConfigPayload from "~/location/buildBackgroundGeolocationSetConfigPayload";
 import {
   ensureBackgroundGeolocationReady,
   setBackgroundGeolocationEventHandlers,
@@ -69,10 +69,11 @@ export default function trackLocation() {
     const BAD_ACCURACY_THRESHOLD_M = 200;
     const PERSISTED_ACCURACY_GATE_M = 100;
 
-    // NOTE: IDLE previously used `startGeofences()` + a managed geofence.
-    // We now rely on the SDK's stop-detection + stationary geofence
-    // (`stopOnStationary` + `stationaryRadius`) because it is more reliable
-    // in background/locked scenarios.
+    // NOTE: IDLE previously experimented with `startGeofences()` + an app-managed exit geofence.
+    // That approach is now removed.
+    // Current design relies on the SDK's stop-detection + stationary geofence
+    // (`geolocation.stopOnStationary` + `geolocation.stationaryRadius`) because it is more
+    // reliable in background/locked scenarios.
 
     // Fallback: if the OS fails to deliver geofence EXIT while the phone is locked, allow
     // exactly one persisted fix when we get strong evidence of movement (motion+activity).
@@ -82,13 +83,12 @@ export default function trackLocation() {
     let lastIdleMovementFallbackAt = 0;
 
     // Diagnostics fields retained so server-side correlation can continue to work.
-    // (With Option 2, these are used as a reference center rather than a managed geofence.)
-    let lastEnsuredIdleGeofenceAt = 0;
-    let lastIdleGeofenceCenter = null;
-    let lastIdleGeofenceCenterAccuracyM = null;
-    let lastIdleGeofenceCenterTimestamp = null;
-    let lastIdleGeofenceCenterSource = null;
-    let lastIdleGeofenceRadiusM = null;
+    // This is *not* a managed geofence anymore; it's a reference center for observability.
+    let lastEnsuredIdleReferenceAt = 0;
+    let lastIdleReferenceCenter = null;
+    let lastIdleReferenceCenterAccuracyM = null;
+    let lastIdleReferenceCenterTimestamp = null;
+    let lastIdleReferenceCenterSource = null;
 
     // A) Safeguard: when entering IDLE, ensure we have a reasonably accurate and recent
     // reference point.  This does NOT persist/upload; it only updates our stored last-known
@@ -123,14 +123,14 @@ export default function trackLocation() {
           isRecentEnough &&
           isAccurateEnough
         ) {
-          lastIdleGeofenceCenter = {
+          lastIdleReferenceCenter = {
             latitude: storedCoords.latitude,
             longitude: storedCoords.longitude,
           };
-          lastIdleGeofenceCenterAccuracyM = storedAcc;
-          lastIdleGeofenceCenterTimestamp = storedTs ?? null;
-          lastIdleGeofenceCenterSource = "stored";
-          lastEnsuredIdleGeofenceAt = Date.now();
+          lastIdleReferenceCenterAccuracyM = storedAcc;
+          lastIdleReferenceCenterTimestamp = storedTs ?? null;
+          lastIdleReferenceCenterSource = "stored";
+          lastEnsuredIdleReferenceAt = Date.now();
           void updateTrackingContextExtras("idle_reference_ok");
           return;
         }
@@ -152,17 +152,17 @@ export default function trackLocation() {
 
         if (fix?.coords?.latitude && fix?.coords?.longitude) {
           storeLocation(fix.coords, fix.timestamp);
-          lastIdleGeofenceCenter = {
+          lastIdleReferenceCenter = {
             latitude: fix.coords.latitude,
             longitude: fix.coords.longitude,
           };
-          lastIdleGeofenceCenterAccuracyM =
+          lastIdleReferenceCenterAccuracyM =
             typeof fix.coords.accuracy === "number"
               ? fix.coords.accuracy
               : null;
-          lastIdleGeofenceCenterTimestamp = fix.timestamp ?? null;
-          lastIdleGeofenceCenterSource = "idle_reference_fix";
-          lastEnsuredIdleGeofenceAt = Date.now();
+          lastIdleReferenceCenterTimestamp = fix.timestamp ?? null;
+          lastIdleReferenceCenterSource = "idle_reference_fix";
+          lastEnsuredIdleReferenceAt = Date.now();
           void updateTrackingContextExtras("idle_reference_fixed");
         }
       } catch (e) {
@@ -271,7 +271,7 @@ export default function trackLocation() {
     const updateTrackingContextExtras = async (reason) => {
       try {
         const { userId } = getSessionState();
-        await BackgroundGeolocation.setConfig({
+        const payload = await buildBackgroundGeolocationSetConfigPayload({
           persistence: {
             extras: {
               tracking_ctx: {
@@ -281,22 +281,20 @@ export default function trackLocation() {
                 auth_ready: authReady,
                 session_user_id: userId || null,
                 // Diagnostics: helps correlate server-side "no update" reports with
-                // the IDLE geofence placement parameters.
-                idle_geofence: {
-                  // Option 2: managed IDLE geofence removed.
-                  id: null,
-                  radius_m: lastIdleGeofenceRadiusM,
-                  center: lastIdleGeofenceCenter,
-                  center_accuracy_m: lastIdleGeofenceCenterAccuracyM,
-                  center_timestamp: lastIdleGeofenceCenterTimestamp,
-                  center_source: lastIdleGeofenceCenterSource,
-                  ensured_at: lastEnsuredIdleGeofenceAt || null,
+                // the last known good reference center when entering IDLE.
+                idle_reference: {
+                  center: lastIdleReferenceCenter,
+                  center_accuracy_m: lastIdleReferenceCenterAccuracyM,
+                  center_timestamp: lastIdleReferenceCenterTimestamp,
+                  center_source: lastIdleReferenceCenterSource,
+                  ensured_at: lastEnsuredIdleReferenceAt || null,
                 },
                 at: new Date().toISOString(),
               },
             },
           },
         });
+        await BackgroundGeolocation.setConfig(payload);
       } catch (e) {
         // Non-fatal: extras are only for observability/debugging.
         locationLogger.debug("Failed to update BGGeo tracking extras", {
@@ -617,9 +615,8 @@ export default function trackLocation() {
       // while native state drifts (eg `trackingMode` remains geofence-only but geofences
       // are missing, leading to "moving but no updates").
       //
-      // If profile is unchanged, perform a lightweight runtime ensure:
-      // - IDLE: ensure we're in geofence-only mode and that the managed exit geofence exists.
-      // - ACTIVE: ensure we're NOT stuck in geofence-only mode.
+      // If profile is unchanged, perform a lightweight runtime ensure.
+      // We no longer use geofence-only tracking; ensure we are not stuck in it.
       if (currentProfile === profileName) {
         try {
           const state = await BackgroundGeolocation.getState();
@@ -629,7 +626,7 @@ export default function trackLocation() {
             if (state?.trackingMode === 0) {
               await BackgroundGeolocation.start();
             }
-            locationLogger.info("Profile unchanged; IDLE runtime ensured", {
+            locationLogger.debug("Profile unchanged; IDLE runtime ensured", {
               instanceId: TRACK_LOCATION_INSTANCE_ID,
               trackingMode: state?.trackingMode,
               enabled: state?.enabled,
@@ -643,7 +640,7 @@ export default function trackLocation() {
             if (state?.trackingMode === 0) {
               await BackgroundGeolocation.start();
             }
-            locationLogger.info("Profile unchanged; ACTIVE runtime ensured", {
+            locationLogger.debug("Profile unchanged; ACTIVE runtime ensured", {
               instanceId: TRACK_LOCATION_INSTANCE_ID,
               trackingMode: state?.trackingMode,
               enabled: state?.enabled,
@@ -663,12 +660,11 @@ export default function trackLocation() {
 
       const applyStartedAt = Date.now();
 
-      // Diagnostic: track trackingMode transitions (especially geofence-only mode) across
-      // identity changes and profile switches.
+      // Diagnostic snapshot (debug only) to help understand trackingMode transitions.
       let preState = null;
       try {
         preState = await BackgroundGeolocation.getState();
-        locationLogger.info("Applying tracking profile (pre-state)", {
+        locationLogger.debug("Applying tracking profile (pre-state)", {
           profileName,
           instanceId: TRACK_LOCATION_INSTANCE_ID,
           enabled: preState?.enabled,
@@ -700,7 +696,10 @@ export default function trackLocation() {
       });
 
       try {
-        await BackgroundGeolocation.setConfig(profile);
+        const payload = await buildBackgroundGeolocationSetConfigPayload(
+          profile,
+        );
+        await BackgroundGeolocation.setConfig(payload);
 
         // Motion state strategy:
         // - ACTIVE: force moving to begin aggressive tracking immediately.
@@ -758,6 +757,9 @@ export default function trackLocation() {
               longitude: fix?.coords?.longitude,
               timestamp: fix?.timestamp,
             });
+
+            // Prevent duplicated "moving-edge" persisted fix right after entering ACTIVE.
+            lastMovingEdgeAt = Date.now();
           } catch (error) {
             locationLogger.warn("ACTIVE immediate fix failed", {
               error: error?.message,
@@ -790,18 +792,16 @@ export default function trackLocation() {
           void ensureIdleReferenceFix();
         }
 
-        // Post-state snapshot to detect if we're unintentionally left in geofence-only mode
-        // after applying ACTIVE.
+        // Post-state snapshot (debug) to detect unintended geofence-only mode.
         try {
           const post = await BackgroundGeolocation.getState();
-          locationLogger.info("Tracking profile applied (post-state)", {
+          locationLogger.debug("Tracking profile applied (post-state)", {
             profileName,
             instanceId: TRACK_LOCATION_INSTANCE_ID,
             enabled: post?.enabled,
             isMoving: post?.isMoving,
             trackingMode: post?.trackingMode,
             distanceFilter: post?.geolocation?.distanceFilter,
-            // Comparing against preState helps debug transitions.
             prevTrackingMode: preState?.trackingMode ?? null,
           });
         } catch (e) {
@@ -855,20 +855,21 @@ export default function trackLocation() {
         instanceId: TRACK_LOCATION_INSTANCE_ID,
       });
 
-      // Snapshot state early so we can detect if the SDK is currently in geofence-only mode
-      // when auth changes (common during IDLE profile).
-      try {
-        const s = await BackgroundGeolocation.getState();
-        locationLogger.debug("Auth-change BGGeo state snapshot", {
-          instanceId: TRACK_LOCATION_INSTANCE_ID,
-          enabled: s?.enabled,
-          isMoving: s?.isMoving,
-          trackingMode: s?.trackingMode,
-        });
-      } catch (e) {
-        locationLogger.debug("Auth-change BGGeo state snapshot failed", {
-          error: e?.message,
-        });
+      // Snapshot state early (debug only) to diagnose "no uploads" reports after auth refresh.
+      if (__DEV__ || env.IS_STAGING) {
+        try {
+          const s = await BackgroundGeolocation.getState();
+          locationLogger.debug("Auth-change BGGeo state snapshot", {
+            instanceId: TRACK_LOCATION_INSTANCE_ID,
+            enabled: s?.enabled,
+            isMoving: s?.isMoving,
+            trackingMode: s?.trackingMode,
+          });
+        } catch (e) {
+          locationLogger.debug("Auth-change BGGeo state snapshot failed", {
+            error: e?.message,
+          });
+        }
       }
 
       // Compute identity from session store; this is our source of truth.
@@ -888,13 +889,14 @@ export default function trackLocation() {
         );
 
         try {
-          await BackgroundGeolocation.setConfig({
+          const payload = await buildBackgroundGeolocationSetConfigPayload({
             http: {
               url: "",
               autoSync: false,
               headers: {},
             },
           });
+          await BackgroundGeolocation.setConfig(payload);
           didDisableUploadsForAnonymous = true;
           didSyncAfterAuth = false;
         } catch (e) {
@@ -950,22 +952,24 @@ export default function trackLocation() {
         lastSessionUserId = null;
         return;
       }
-      // unsub();
       locationLogger.debug("Updating background geolocation config");
-      await BackgroundGeolocation.setConfig({
-        http: {
-          // Update the sync URL for when it's changed for staging
-          url: env.GEOLOC_SYNC_URL,
-          // IMPORTANT: enable native uploading when authenticated.
-          // This ensures uploads continue even if JS is suspended in background.
-          autoSync: true,
-          batchSync: false,
-          autoSyncThreshold: 0,
-          headers: {
-            Authorization: `Bearer ${userToken}`,
+      {
+        const payload = await buildBackgroundGeolocationSetConfigPayload({
+          http: {
+            // Update the sync URL for when it's changed for staging
+            url: env.GEOLOC_SYNC_URL,
+            // IMPORTANT: enable native uploading when authenticated.
+            // This ensures uploads continue even if JS is suspended in background.
+            autoSync: true,
+            batchSync: false,
+            autoSyncThreshold: 0,
+            headers: {
+              Authorization: `Bearer ${userToken}`,
+            },
           },
-        },
-      });
+        });
+        await BackgroundGeolocation.setConfig(payload);
+      }
 
       authReady = true;
 
@@ -981,14 +985,6 @@ export default function trackLocation() {
       );
 
       const state = await BackgroundGeolocation.getState();
-      try {
-        const decodedToken = jwtDecode(userToken);
-        locationLogger.debug("Decoded JWT token", { decodedToken });
-      } catch (error) {
-        locationLogger.error("Failed to decode JWT token", {
-          error: error.message,
-        });
-      }
 
       if (!state.enabled) {
         locationLogger.info("Starting location tracking");
@@ -1084,12 +1080,14 @@ export default function trackLocation() {
     setBackgroundGeolocationEventHandlers({
       onLocation: async (location) => {
         locationLogger.debug("Location update received", {
-          coords: location.coords,
-          timestamp: location.timestamp,
-          activity: location.activity,
-          battery: location.battery,
-          sample: location.sample,
-          extras: location.extras,
+          uuid: location?.uuid,
+          sample: location?.sample,
+          accuracy: location?.coords?.accuracy,
+          latitude: location?.coords?.latitude,
+          longitude: location?.coords?.longitude,
+          timestamp: location?.timestamp,
+          activity: location?.activity,
+          extras: location?.extras,
         });
 
         // Ignore sampling locations (eg, emitted during getCurrentPosition) to avoid UI/storage churn.
@@ -1117,29 +1115,20 @@ export default function trackLocation() {
 
           // If we're IDLE, update reference center for later correlation.
           if (currentProfile === "idle") {
-            lastIdleGeofenceCenter = {
+            lastIdleReferenceCenter = {
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
             };
-            lastIdleGeofenceCenterAccuracyM =
+            lastIdleReferenceCenterAccuracyM =
               typeof location.coords.accuracy === "number"
                 ? location.coords.accuracy
                 : null;
-            lastIdleGeofenceCenterTimestamp = location.timestamp ?? null;
-            lastIdleGeofenceCenterSource = "onLocation";
-            lastEnsuredIdleGeofenceAt = Date.now();
+            lastIdleReferenceCenterTimestamp = location.timestamp ?? null;
+            lastIdleReferenceCenterSource = "onLocation";
+            lastEnsuredIdleReferenceAt = Date.now();
             void updateTrackingContextExtras("idle_reference_updated");
           }
         }
-      },
-      onGeofence: (event) => {
-        // Minimal instrumentation to diagnose action semantics.
-        locationLogger.info("Geofence event", {
-          identifier: event?.identifier,
-          action: event?.action,
-          timestamp: event?.timestamp,
-          hasGeofence: !!event?.geofence,
-        });
       },
       onLocationError: (error) => {
         locationLogger.warn("Location error", {
@@ -1155,94 +1144,43 @@ export default function trackLocation() {
           responseText: response?.responseText,
         });
 
-        // Instrumentation: when we see periodic HTTP without a corresponding location event,
-        // we want to know if BGGeo is retrying an upload queue or flushing new records.
-        // This helps diagnose reports like "server receives updates every ~5 minutes while stationary".
+        // Lightweight instrumentation only when useful:
+        // - non-success responses
+        // - dev/staging visibility
+        const shouldInstrumentHttp =
+          !response?.success || __DEV__ || env.IS_STAGING;
+        if (!shouldInstrumentHttp) return;
+
         try {
           const [state, count] = await Promise.all([
             BackgroundGeolocation.getState(),
             BackgroundGeolocation.getCount(),
           ]);
           locationLogger.debug("HTTP instrumentation", {
+            success: response?.success,
+            status: response?.status,
             enabled: state?.enabled,
             isMoving: state?.isMoving,
             trackingMode: state?.trackingMode,
-            schedulerEnabled: state?.schedulerEnabled,
             pendingCount: count,
           });
         } catch (e) {
-          locationLogger.warn("Failed HTTP instrumentation", {
+          locationLogger.debug("Failed HTTP instrumentation", {
             error: e?.message,
           });
         }
       },
-      onHeartbeat: (event) => {
-        // If heartbeat is configured, it can trigger sync attempts even without new locations.
-        locationLogger.info("Heartbeat", {
-          enabled: event?.state?.enabled,
-          isMoving: event?.state?.isMoving,
-          location: event?.location?.coords,
-        });
-      },
-      onSchedule: (event) => {
-        locationLogger.info("Schedule", {
-          state: event?.state,
-        });
-      },
       onMotionChange: (event) => {
-        // Diagnostic snapshot to understand periodic motion-change loops (eg Android ~5min).
-        // Keep it cheap: avoid heavy calls unless motion-change fires.
-        // NOTE: This is safe to run in background because it does not request a new location.
+        // Essential motion diagnostics (avoid spam; keep it one log per edge).
         locationLogger.info("Motion change", {
+          instanceId: TRACK_LOCATION_INSTANCE_ID,
+          profile: currentProfile,
+          appState,
+          authReady,
           isMoving: event?.isMoving,
-          location: event?.location?.coords,
+          accuracy: event?.location?.coords?.accuracy,
+          speed: event?.location?.coords?.speed,
         });
-
-        // Async snapshot of BGGeo internal state/config at the time of motion-change.
-        // This helps correlate native behavior with our current profile + config.
-        (async () => {
-          try {
-            const state = await BackgroundGeolocation.getState();
-
-            locationLogger.info("Motion change diagnostic", {
-              isMoving: event?.isMoving,
-              appState: appState,
-              profile: currentProfile,
-              authReady,
-              // Time correlation
-              at: new Date().toISOString(),
-              // Core BGGeo runtime state
-              enabled: state?.enabled,
-              trackingMode: state?.trackingMode,
-              isMovingState: state?.isMoving,
-              schedulerEnabled: state?.schedulerEnabled,
-              // Critical config knobs related to periodic updates
-              distanceFilter: state?.geolocation?.distanceFilter,
-              disableElasticity: state?.geolocation?.disableElasticity,
-              stationaryRadius: state?.geolocation?.stationaryRadius,
-              stopOnStationary: state?.geolocation?.stopOnStationary,
-              useSignificantChangesOnly:
-                state?.geolocation?.useSignificantChangesOnly,
-              allowIdenticalLocations:
-                state?.geolocation?.allowIdenticalLocations,
-              filter: state?.geolocation?.filter,
-              heartbeatInterval: state?.app?.heartbeatInterval,
-              motionTriggerDelay: state?.activity?.motionTriggerDelay,
-              activityStopOnStationary: state?.activity?.stopOnStationary,
-              disableStopDetection: state?.activity?.disableStopDetection,
-              disableMotionActivityUpdates:
-                state?.activity?.disableMotionActivityUpdates,
-              stopTimeout: state?.geolocation?.stopTimeout,
-              // Location quality signal
-              accuracy: event?.location?.coords?.accuracy,
-              speed: event?.location?.coords?.speed,
-            });
-          } catch (e) {
-            locationLogger.warn("Motion change diagnostic failed", {
-              error: e?.message,
-            });
-          }
-        })();
 
         // Moving-edge strategy: when we enter moving state, force one persisted high-quality
         // point + sync so the server gets a quick update.
@@ -1303,7 +1241,7 @@ export default function trackLocation() {
         }
       },
       onActivityChange: (event) => {
-        locationLogger.info("Activity change", {
+        locationLogger.debug("Activity change", {
           activity: event?.activity,
           confidence: event?.confidence,
         });
@@ -1325,7 +1263,7 @@ export default function trackLocation() {
         });
       },
       onConnectivityChange: (event) => {
-        locationLogger.info("Connectivity change", {
+        locationLogger.debug("Connectivity change", {
           connected: event?.connected,
         });
       },
@@ -1359,7 +1297,10 @@ export default function trackLocation() {
       // Ensure critical config cannot drift due to persisted plugin state.
       // (We intentionally keep auth headers separate and set them in handleAuth.)
       try {
-        await BackgroundGeolocation.setConfig(BASE_GEOLOCATION_INVARIANTS);
+        const payload = await buildBackgroundGeolocationSetConfigPayload(
+          BASE_GEOLOCATION_INVARIANTS,
+        );
+        await BackgroundGeolocation.setConfig(payload);
       } catch (e) {
         locationLogger.warn("Failed to apply BGGeo base invariants", {
           error: e?.message,

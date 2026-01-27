@@ -59,8 +59,7 @@ export const BASE_GEOLOCATION_CONFIG = {
     // protect battery.
     desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
 
-    // Default to the IDLE profile behaviour: we still want distance-based updates
-    // even with no open alert (see TRACKING_PROFILES.idle).
+    // Default to the IDLE profile behaviour.
     distanceFilter: 200,
 
     // Prevent dynamic distanceFilter shrink.
@@ -69,7 +68,6 @@ export const BASE_GEOLOCATION_CONFIG = {
     disableElasticity: true,
 
     // Stop-detection.
-    // NOTE: historically we set this at top-level.  In v5 the knob is under `geolocation`.
     stopTimeout: 5,
 
     // True-stationary strategy: once stop-detection decides we're stationary, stop active
@@ -141,7 +139,6 @@ export const BASE_GEOLOCATION_CONFIG = {
   persistence: {
     // Product requirement: keep only the latest geopoint.
     maxRecordsToPersist: 1,
-    maxDaysToPersist: 1,
 
     // Behavior tweaks
     disableProviderChangeRecord: true,
@@ -167,7 +164,6 @@ export const BASE_GEOLOCATION_INVARIANTS = {
   },
   persistence: {
     maxRecordsToPersist: 1,
-    maxDaysToPersist: 1,
     disableProviderChangeRecord: true,
   },
   // NOTE: `speedJumpFilter` was a legacy Config knob; it is not part of v5 shared types.
@@ -178,26 +174,14 @@ export const BASE_GEOLOCATION_INVARIANTS = {
 export const TRACKING_PROFILES = {
   idle: {
     geolocation: {
-      // Same rationale as BASE: prefer GPS-capable accuracy to avoid km-level coarse fixes
-      // that can trigger false motion/geofence transitions on Android.
-      desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
-
       // IDLE runtime relies on the SDK's stop-detection + stationary geofence (stopOnStationary).
-      // Keep geolocation config conservative for any incidental lookups.
-      distanceFilter: 200,
-      disableElasticity: true,
-
       // IMPORTANT: ACTIVE sets stopOnStationary:false.
       // Ensure we restore it when transitioning back to IDLE, otherwise the SDK may
       // continue recording while stationary.
       stopOnStationary: true,
 
       // QA helper: allow easier validation in dev/staging while keeping production at 200m.
-      stationaryRadius: __DEV__ || env.IS_STAGING ? 30 : 200,
-
-      // Keep filtering enabled across profile transitions.
-      filter: DEFAULT_LOCATION_FILTER,
-      allowIdenticalLocations: false,
+      stationaryRadius: 200,
     },
     app: {
       // Never use heartbeat-driven updates; only movement-driven.
@@ -211,19 +195,12 @@ export const TRACKING_PROFILES = {
   },
   active: {
     geolocation: {
-      desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
       // ACTIVE target: frequent updates while moving.
       distanceFilter: 25,
-
-      disableElasticity: true,
 
       // While ACTIVE, do not stop updates simply because the device appears stationary.
       // Motion-detection + distanceFilter should govern updates.
       stopOnStationary: false,
-
-      // Apply the same native filter while ACTIVE.
-      filter: DEFAULT_LOCATION_FILTER,
-      allowIdenticalLocations: false,
     },
     app: {
       // Never use heartbeat-driven updates; only movement-driven.
