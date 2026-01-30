@@ -1,7 +1,9 @@
+import { Platform } from "react-native";
 import BackgroundGeolocation from "react-native-background-geolocation";
 import env from "~/env";
 
 const LOCATION_ACCURACY_GATE_M = 100;
+const IS_ANDROID = Platform.OS === "android";
 
 // Native filter to reduce GPS drift and suppress stationary jitter.
 // This is the primary mechanism to prevent unwanted persisted/uploaded points while the device
@@ -39,12 +41,12 @@ export const BASE_GEOLOCATION_CONFIG = {
 
   // Logger config
   logger: {
-    // debug: true,
+    debug: true,
     // Logging can become large and also adds overhead; keep verbose logs to dev/staging.
-    logLevel:
-      __DEV__ || env.IS_STAGING
-        ? BackgroundGeolocation.LogLevel.Verbose
-        : BackgroundGeolocation.LogLevel.Error,
+    logLevel: BackgroundGeolocation.LogLevel.Verbose,
+    // __DEV__ || env.IS_STAGING
+    //   ? BackgroundGeolocation.LogLevel.Verbose
+    //   : BackgroundGeolocation.LogLevel.Error,
   },
 
   // Geolocation config
@@ -62,6 +64,12 @@ export const BASE_GEOLOCATION_CONFIG = {
     // Default to the IDLE profile behaviour.
     distanceFilter: 200,
 
+    // Ensure deterministic behavior when switching profiles.
+    // If we enable significant-changes mode in Android IDLE, we *must* explicitly
+    // restore it to `false` in ACTIVE (and other modes) to avoid the SDK keeping a
+    // previously-set `true` value.
+    useSignificantChangesOnly: false,
+
     // Prevent dynamic distanceFilter shrink.
     // Elasticity can lower the effective threshold (eg while stationary), resulting in
     // unexpected frequent updates.
@@ -73,7 +81,14 @@ export const BASE_GEOLOCATION_CONFIG = {
     // True-stationary strategy: once stop-detection decides we're stationary, stop active
     // tracking and rely on the stationary geofence to detect significant movement.
     // This is intended to eliminate periodic stationary updates on Android.
-    stopOnStationary: true,
+    //
+    // HOWEVER: On some Android devices, the stationary-geofence EXIT can be triggered by
+    // extremely poor "trigger" fixes (eg hAcc=500m), causing false motion transitions and
+    // periodic persisted uploads while the phone is actually stationary.
+    //
+    // Mitigation (Android IDLE): do NOT rely on stationary-geofence mode; instead rely on
+    // distanceFilter + native filtering.
+    stopOnStationary: IS_ANDROID ? false : true,
     stationaryRadius: 200,
 
     // Prevent identical/noise locations from being persisted.
@@ -178,7 +193,14 @@ export const TRACKING_PROFILES = {
       // IMPORTANT: ACTIVE sets stopOnStationary:false.
       // Ensure we restore it when transitioning back to IDLE, otherwise the SDK may
       // continue recording while stationary.
-      stopOnStationary: true,
+      //
+      // Android mitigation: disable stopOnStationary to avoid stationary-geofence EXIT loops.
+      stopOnStationary: IS_ANDROID ? false : true,
+
+      // Android IDLE: rely on OS-level significant movement only.
+      // This avoids periodic wakeups/records due to poor fused-location fixes while the phone
+      // is stationary (screen-off / locked scenarios).
+      useSignificantChangesOnly: IS_ANDROID,
 
       // QA helper: allow easier validation in dev/staging while keeping production at 200m.
       stationaryRadius: 200,
@@ -197,6 +219,9 @@ export const TRACKING_PROFILES = {
     geolocation: {
       // ACTIVE target: frequent updates while moving.
       distanceFilter: 25,
+
+      // ACTIVE must not use significant-changes-only (we want continuous distance-based updates).
+      useSignificantChangesOnly: false,
 
       // While ACTIVE, do not stop updates simply because the device appears stationary.
       // Motion-detection + distanceFilter should govern updates.

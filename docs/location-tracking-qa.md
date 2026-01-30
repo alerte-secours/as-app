@@ -161,3 +161,21 @@ Applies to the BackgroundGeolocation integration:
   - `onLocation` events
   - `onHttp` events
   - pending queue (`BackgroundGeolocation.getCount()` in logs)
+
+## Android-specific note (stationary-geofence EXIT loop)
+
+Some Android devices can repeatedly trigger the SDK's internal **stationary geofence EXIT** using a very poor "trigger" fix (eg `hAcc=500m`).
+This can cause false motion transitions and periodic persisted uploads even when the phone is not moving.
+
+Mitigation applied:
+
+- Android IDLE disables `geolocation.stopOnStationary` (we do **not** rely on stationary-geofence mode in IDLE on Android).
+  - See [`BASE_GEOLOCATION_CONFIG.geolocation.stopOnStationary`](src/location/backgroundGeolocationConfig.js:1) and [`TRACKING_PROFILES.idle.geolocation.stopOnStationary`](src/location/backgroundGeolocationConfig.js:1).
+
+- Android IDLE uses `geolocation.useSignificantChangesOnly: true` to rely on OS-level significant movement events.
+  - See [`TRACKING_PROFILES.idle.geolocation.useSignificantChangesOnly`](src/location/backgroundGeolocationConfig.js:1).
+
+Diagnostics:
+
+- `onGeofence` events are logged (identifier/action/accuracy + current BGGeo state) to confirm whether the SDK is emitting stationary geofence events.
+  - See [`setBackgroundGeolocationEventHandlers({ onGeofence })`](src/location/trackLocation.js:1).
