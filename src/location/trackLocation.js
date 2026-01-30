@@ -1130,6 +1130,36 @@ export default function trackLocation() {
           }
         }
       },
+      onGeofence: async (event) => {
+        // Diagnostic only: geofences are still used internally by the SDK (eg stationary geofence)
+        // even when we don't manage any app-defined geofences.
+        try {
+          const state = await BackgroundGeolocation.getState();
+          locationLogger.info("Geofence event", {
+            identifier: event?.identifier,
+            action: event?.action,
+            accuracy: event?.location?.coords?.accuracy,
+            latitude: event?.location?.coords?.latitude,
+            longitude: event?.location?.coords?.longitude,
+            enabled: state?.enabled,
+            isMoving: state?.isMoving,
+            trackingMode: state?.trackingMode,
+            profile: currentProfile,
+            appState,
+          });
+        } catch (e) {
+          locationLogger.info("Geofence event", {
+            identifier: event?.identifier,
+            action: event?.action,
+            accuracy: event?.location?.coords?.accuracy,
+            latitude: event?.location?.coords?.latitude,
+            longitude: event?.location?.coords?.longitude,
+            profile: currentProfile,
+            appState,
+            error: e?.message,
+          });
+        }
+      },
       onLocationError: (error) => {
         locationLogger.warn("Location error", {
           error: error?.message,
