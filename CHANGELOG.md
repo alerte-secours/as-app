@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.8](https://github.com/alerte-secours/as-app/compare/v1.16.7...v1.16.8) (2026-02-05)
+
+
+### Bug Fixes
+
+* **up:** react-native-background-geolocation (+fix mountain android) ([a1d4f0e](https://github.com/alerte-secours/as-app/commit/a1d4f0e0596f1e00bae608ba191ef700d4c4bd04))
+
 ## [1.16.7](https://github.com/alerte-secours/as-app/compare/v1.16.6...v1.16.7) (2026-01-27)
 
 
