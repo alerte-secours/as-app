@@ -41,12 +41,12 @@ export const BASE_GEOLOCATION_CONFIG = {
 
   // Logger config
   logger: {
-    debug: true,
+    // debug: true,
     // Logging can become large and also adds overhead; keep verbose logs to dev/staging.
-    logLevel: BackgroundGeolocation.LogLevel.Verbose,
-    // __DEV__ || env.IS_STAGING
-    //   ? BackgroundGeolocation.LogLevel.Verbose
-    //   : BackgroundGeolocation.LogLevel.Error,
+    logLevel:
+      __DEV__ || env.IS_STAGING
+        ? BackgroundGeolocation.LogLevel.Verbose
+        : BackgroundGeolocation.LogLevel.Error,
   },
 
   // Geolocation config
