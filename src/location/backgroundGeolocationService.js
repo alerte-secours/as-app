@@ -15,6 +15,12 @@ let lastReadyState = null;
 let subscriptions = [];
 let handlersSignature = null;
 
+export function clearBackgroundGeolocationEventHandlers() {
+  subscriptions.forEach((s) => s?.remove?.());
+  subscriptions = [];
+  handlersSignature = null;
+}
+
 export async function ensureBackgroundGeolocationReady(
   config = BASE_GEOLOCATION_CONFIG,
 ) {
@@ -81,8 +87,7 @@ export function setBackgroundGeolocationEventHandlers({
     return;
   }
 
-  subscriptions.forEach((s) => s?.remove?.());
-  subscriptions = [];
+  clearBackgroundGeolocationEventHandlers();
 
   if (onLocation) {
     subscriptions.push(

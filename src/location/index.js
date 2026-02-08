@@ -1,16 +1,11 @@
-import BackgroundGeolocation from "react-native-background-geolocation";
 import { Alert } from "react-native";
+import * as Location from "expo-location";
 
 import { getLocationState } from "~/stores";
 
 import openSettings from "~/lib/native/openSettings";
 
 import setLocationState from "./setLocationState";
-
-import camelCaseKeys from "~/utils/string/camelCaseKeys";
-
-import { ensureBackgroundGeolocationReady } from "~/location/backgroundGeolocationService";
-import { BASE_GEOLOCATION_CONFIG } from "~/location/backgroundGeolocationConfig";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
@@ -20,15 +15,11 @@ export async function getCurrentLocation() {
 
   while (retries < MAX_RETRIES) {
     try {
-      // Vendor requirement: never call APIs like getState/requestPermission/getCurrentPosition
-      // before `.ready()` has resolved.
-      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+      // UI-only location must NOT depend on BGGeo.
+      // Policy: pre-auth, BGGeo remains completely unused.
 
-      // Check for location permissions and services
-      const state = await BackgroundGeolocation.getState();
-
-      if (!state.enabled) {
-        // Prompt the user to enable location services manually
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
         Alert.alert(
           "Services de localisation désactivés",
           "Veuillez activer les services de localisation pour utiliser cette fonctionnalité.",
@@ -39,17 +30,16 @@ export async function getCurrentLocation() {
         );
         return null;
       }
-      const authorizationStatus =
-        await BackgroundGeolocation.requestPermission();
 
-      const isAuthorized =
-        authorizationStatus ===
-          BackgroundGeolocation.AuthorizationStatus?.Always ||
-        authorizationStatus ===
-          BackgroundGeolocation.AuthorizationStatus?.WhenInUse;
+      const perm = await Location.getForegroundPermissionsAsync();
+      let status = perm?.status;
 
-      if (!isAuthorized) {
-        // If unable to get permissions, provide a link to settings
+      if (status !== "granted") {
+        const req = await Location.requestForegroundPermissionsAsync();
+        status = req?.status;
+      }
+
+      if (status !== "granted") {
         Alert.alert(
           "Autorisation de localisation requise",
           "Veuillez accorder l'autorisation de localisation pour utiliser cette fonctionnalité.",
@@ -61,18 +51,27 @@ export async function getCurrentLocation() {
         return null;
       }
 
-      // UI lookup: do not persist. Persisting can create a DB record and trigger
-      // native HTTP upload even if the user has not moved.
-      const location = await BackgroundGeolocation.getCurrentPosition({
-        timeout: 30,
-        persist: false,
-        maximumAge: 5000,
-        desiredAccuracy: BackgroundGeolocation.DesiredAccuracy.High,
-        samples: 1,
-      });
-      const coords = camelCaseKeys(location.coords);
-      setLocationState(coords);
-      return coords;
+      // Add a lightweight timeout wrapper to avoid hanging UI.
+      const TIMEOUT_MS = 30000;
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Location timeout")), TIMEOUT_MS),
+      );
+
+      const loc = await Promise.race([
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+          mayShowUserSettingsDialog: false,
+        }),
+        timeout,
+      ]);
+
+      const coords = loc?.coords;
+      if (coords) {
+        setLocationState(coords);
+        return coords;
+      }
+
+      return null;
     } catch (error) {
       console.log(
         `Erreur lors de l'obtention de la position actuelle (tentative ${
