@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import * as Sentry from "@sentry/react-native";
-import BackgroundGeolocation from "react-native-background-geolocation";
 import {
   Button,
   Card,
@@ -22,8 +21,11 @@ import {
 import { LOG_LEVELS, setMinLogLevel } from "~/lib/logger";
 import { config as loggerConfig } from "~/lib/logger/config";
 
-import { ensureBackgroundGeolocationReady } from "~/location/backgroundGeolocationService";
-import { BASE_GEOLOCATION_CONFIG } from "~/location/backgroundGeolocationConfig";
+import {
+  bggeoGetDiagnosticsSnapshot,
+  bggeoGetStatusSnapshot,
+  bggeoSyncNow,
+} from "~/location/bggeo/diagnostics";
 
 const reset = async () => {
   await authActions.logout();
@@ -48,6 +50,8 @@ export default function Developer() {
   const [syncResult, setSyncResult] = useState("");
   const [bgGeoStatus, setBgGeoStatus] = useState(null); // null, 'loading', 'success', 'error'
   const [bgGeoResult, setBgGeoResult] = useState("");
+  const [bgGeoDiagStatus, setBgGeoDiagStatus] = useState(null);
+  const [bgGeoDiagResult, setBgGeoDiagResult] = useState("");
   const [logLevel, setLogLevel] = useState(LOG_LEVELS.DEBUG);
 
   // Initialize emulator mode and log level when component mounts
@@ -80,25 +84,18 @@ export default function Developer() {
       setSyncStatus("syncing");
       setSyncResult("");
 
-      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
+      const [{ enabled, isMoving, trackingMode }, sync] = await Promise.all([
+        bggeoGetStatusSnapshot(),
+        bggeoSyncNow(),
+      ]);
 
-      const state = await BackgroundGeolocation.getState();
-
-      // Get the count of pending records first
-      const count = await BackgroundGeolocation.getCount();
-
-      // Perform the sync
-      const records = await BackgroundGeolocation.sync();
-
-      const pendingAfter = await BackgroundGeolocation.getCount();
-
-      const result = `Synced ${
-        records?.length || 0
-      } records (${count} pending before, ${pendingAfter} pending after). enabled=${String(
-        state?.enabled,
-      )} isMoving=${String(state?.isMoving)} trackingMode=${String(
-        state?.trackingMode,
-      )}`;
+      const result = `Synced ${String(sync?.synced)} records (${String(
+        sync?.pendingBefore,
+      )} pending before, ${String(
+        sync?.pendingAfter,
+      )} pending after). enabled=${String(enabled)} isMoving=${String(
+        isMoving,
+      )} trackingMode=${String(trackingMode)}`;
       setSyncResult(result);
       setSyncStatus("success");
     } catch (error) {
@@ -113,23 +110,52 @@ export default function Developer() {
       setBgGeoStatus("loading");
       setBgGeoResult("");
 
-      await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
-      const [state, count] = await Promise.all([
-        BackgroundGeolocation.getState(),
-        BackgroundGeolocation.getCount(),
-      ]);
-
-      const result = `enabled=${String(state?.enabled)} isMoving=${String(
-        state?.isMoving,
-      )} trackingMode=${String(state?.trackingMode)} schedulerEnabled=${String(
-        state?.schedulerEnabled,
-      )} pending=${String(count)}`;
+      const snap = await bggeoGetStatusSnapshot();
+      const result = `enabled=${String(snap?.enabled)} isMoving=${String(
+        snap?.isMoving,
+      )} trackingMode=${String(snap?.trackingMode)} schedulerEnabled=${String(
+        snap?.schedulerEnabled,
+      )} pending=${String(snap?.pending)}`;
       setBgGeoResult(result);
       setBgGeoStatus("success");
     } catch (error) {
       console.error("BGGeo status failed:", error);
       setBgGeoResult(`Status failed: ${error.message}`);
       setBgGeoStatus("error");
+    }
+  };
+
+  // Diagnostics: provide a single snapshot that helps debug "no updates" without logcat.
+  // Includes state + pending queue + last persisted locations (if any).
+  const showBgGeoDiagnostics = async () => {
+    try {
+      setBgGeoDiagStatus("loading");
+      setBgGeoDiagResult("");
+
+      const diag = await bggeoGetDiagnosticsSnapshot();
+
+      const last = diag?.lastLocation;
+      const lastStr = last
+        ? `last={lat:${String(last.latitude).slice(0, 10)} lng:${String(
+            last.longitude,
+          ).slice(0, 10)} acc:${String(last.accuracy)} ts:${String(
+            last.timestamp,
+          )}}`
+        : "last=null";
+
+      const state = diag?.state;
+      const result = `enabled=${String(state?.enabled)} isMoving=${String(
+        state?.isMoving,
+      )} trackingMode=${String(state?.trackingMode)} schedulerEnabled=${String(
+        state?.schedulerEnabled,
+      )} pending=${String(diag?.pending)} ${lastStr}`;
+
+      setBgGeoDiagResult(result);
+      setBgGeoDiagStatus("success");
+    } catch (error) {
+      console.error("BGGeo diagnostics failed:", error);
+      setBgGeoDiagResult(`Diagnostics failed: ${error.message}`);
+      setBgGeoDiagStatus("error");
     }
   };
   const triggerNullError = () => {
@@ -210,6 +236,23 @@ export default function Developer() {
             onValueChange={handleEmulatorModeToggle}
           />
         </View>
+      </Section>
+
+      <Section title="BGGeo Diagnostics (no logcat)">
+        <Button
+          mode="contained"
+          onPress={showBgGeoDiagnostics}
+          loading={bgGeoDiagStatus === "loading"}
+          disabled={bgGeoDiagStatus === "loading"}
+          style={{ marginBottom: 8 }}
+        >
+          Show BGGeo diagnostics
+        </Button>
+        {bgGeoDiagResult ? (
+          <Text selectable variant="bodySmall">
+            {bgGeoDiagResult}
+          </Text>
+        ) : null}
       </Section>
 
       <Section title="Logging Controls">

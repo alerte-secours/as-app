@@ -4,6 +4,7 @@ import env from "~/env";
 
 const LOCATION_ACCURACY_GATE_M = 100;
 const IS_ANDROID = Platform.OS === "android";
+const IS_DEBUG_LOGGING = __DEV__ || env.IS_STAGING;
 
 // Native filter to reduce GPS drift and suppress stationary jitter.
 // This is the primary mechanism to prevent unwanted persisted/uploaded points while the device
@@ -41,12 +42,12 @@ export const BASE_GEOLOCATION_CONFIG = {
 
   // Logger config
   logger: {
-    // debug: true,
-    // Logging can become large and also adds overhead; keep verbose logs to dev/staging.
-    logLevel:
-      __DEV__ || env.IS_STAGING
-        ? BackgroundGeolocation.LogLevel.Verbose
-        : BackgroundGeolocation.LogLevel.Error,
+    // Logging can become large and also adds overhead.
+    // Keep verbose logs to dev/staging.
+    debug: IS_DEBUG_LOGGING,
+    logLevel: IS_DEBUG_LOGGING
+      ? BackgroundGeolocation.LogLevel.Verbose
+      : BackgroundGeolocation.LogLevel.Error,
   },
 
   // Geolocation config
@@ -200,7 +201,10 @@ export const TRACKING_PROFILES = {
       // Android IDLE: rely on OS-level significant movement only.
       // This avoids periodic wakeups/records due to poor fused-location fixes while the phone
       // is stationary (screen-off / locked scenarios).
-      useSignificantChangesOnly: IS_ANDROID,
+      // However, this mode can also delay updates for many minutes ("several times / hour"),
+      // resulting in missed updates after moving ~200-300m while backgrounded.
+      // Product requirement prefers reliability of distance-based updates in IDLE.
+      useSignificantChangesOnly: false,
 
       // QA helper: allow easier validation in dev/staging while keeping production at 200m.
       stationaryRadius: 200,
@@ -212,8 +216,17 @@ export const TRACKING_PROFILES = {
     activity: {
       // Android-only: reduce false-positive motion triggers due to screen-on/unlock.
       // (This is ignored on iOS.)
-      motionTriggerDelay: 300000,
+      // 5 minutes was observed to be too aggressive and can prevent a moving transition during
+      // normal short trips, leading to "moving but no updates".
+      motionTriggerDelay: IS_ANDROID ? 60000 : 0,
     },
+
+    // Android-only: require meaningful motion-activity transitions before engaging moving-state.
+    // This helps avoid false positives while still allowing IDLE distance-based updates.
+    // (Ignored on iOS.)
+    triggerActivities: IS_ANDROID
+      ? "in_vehicle,on_foot,waking,running,walking,cycling"
+      : undefined,
   },
   active: {
     geolocation: {

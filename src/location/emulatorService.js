@@ -4,6 +4,8 @@ import { STORAGE_KEYS } from "~/storage/storageKeys";
 import { createLogger } from "~/lib/logger";
 import { BACKGROUND_SCOPES } from "~/lib/logger/scopes";
 
+import { getAuthState } from "~/stores";
+
 import { ensureBackgroundGeolocationReady } from "~/location/backgroundGeolocationService";
 import { BASE_GEOLOCATION_CONFIG } from "~/location/backgroundGeolocationConfig";
 
@@ -46,6 +48,16 @@ export const enableEmulatorMode = async () => {
   }
 
   try {
+    const { userToken } = getAuthState();
+    if (!userToken) {
+      emulatorLogger.warn(
+        "Emulator mode requires authentication (BGGeo is disabled pre-auth)",
+      );
+      isEmulatorModeEnabled = false;
+      await AsyncStorage.setItem(STORAGE_KEYS.EMULATOR_MODE_ENABLED, "false");
+      return;
+    }
+
     await ensureBackgroundGeolocationReady(BASE_GEOLOCATION_CONFIG);
 
     // Call immediately once

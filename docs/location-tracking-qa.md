@@ -1,8 +1,9 @@
 # Location tracking QA checklist
 
 Applies to the BackgroundGeolocation integration:
-- [`trackLocation()`](src/location/trackLocation.js:34)
-- [`TRACKING_PROFILES`](src/location/backgroundGeolocationConfig.js:126)
+- [`trackLocation()`](src/location/trackLocation.js:11)
+- [`createTrackingController()`](src/location/bggeo/createTrackingController.js:1)
+- [`TRACKING_PROFILES`](src/location/backgroundGeolocationConfig.js:190)
 
 ## Goals
 
@@ -20,12 +21,12 @@ Applies to the BackgroundGeolocation integration:
     - If the SDK later reports a real move (`onMotionChange(isMoving:true)`), JS may request **one** persisted fix as a fallback.
     - We intentionally do not rely on time-based updates.
   - ACTIVE uses `geolocation.distanceFilter: 25`.
-  - JS may request a persisted fix when entering ACTIVE (see [`applyProfile()`](src/location/trackLocation.js:351)).
+  - JS may request a persisted fix when entering ACTIVE (see [`applyProfile()`](src/location/bggeo/createTrackingController.js:170)).
 - Upload strategy is intentionally simple:
   - Keep only the latest persisted geopoint: `persistence.maxRecordsToPersist: 1`.
   - No batching / thresholds: `batchSync: false`, `autoSyncThreshold: 0`.
   - When authenticated, each persisted location should upload immediately via native HTTP (works while JS is suspended).
-  - Pre-auth: tracking may persist locally but `http.url` is empty so nothing is uploaded until auth is ready.
+  - Pre-auth: BGGeo tracking is disabled (do not start). UI-only location uses `expo-location`.
 
 - Stationary noise suppression:
   - Native accuracy gate for persisted/uploaded locations: `geolocation.filter.trackingAccuracyThreshold: 100`.
@@ -129,7 +130,7 @@ Applies to the BackgroundGeolocation integration:
 
 | Platform | App state | Profile | Move | Expected signals |
 |---|---|---|---:|---|
-| Android | foreground | IDLE | ~250m | [`onMotionChange`](src/location/trackLocation.js:1192) then [`onLocation`](src/location/trackLocation.js:1085) (sample=false), then [`onHttp`](src/location/trackLocation.js:1150) |
+| Android | foreground | IDLE | ~250m | [`onMotionChange`](src/location/bggeo/createTrackingController.js:311) then [`onLocation`](src/location/bggeo/createTrackingController.js:286) (sample=false), then [`onHttp`](src/location/bggeo/createTrackingController.js:302) |
 | Android | background | IDLE | ~250m | same as above |
 | Android | swipe-away | IDLE | ~250m | native geofence triggers; verify server update; app may relaunch to deliver JS logs |
 | Android | foreground | ACTIVE | ~30m | location + upload continues |
@@ -138,10 +139,9 @@ Applies to the BackgroundGeolocation integration:
 
 ## What to look for in logs
 
-- App lifecycle tagging: [`updateTrackingContextExtras()`](src/location/trackLocation.js:63) should update `tracking_ctx.app_state` on AppState changes.
 - No time-based uploads: heartbeat is disabled (`heartbeatInterval: 0`).
 - Movement-only uploads:
-  - IDLE: look for `Motion change` (isMoving=true) and (in rare cases) `IDLE movement fallback fix`.
+  - IDLE: look for `Motion change` (isMoving=true).
   - ACTIVE distance threshold: `distanceFilter: 25` in [`TRACKING_PROFILES`](src/location/backgroundGeolocationConfig.js:148).
 
 - Attribution for `getCurrentPosition`:
@@ -154,13 +154,10 @@ Applies to the BackgroundGeolocation integration:
 
 ## Debugging tips
 
-- Observe logs in app:
-  - `tracking_ctx` extras are updated on AppState changes and profile changes.
-  - See [`updateTrackingContextExtras()`](src/location/trackLocation.js:63).
-- Correlate:
-  - `onLocation` events
-  - `onHttp` events
-  - pending queue (`BackgroundGeolocation.getCount()` in logs)
+- Observe logs in app (dev/staging):
+  - `Motion change` edges
+  - `HTTP response` when uploads fail or in dev/staging
+  - pending queue (`BackgroundGeolocation.getCount()` via [`bggeoGetStatusSnapshot()`](src/location/bggeo/diagnostics.js:15))
 
 ## Android-specific note (stationary-geofence EXIT loop)
 
@@ -172,10 +169,12 @@ Mitigation applied:
 - Android IDLE disables `geolocation.stopOnStationary` (we do **not** rely on stationary-geofence mode in IDLE on Android).
   - See [`BASE_GEOLOCATION_CONFIG.geolocation.stopOnStationary`](src/location/backgroundGeolocationConfig.js:1) and [`TRACKING_PROFILES.idle.geolocation.stopOnStationary`](src/location/backgroundGeolocationConfig.js:1).
 
-- Android IDLE uses `geolocation.useSignificantChangesOnly: true` to rely on OS-level significant movement events.
-  - See [`TRACKING_PROFILES.idle.geolocation.useSignificantChangesOnly`](src/location/backgroundGeolocationConfig.js:1).
+- Android IDLE no longer uses `geolocation.useSignificantChangesOnly`.
+  - Reason: this mode can record only "several times/hour" and was observed to miss timely updates
+    after moving ~200–300m while the app is backgrounded on some devices.
+  - IDLE now relies on `distanceFilter: 200` plus native drift filtering.
+  - See [`TRACKING_PROFILES.idle`](src/location/backgroundGeolocationConfig.js:190).
 
 Diagnostics:
 
-- `onGeofence` events are logged (identifier/action/accuracy + current BGGeo state) to confirm whether the SDK is emitting stationary geofence events.
-  - See [`setBackgroundGeolocationEventHandlers({ onGeofence })`](src/location/trackLocation.js:1).
+- `onGeofence` events are not explicitly logged anymore (we rely on motion/location/http + the in-app diagnostics helpers).
