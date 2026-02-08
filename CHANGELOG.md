@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.10](https://github.com/alerte-secours/as-app/compare/v1.16.0...v1.16.10) (2026-02-08)
+
+
+### Bug Fixes
+
+* a11y regression audio msg sending ([a12bd59](https://github.com/alerte-secours/as-app/commit/a12bd593520299953bc9f883c410b611f4794289))
+* a11y wip ([9b92fed](https://github.com/alerte-secours/as-app/commit/9b92fed825877e01faa286b28814c6c14249fdd4))
+* **android:** track location battery saving ([a2acbb6](https://github.com/alerte-secours/as-app/commit/a2acbb6d0b19d36803b4130c7360ba0a090ee5cb))
+* **audio-message:** ios + up to expo-audio ([4d71c22](https://github.com/alerte-secours/as-app/commit/4d71c229d6a1f904e62bd96270817f0e6a2df42b))
+* **audio-message:** iOS regression ([5951f36](https://github.com/alerte-secours/as-app/commit/5951f36291ce9bc7837084b309786e5ff0dfc9fe))
+* **audio-messaging:** android + fix dark theme label ([a69321f](https://github.com/alerte-secours/as-app/commit/a69321f82e19bb199ce8655fe5dc7eac187fcda9))
+* chat subscription hangs up ([aade47b](https://github.com/alerte-secours/as-app/commit/aade47beb376a8736acbe975a479350dbd3b5e69))
+* **ios:** bundle release version ([906e2f1](https://github.com/alerte-secours/as-app/commit/906e2f194d4f5fc73b29c4dece1b6054cd74031a))
+* **ios:** deps after up rnbl ([1980822](https://github.com/alerte-secours/as-app/commit/1980822919deda76bc6e186ab3e7addd7ed32618))
+* **ios:** up react-native-background-geolocation ([c8fd852](https://github.com/alerte-secours/as-app/commit/c8fd852eca5c66d3f37730878860b5824b900afd))
+* load font ([8ba858f](https://github.com/alerte-secours/as-app/commit/8ba858f8763a5aa4c511b82b04387fb01fd81287))
+* permissions screen ([6c8153b](https://github.com/alerte-secours/as-app/commit/6c8153bdb114582f9a597a50fd2604f7b90dd181))
+* reload + improve subscriptions ([39d2ede](https://github.com/alerte-secours/as-app/commit/39d2ede29554e5fd445ad4a4534850fa607f8e6f))
+* revert broken subscriptions ([52aff42](https://github.com/alerte-secours/as-app/commit/52aff4242dd9d9db3b07d2e43cf727748c6e2eb9))
+* **sentry:** enlight removing replay and cleaning useless error ([bc5129f](https://github.com/alerte-secours/as-app/commit/bc5129f7bfb0b637f8d4e130c7f4e4cc7879e22a))
+* track location ([29d7747](https://github.com/alerte-secours/as-app/commit/29d7747b51d333d9b592eab31c800fcdf4d808a5))
+* **track-location:** try 11 ([88fbd72](https://github.com/alerte-secours/as-app/commit/88fbd72e5144c36c01d9e047ea43faf69014c9f6))
+* **track-location:** try 3 ([41bb6fc](https://github.com/alerte-secours/as-app/commit/41bb6fcd2dc0999d212ceab0c9a6b6b64fe07cce))
+* **track-location:** try 4 ([c7d0b36](https://github.com/alerte-secours/as-app/commit/c7d0b36f1bd3e700ad15bbc3ecff987e61aadbd9))
+* **track-location:** try 5 ([69753bc](https://github.com/alerte-secours/as-app/commit/69753bc7e18ebd27715d2c0f6472c3c9ea14c0e5))
+* **track-location:** try 6 ([b61aff7](https://github.com/alerte-secours/as-app/commit/b61aff70787e82e05500cbf9c3fda1d7882a040b))
+* **track-location:** try 7 (+ up rnbl to v5) ([f4f7708](https://github.com/alerte-secours/as-app/commit/f4f7708e71227301b9cd5624669da8a092a3a379))
+* **track-location:** try 8 ([33eb0cf](https://github.com/alerte-secours/as-app/commit/33eb0cfa13eb75308fc549f4289c6eaa15a3ac5c))
+* **track-location:** try 8 ([7ba78c7](https://github.com/alerte-secours/as-app/commit/7ba78c7334462d6de6e647d236d39c415fa9cb2b))
+* **track-location:** try 9 ([a18baf9](https://github.com/alerte-secours/as-app/commit/a18baf9ae6bf955f4be609d014c9f5cab8dc6268))
+* trackLocation ([0cf1139](https://github.com/alerte-secours/as-app/commit/0cf1139f9b3ce953aeb6a48274dfc58ca500dfdf))
+* **up:** react-native-background-geolocation (+fix mountain android) ([a1d4f0e](https://github.com/alerte-secours/as-app/commit/a1d4f0e0596f1e00bae608ba191ef700d4c4bd04))
+* **ws:** stabilization try 1 ([147e514](https://github.com/alerte-secours/as-app/commit/147e514d03a43e74b5e7d6361183b4006dc1186d))
+* **ws:** stabilization try 2 ([239ca4d](https://github.com/alerte-secours/as-app/commit/239ca4d86d78a9f74a78bde74a6bc84f96830e21))
+* **ws:** stabilization try 3 ([6e71707](https://github.com/alerte-secours/as-app/commit/6e717077f9acc2cbb853b5bf2f09bc3463a0a861))
+* **ws:** stabilization try 4 ([f7656be](https://github.com/alerte-secours/as-app/commit/f7656beb1aa4fc4ed504876252ac4ecc5dae4c1e))
+* **ws:** stabilization try 5 ([ef643f7](https://github.com/alerte-secours/as-app/commit/ef643f77cb5f88235a1f92ecd5292c8844124b3e))
+* **ws:** stabilization try 6 + typo ([5dfb064](https://github.com/alerte-secours/as-app/commit/5dfb064c2cda2f1a1ca9346d6d659d8339a25af9))
+* **ws:** stabilization try 7 ([42d5b18](https://github.com/alerte-secours/as-app/commit/42d5b18b35577eb438f64b38d309f65ea30b7e3f))
+
 ## [1.16.9](https://github.com/alerte-secours/as-app/compare/v1.16.8...v1.16.9) (2026-02-08)
 
 
