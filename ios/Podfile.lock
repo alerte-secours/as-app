@@ -2178,7 +2178,7 @@ PODS:
     - React-logger (= 0.79.6)
     - React-perflogger (= 0.79.6)
     - React-utils (= 0.79.6)
-  - RNBackgroundGeolocation (5.0.1):
+  - RNBackgroundGeolocation (5.0.3):
     - CocoaLumberjack (~> 3.8.5)
     - DoubleConversion
     - glog
@@ -2202,7 +2202,7 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - TSLocationManager (~> 4.0.0)
+    - TSLocationManager (~> 4.0.10)
     - Yoga
   - RNCAsyncStorage (2.1.2):
     - React-Core
@@ -2458,7 +2458,7 @@ PODS:
   - SocketRocket (0.7.1)
   - TOCropViewController (2.8.0)
   - TSBackgroundFetch (4.0.6)
-  - TSLocationManager (4.0.9):
+  - TSLocationManager (4.0.14):
     - TSBackgroundFetch (~> 4.0.6)
   - UMAppLoader (5.1.3)
   - Yoga (0.0.0)
@@ -2883,7 +2883,7 @@ SPEC CHECKSUMS:
   Expo: ffa073320103615dfec9957a071ba949671a7d5d
   expo-dev-client: 9b1e78baf0dd87b005f035d180bbb07c05917fad
   expo-dev-launcher: e240b09f9fef555916cc71feb30ef5cfaf23f257
-  expo-dev-menu: 726077cd701594a14227043186369d86bbade0d9
+  expo-dev-menu: 70ab57ecc6e329d204b7213741edd087c047bd2a
   expo-dev-menu-interface: 609c35ae8b97479cdd4c9e23c8cf6adc44beea0e
   ExpoAsset: ef06e880126c375f580d4923fdd1cdf4ee6ee7d6
   ExpoAudio: d98f922b17a945cd33f8462d086278dbd810c537
@@ -2995,7 +2995,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: ae0be24eb18014a031b4b220cb3973d07c3cbaf8
   ReactCodegen: 3d5c9def468f7df3b90b05d3098ab8d47d76c62e
   ReactCommon: 4c22936ee38ecf885efc95ac5832f430f27e0271
-  RNBackgroundGeolocation: a1a22b12ae92306d46150b9827cc1421ec03bd18
+  RNBackgroundGeolocation: 2bb5dd0cffeded69d8e21ff31bfa436efcea0636
   RNCAsyncStorage: b9f5f78da5d16a853fe3dc22e8268d932fc45a83
   RNCMaskedView: 473e5fa854913eff0eef18c09b1328e60b3bf3f7
   RNFBApp: 8d27c7545e7e06d78974e204ff95f207a60a5cb2
@@ -3012,10 +3012,10 @@ SPEC CHECKSUMS:
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   TOCropViewController: 797deaf39c90e6e9ddd848d88817f6b9a8a09888
   TSBackgroundFetch: 0afbeaae4e1132866e1d4b6e55265af26b5958ae
-  TSLocationManager: ba5648de9d7226abca875a06fbce7f50b3e9acf5
+  TSLocationManager: 6b8551c21b6faa56513cbb6ae4d62676ac395f34
   UMAppLoader: 55159b69750129faa7a51c493cb8ea55a7b64eb9
   Yoga: b37eeaa6148984cac70ecaf8022bb209e03296cb
 
-PODFILE CHECKSUM: 5686979b0aa88a157955165df52d1be990eeb6e7
+PODFILE CHECKSUM: a1c54f1927fec0924191f99a3828a87fd3089a31
 
 COCOAPODS: 1.16.2

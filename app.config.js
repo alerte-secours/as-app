@@ -179,6 +179,7 @@ let config = {
         {
           ios: {
             useFrameworks: "static",
+            deploymentTarget: "15.1",
           },
           android: {
             enableProguardInReleaseBuilds: true,
