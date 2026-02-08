@@ -8,7 +8,8 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '1' : '0'
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
 
-platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+ios_deployment_target = podfile_properties['ios.deploymentTarget'] || '15.1'
+platform :ios, ios_deployment_target
 install! 'cocoapods',
   :deterministic_uuids => false
 
@@ -58,6 +59,17 @@ target 'AlerteSecours' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
+
+    # Ensure every Pods target uses an iOS deployment target compatible with our app.
+    # Fixes issues like Pods targets defaulting to iOS 9.0, which can block newer pod versions.
+    min_ios_version = Gem::Version.new(ios_deployment_target)
+    installer.pods_project.targets.each do |t|
+      t.build_configurations.each do |config|
+        current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        next if current && Gem::Version.new(current) >= min_ios_version
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = ios_deployment_target
+      end
+    end
 
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.
@@ -130,21 +142,6 @@ target 'AlerteSecours' do
       end
     end
 
-    # Fix CocoaPods xcconfig merge error for expo-dev-menu subspec targets.
-    # CocoaPods sometimes generates different DEFINES_MODULE values for these targets,
-    # which breaks `pod install` when it tries to merge xcconfigs.
-    expo_dev_menu_targets = %w[
-      expo-dev-menu
-      Main
-      ReactNativeCompatibles
-      SafeAreaView
-      Vendored
-    ]
-    installer.pods_project.targets.each do |t|
-      next unless expo_dev_menu_targets.include?(t.name)
-      t.build_configurations.each do |config|
-        config.build_settings['DEFINES_MODULE'] = 'YES'
-      end
-    end
+    
   end
 end
