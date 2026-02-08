@@ -1,6 +1,6 @@
 {
   "name": "alerte-secours",
-  "version": "1.16.9",
+  "version": "1.16.10",
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client --private-key-path ./keys/private-key.pem",
@@ -54,8 +54,8 @@
     "screenshot:android": "scripts/screenshot-android.sh"
   },
   "customExpoVersioning": {
-    "versionCode": 240,
-    "buildNumber": 240
+    "versionCode": 241,
+    "buildNumber": 241
   },
   "commit-and-tag-version": {
     "scripts": {
