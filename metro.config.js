@@ -15,7 +15,7 @@ const config = {
       /node_modules\/.*\/android\/build\/intermediates\/(library_jni|merged_jni_libs)\/.*/,
     ]),
     sourceExts: [...sentryConfig.resolver.sourceExts, "cjs"],
-    assetExts: [...defaultConfig.resolver.assetExts, "ttf"],
+    assetExts: [...defaultConfig.resolver.assetExts, "ttf", "db"],
   },
   server: {
     enhanceMiddleware: (middleware) => {

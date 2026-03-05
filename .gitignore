@@ -100,3 +100,15 @@ android/app/google-services.json
 !android/app/google-services.example.json
 
 screenshot-*.png
+
+/.data
+
+# Geodae preprocessing
+scripts/node_modules/
+scripts/.yarn/*
+!scripts/.yarn/patches
+!scripts/.yarn/plugins
+!scripts/.yarn/releases
+!scripts/.yarn/sdks
+!scripts/.yarn/versions
+src/assets/db/*.db
