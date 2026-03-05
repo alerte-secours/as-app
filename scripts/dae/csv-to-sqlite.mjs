@@ -9,7 +9,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { parse } from "csv-parse";
-import { normalizeHoraires } from "./lib/normalize-horaires.mjs";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3");
@@ -151,9 +150,9 @@ async function main() {
     const horaires = cleanStr(record.horaires);
     const acces = cleanStr(record.acces);
     const disponible_24h = cleanInt(record.disponible_24h);
+    const horaires_std = cleanStr(record.horaires_std) || "{}";
     const id = deterministicId(lat, lon, nom, adresse);
     const h3Cell = computeH3(lat, lon, H3_RES);
-    const horairesStd = normalizeHoraires(horaires, disponible_24h);
 
     batch.push({
       id,
@@ -162,7 +161,7 @@ async function main() {
       nom,
       adresse,
       horaires,
-      horaires_std: JSON.stringify(horairesStd),
+      horaires_std,
       acces,
       disponible_24h,
       h3: h3Cell,
