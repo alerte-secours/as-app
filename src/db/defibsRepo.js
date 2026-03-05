@@ -43,6 +43,14 @@ function bboxClause(lat, lon, radiusMeters) {
  * @property {string}  nom
  * @property {string}  adresse
  * @property {string}  horaires
+ * @property {Object}  horaires_std
+ * @property {number[]|null} horaires_std.days - ISO 8601 day numbers (1=Mon…7=Sun)
+ * @property {{open:string,close:string}[]|null} horaires_std.slots - Time ranges
+ * @property {boolean} horaires_std.is24h
+ * @property {boolean} horaires_std.businessHours
+ * @property {boolean} horaires_std.nightHours
+ * @property {boolean} horaires_std.events
+ * @property {string}  horaires_std.notes
  * @property {string}  acces
  * @property {number}  disponible_24h
  */
@@ -117,7 +125,7 @@ async function queryCells(db, cells, dispo24h) {
     const chunk = cells.slice(i, i + SQL_VAR_LIMIT);
     const placeholders = chunk.map(() => "?").join(",");
 
-    let sql = `SELECT id, latitude, longitude, nom, adresse, horaires, acces, disponible_24h
+    let sql = `SELECT id, latitude, longitude, nom, adresse, horaires, horaires_std, acces, disponible_24h
                FROM defibs WHERE h3 IN (${placeholders})`;
     const params = [...chunk];
 
@@ -132,13 +140,22 @@ async function queryCells(db, cells, dispo24h) {
   return results;
 }
 
+// Parse horaires_std JSON string into object.
+function parseHorairesStd(row) {
+  try {
+    return { ...row, horaires_std: JSON.parse(row.horaires_std) };
+  } catch {
+    return { ...row, horaires_std: null };
+  }
+}
+
 // Compute distance, filter by radius, sort, and limit.
 function rankAndFilter(candidates, lat, lon, radiusMeters, limit) {
   const withDist = [];
   for (const row of candidates) {
     const distanceMeters = haversine(lat, lon, row.latitude, row.longitude);
     if (distanceMeters <= radiusMeters) {
-      withDist.push({ ...row, distanceMeters });
+      withDist.push({ ...parseHorairesStd(row), distanceMeters });
     }
   }
   withDist.sort((a, b) => a.distanceMeters - b.distanceMeters);
@@ -166,7 +183,7 @@ export async function getNearbyDefibsBbox({
   const db = await getDb();
   const { clause, params } = bboxClause(lat, lon, radiusMeters);
 
-  let sql = `SELECT id, latitude, longitude, nom, adresse, horaires, acces, disponible_24h
+  let sql = `SELECT id, latitude, longitude, nom, adresse, horaires, horaires_std, acces, disponible_24h
              FROM defibs WHERE ${clause}`;
   if (disponible24hOnly) {
     sql += " AND disponible_24h = 1";

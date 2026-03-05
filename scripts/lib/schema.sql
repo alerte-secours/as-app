@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS defibs (
   nom           TEXT NOT NULL DEFAULT '',
   adresse       TEXT NOT NULL DEFAULT '',
   horaires      TEXT NOT NULL DEFAULT '',
+  horaires_std  TEXT NOT NULL DEFAULT '{}',
   acces         TEXT NOT NULL DEFAULT '',
   disponible_24h INTEGER NOT NULL DEFAULT 0,
   h3            TEXT NOT NULL DEFAULT ''
