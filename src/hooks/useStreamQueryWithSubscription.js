@@ -131,7 +131,7 @@ export default function useStreamQueryWithSubscription(
 
         // Some devices keep the WS transport "connected" after a lock/unlock, but the
         // per-operation subscription stops delivering. Trigger a controlled resubscribe.
-        const FOREGROUND_KICK_MIN_INACTIVE_MS = 3_000;
+        const FOREGROUND_KICK_MIN_INACTIVE_MS = 30_000;
         const FOREGROUND_KICK_MIN_INTERVAL_MS = 15_000;
 
         if (
@@ -281,6 +281,15 @@ export default function useStreamQueryWithSubscription(
           });
       }
       // Avoid spamming resubscribe triggers.
+      const becameInactiveAt = lastBecameInactiveAtRef.current;
+      const inactiveWindowMs = becameInactiveAt ? now - becameInactiveAt : null;
+      if (
+        typeof inactiveWindowMs === "number" &&
+        inactiveWindowMs < livenessStaleMs + 15_000
+      ) {
+        return;
+      }
+
       if (now - lastLivenessKickAtRef.current < livenessStaleMs) return;
       lastLivenessKickAtRef.current = now;
 
@@ -318,7 +327,7 @@ export default function useStreamQueryWithSubscription(
 
       // Escalation policy for repeated consecutive stale kicks.
       if (
-        consecutiveStaleKicksRef.current >= STALE_KICKS_BEFORE_RELOAD &&
+        consecutiveStaleKicksRef.current >= STALE_KICKS_BEFORE_RELOAD + 2 &&
         now - lastReloadAtRef.current >= MIN_ESCALATION_INTERVAL_MS
       ) {
         const lastRecovery = wsLastRecoveryDateRef.current
@@ -352,7 +361,7 @@ export default function useStreamQueryWithSubscription(
           // ignore
         }
 
-        networkActions.triggerReload();
+        networkActions.triggerReload("transport");
       } else if (
         consecutiveStaleKicksRef.current >= STALE_KICKS_BEFORE_WS_RESTART &&
         now - lastWsRestartAtRef.current >= MIN_ESCALATION_INTERVAL_MS

@@ -19,6 +19,7 @@ if (__DEV__ || process.env.NODE_ENV !== "production") {
 }
 
 export default function createApolloClient(options) {
+  const cache = options.cache || createCache();
   const errorLink = createErrorLink(options);
   const authLink = createAuthLink(options);
   const cancelLink = createCancelLink();
@@ -49,8 +50,6 @@ export default function createApolloClient(options) {
     wsLink: wsChain,
     httpLink: httpChain,
   });
-
-  const cache = createCache();
 
   const apolloClient = new ApolloClient({
     cache,

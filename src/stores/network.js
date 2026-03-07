@@ -9,20 +9,28 @@ export default createAtom(({ merge, get }) => {
       wsLastHeartbeatDate: null,
       wsLastRecoveryDate: null,
       triggerReload: false,
+      reloadKind: null,
       initialized: true,
       hasInternetConnection: true,
+      transportGeneration: 0,
     },
     actions: {
-      triggerReload: () => {
+      triggerReload: (reloadKind = "full") => {
         merge({
-          initialized: false,
           triggerReload: true,
+          reloadKind,
+          initialized: reloadKind === "transport" ? true : false,
+          transportGeneration:
+            reloadKind === "transport"
+              ? get("transportGeneration") + 1
+              : get("transportGeneration"),
         });
       },
       onReload: () => {
         merge({
           initialized: true,
           triggerReload: false,
+          reloadKind: null,
         });
       },
       WSConnected: () => {
