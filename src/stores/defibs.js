@@ -26,6 +26,10 @@ export default createAtom(({ merge, reset }) => {
       merge({ showDaeSuggestModal });
     },
 
+    setShowUnavailable: (showUnavailable) => {
+      merge({ showUnavailable });
+    },
+
     loadNearUser: async ({
       userLonLat,
       radiusMeters = DEFAULT_NEAR_USER_RADIUS_M,
@@ -103,6 +107,7 @@ export default createAtom(({ merge, reset }) => {
       showDefibsOnAlertMap: false,
       selectedDefib: null,
       showDaeSuggestModal: false,
+      showUnavailable: false,
 
       loadingNearUser: false,
       loadingCorridor: false,

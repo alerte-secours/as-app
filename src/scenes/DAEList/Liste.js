@@ -1,11 +1,12 @@
 import React, { useCallback } from "react";
 import { View, FlatList, StyleSheet } from "react-native";
-import { Button } from "react-native-paper";
+import { Button, Switch } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import Text from "~/components/Text";
 import Loader from "~/components/Loader";
 import { useTheme } from "~/theme";
+import { defibsActions } from "~/stores";
 
 import useNearbyDefibs from "./useNearbyDefibs";
 import DefibRow from "./DefibRow";
@@ -89,10 +90,81 @@ function EmptyNoResults() {
 
 const keyExtractor = (item) => item.id;
 
+function EmptyNoAvailable({ showUnavailable }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.emptyContainer}>
+      <MaterialCommunityIcons
+        name="heart-pulse"
+        size={56}
+        color={colors.onSurfaceVariant || colors.grey}
+        style={styles.emptyIcon}
+      />
+      <Text style={styles.emptyTitle}>Aucun défibrillateur disponible</Text>
+      <Text
+        style={[
+          styles.emptyText,
+          { color: colors.onSurfaceVariant || colors.grey },
+        ]}
+      >
+        Aucun défibrillateur actuellement ouvert dans un rayon de 10 km. Activez
+        l'option « Afficher les indisponibles » pour voir tous les
+        défibrillateurs.
+      </Text>
+    </View>
+  );
+}
+
+function AvailabilityToggle({ showUnavailable, allCount, filteredCount }) {
+  const { colors } = useTheme();
+  const onToggle = useCallback(() => {
+    defibsActions.setShowUnavailable(!showUnavailable);
+  }, [showUnavailable]);
+
+  const countLabel =
+    !showUnavailable && allCount > filteredCount
+      ? ` (${allCount - filteredCount} masqués)`
+      : "";
+
+  return (
+    <View
+      style={[
+        styles.toggleRow,
+        { borderBottomColor: colors.outlineVariant || colors.grey },
+      ]}
+    >
+      <View style={styles.toggleLabelContainer}>
+        <MaterialCommunityIcons
+          name="eye-off-outline"
+          size={18}
+          color={colors.onSurfaceVariant || colors.grey}
+        />
+        <Text
+          style={[
+            styles.toggleLabel,
+            { color: colors.onSurfaceVariant || colors.grey },
+          ]}
+        >
+          Afficher les indisponibles{countLabel}
+        </Text>
+      </View>
+      <Switch value={showUnavailable} onValueChange={onToggle} />
+    </View>
+  );
+}
+
 export default React.memo(function DAEListListe() {
   const { colors } = useTheme();
-  const { defibs, loading, error, noLocation, hasLocation, reload } =
-    useNearbyDefibs();
+  const {
+    defibs,
+    allDefibs,
+    loading,
+    error,
+    noLocation,
+    hasLocation,
+    reload,
+    showUnavailable,
+  } = useNearbyDefibs();
 
   const renderItem = useCallback(({ item }) => <DefibRow defib={item} />, []);
 
@@ -102,23 +174,27 @@ export default React.memo(function DAEListListe() {
   }
 
   // Loading initial data
-  if (loading && defibs.length === 0) {
+  if (loading && allDefibs.length === 0) {
     return <Loader />;
   }
 
   // Error state (non-blocking if we have stale data)
-  if (error && defibs.length === 0) {
+  if (error && allDefibs.length === 0) {
     return <EmptyError error={error} onRetry={reload} />;
   }
 
-  // No results
-  if (!loading && defibs.length === 0 && hasLocation) {
+  // No results at all
+  if (!loading && allDefibs.length === 0 && hasLocation) {
     return <EmptyNoResults />;
   }
 
+  // Has defibs but none available (filtered to empty)
+  const showEmptyAvailable =
+    !loading && defibs.length === 0 && allDefibs.length > 0 && !showUnavailable;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {error && defibs.length > 0 && (
+      {error && allDefibs.length > 0 && (
         <View
           style={[
             styles.errorBanner,
@@ -140,15 +216,24 @@ export default React.memo(function DAEListListe() {
           </Text>
         </View>
       )}
-      <FlatList
-        data={defibs}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-        initialNumToRender={15}
-        maxToRenderPerBatch={10}
-        windowSize={5}
+      <AvailabilityToggle
+        showUnavailable={showUnavailable}
+        allCount={allDefibs.length}
+        filteredCount={defibs.length}
       />
+      {showEmptyAvailable ? (
+        <EmptyNoAvailable />
+      ) : (
+        <FlatList
+          data={defibs}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+        />
+      )}
     </View>
   );
 });
@@ -193,5 +278,22 @@ const styles = StyleSheet.create({
   errorBannerText: {
     fontSize: 12,
     flex: 1,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  toggleLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: 13,
   },
 });

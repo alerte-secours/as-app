@@ -1,20 +1,24 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import useLocation from "~/hooks/useLocation";
 import { defibsActions, useDefibsState } from "~/stores";
+import { getDefibAvailability } from "~/utils/dae/getDefibAvailability";
 
 const RADIUS_METERS = 10_000;
 
 /**
  * Shared hook: loads defibs near user and exposes location + loading state.
  * The results live in the zustand store so both Liste and Carte tabs share them.
+ * By default, only available (open) defibs are returned; toggle showUnavailable to see all.
  */
 export default function useNearbyDefibs() {
   const { coords, isLastKnown, lastKnownTimestamp } = useLocation();
-  const { nearUserDefibs, loadingNearUser, errorNearUser } = useDefibsState([
-    "nearUserDefibs",
-    "loadingNearUser",
-    "errorNearUser",
-  ]);
+  const { nearUserDefibs, loadingNearUser, errorNearUser, showUnavailable } =
+    useDefibsState([
+      "nearUserDefibs",
+      "loadingNearUser",
+      "errorNearUser",
+      "showUnavailable",
+    ]);
 
   const hasLocation =
     coords && coords.latitude !== null && coords.longitude !== null;
@@ -58,8 +62,17 @@ export default function useNearbyDefibs() {
     return () => clearTimeout(timer);
   }, [hasLocation]);
 
+  const filteredDefibs = useMemo(() => {
+    if (showUnavailable) return nearUserDefibs;
+    return nearUserDefibs.filter((d) => {
+      const { status } = getDefibAvailability(d.horaires_std, d.disponible_24h);
+      return status === "open";
+    });
+  }, [nearUserDefibs, showUnavailable]);
+
   return {
-    defibs: nearUserDefibs,
+    defibs: filteredDefibs,
+    allDefibs: nearUserDefibs,
     loading: loadingNearUser,
     error: errorNearUser,
     hasLocation,
@@ -68,5 +81,6 @@ export default function useNearbyDefibs() {
     lastKnownTimestamp,
     coords,
     reload: loadDefibs,
+    showUnavailable,
   };
 }
