@@ -17,6 +17,11 @@ const iconStyle = {
   iconSize: 0.5,
 };
 
+const defibIconStyle = {
+  ...iconStyle,
+  iconAllowOverlap: true,
+};
+
 const useStyles = createStyles(({ theme: { colors } }) => ({
   clusterCount: {
     textField: "{point_count_abbreviated}",
@@ -56,6 +61,15 @@ export default function ShapePoints({ shape, children, ...shapeSourceProps }) {
         key="points-origin"
         id="points-origin"
         style={iconStyle}
+      />
+
+      {/* Defibrillators (DAE) – separate layer (non-clustered) */}
+      <Maplibre.SymbolLayer
+        filter={["==", ["get", "isDefib"], true]}
+        key="points-defib"
+        id="points-defib"
+        aboveLayerID="points-origin"
+        style={defibIconStyle}
       />
 
       {children}

@@ -2,6 +2,14 @@ export default function prioritizeFeatures(features) {
   return features
     .filter(({ properties }) => !properties.isUserLocation)
     .sort(({ properties: x }, { properties: y }) => {
+      // DAE features should win (easy to tap)
+      if (x.isDefib && !y.isDefib) {
+        return -1;
+      }
+      if (!x.isDefib && y.isDefib) {
+        return 1;
+      }
+
       // if both cluster priority is given to higher level
       if (x.cluster && y.cluster) {
         return x.x_max_level_num < y.x_max_level_num ? 1 : -1;

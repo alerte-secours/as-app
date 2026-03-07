@@ -53,7 +53,16 @@ export default async function getNearbyDefibs({
     });
   } catch (err) {
     // Fallback to bbox if H3 fails (e.g. missing h3-js on a platform)
-    console.warn("H3 query failed, falling back to bbox:", err.message);
+    console.warn("[DAE_DB] H3 query failed, falling back to bbox raw:", err);
+    console.warn(
+      "[DAE_DB] H3 query failed, falling back to bbox message:",
+      err?.message,
+    );
+    if (err?.stack) {
+      console.warn(
+        `[DAE_DB] H3 query failed, falling back to bbox stack:\n${err.stack}`,
+      );
+    }
     return getNearbyDefibsBbox({
       lat,
       lon,

@@ -70,6 +70,11 @@ export default createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
   actionComingHelpButton: {},
   actionComingHelpText: {},
   actionComingHelpIcon: {},
+  actionShowDefibsButton: {
+    backgroundColor: colors.blue,
+  },
+  actionShowDefibsText: {},
+  actionShowDefibsIcon: {},
   actionSmsButton: {},
   actionSmsText: {},
   actionSmsIcon: {},

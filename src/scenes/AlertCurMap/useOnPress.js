@@ -3,7 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import { ANIMATION_DURATION } from "~/containers/Map/constants";
 
-import { alertActions } from "~/stores";
+import { alertActions, defibsActions } from "~/stores";
 import { createLogger } from "~/lib/logger";
 import { FEATURE_SCOPES, UI_SCOPES } from "~/lib/logger/scopes";
 
@@ -28,6 +28,12 @@ export default function useOnPress({
       }
       const [feature] = features;
       const { properties } = feature;
+
+      if (properties?.isDefib && properties?.defib) {
+        defibsActions.setSelectedDefib(properties.defib);
+        navigation.navigate("DAEItem");
+        return;
+      }
 
       if (properties.cluster) {
         // center and expand to cluster's points

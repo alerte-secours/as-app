@@ -5044,6 +5044,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@op-engineering/op-sqlite@npm:^15.2.5":
+  version: 15.2.5
+  resolution: "@op-engineering/op-sqlite@npm:15.2.5"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10/e37163e99b5959fdb93076a929f1b2b40db8bb981c996a6342262105a3f387a2cf01d95bd4944cfe4c59424603054fbeeda3179184619b417cd6094a3759b037
+  languageName: node
+  linkType: hard
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -7013,6 +7023,7 @@ __metadata:
     "@mapbox/polyline": "npm:^1.2.1"
     "@maplibre/maplibre-react-native": "npm:10.0.0-alpha.23"
     "@notifee/react-native": "npm:^9.1.8"
+    "@op-engineering/op-sqlite": "npm:^15.2.5"
     "@react-native-async-storage/async-storage": "npm:2.1.2"
     "@react-native-community/cli": "npm:^18.0.0"
     "@react-native-community/netinfo": "npm:^11.4.1"
@@ -7094,6 +7105,7 @@ __metadata:
     expo-secure-store: "npm:~14.2.4"
     expo-sensors: "npm:~14.1.4"
     expo-splash-screen: "npm:~0.30.10"
+    expo-sqlite: "npm:^55.0.10"
     expo-status-bar: "npm:~2.2.3"
     expo-system-ui: "npm:~5.0.11"
     expo-task-manager: "npm:~13.1.6"
@@ -7104,6 +7116,7 @@ __metadata:
     google-libphonenumber: "npm:^3.2.32"
     graphql: "npm:^16.10.0"
     graphql-ws: "npm:^6.0.4"
+    h3-js: "npm:^4.4.0"
     hash.js: "npm:^1.1.7"
     husky: "npm:^9.0.11"
     i18next: "npm:^23.2.10"
@@ -7541,6 +7554,13 @@ __metadata:
   version: 1.0.5
   resolution: "available-typed-arrays@npm:1.0.5"
   checksum: 10/4d4d5e86ea0425696f40717882f66a570647b94ac8d273ddc7549a9b61e5da099e149bf431530ccbd776bd74e02039eb8b5edf426e3e2211ee61af16698a9064
+  languageName: node
+  linkType: hard
+
+"await-lock@npm:^2.2.2":
+  version: 2.2.2
+  resolution: "await-lock@npm:2.2.2"
+  checksum: 10/feb11f36768a8545879ed2d214b46aae484e6564ffa466af9212d5782897203770795cae01f813de04a46f66c0b8ee6bc690a0c435b04e00cad5a18ef0842e25
   languageName: node
   linkType: hard
 
@@ -10889,6 +10909,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-sqlite@npm:^55.0.10":
+  version: 55.0.10
+  resolution: "expo-sqlite@npm:55.0.10"
+  dependencies:
+    await-lock: "npm:^2.2.2"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10/abdc55a33d58bf357d895864756f6196c1951dae9013d9ceb2ac2b2051686c916ef431474c9004369bb8e315ef3ce030a8030abe193c3d436a56f4a40ae0584d
+  languageName: node
+  linkType: hard
+
 "expo-status-bar@npm:~2.2.3":
   version: 2.2.3
   resolution: "expo-status-bar@npm:2.2.3"
@@ -11957,6 +11990,13 @@ __metadata:
   version: 16.10.0
   resolution: "graphql@npm:16.10.0"
   checksum: 10/d42cf81ddcf3a61dfb213217576bf33c326f15b02c4cee369b373dc74100cbdcdc4479b3b797e79b654dabd8fddf50ef65ff75420e9ce5596c02e21f24c9126a
+  languageName: node
+  linkType: hard
+
+"h3-js@npm:^4.4.0":
+  version: 4.4.0
+  resolution: "h3-js@npm:4.4.0"
+  checksum: 10/6db6888f143ed6a1e3ca10506f15c35679afd181e24b71bcdc90259206e3f02637bab38e2a35382d51f17151ea193dfab69c01ff3e31bf0e86abfb1957692576
   languageName: node
   linkType: hard
 

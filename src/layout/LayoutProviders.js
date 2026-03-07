@@ -15,6 +15,8 @@ import {
   Dark as NavigationDarkTheme,
 } from "~/theme/navigation";
 
+import DaeSuggestModal from "~/containers/DaeSuggestModal";
+
 // import { navActions } from "~/stores";
 
 // const linking = {
@@ -86,6 +88,9 @@ export default function LayoutProviders({ layoutKey, setLayoutKey, children }) {
         >
           {children}
         </NavigationContainer>
+
+        {/* Global persistent modal: mounted outside navigation tree, but can navigate via RootNav ref */}
+        <DaeSuggestModal />
       </ComposeComponents>
     </>
   );

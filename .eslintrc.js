@@ -4,6 +4,7 @@ module.exports = {
   root: true,
   env: {
     "react-native/react-native": true,
+    jest: true,
   },
   extends: [
     "plugin:prettier/recommended",
@@ -37,6 +38,12 @@ module.exports = {
     },
     "import/ignore": ["react-native"],
     "import/resolver": {
+      // Ensure ESLint can resolve regular JS packages under Yarn PnP as well.
+      // Without this, some deps (ex: expo-sqlite) may be incorrectly flagged
+      // by import/no-unresolved even though they're present.
+      node: {
+        extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
+      },
       typescript: {},
     },
   },

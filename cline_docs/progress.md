@@ -2,6 +2,35 @@
 
 ## Recently Completed Features
 
+### DAE v1 (Tasks 1–9) — 2026-03-06
+1. Embedded DAE DB + safe open path:
+   - ✅ Embedded DB asset: `src/assets/db/geodae.db`
+   - ✅ Safe open path + repository: `src/db/openDb.js`, `src/db/defibsRepo.js`
+
+2. Utilities + tests:
+   - ✅ Corridor/geo utils: `src/utils/geo/corridor.js`
+   - ✅ DAE helpers: `src/utils/dae/getDefibAvailability.js`, `src/utils/dae/subjectSuggestsDefib.js`
+   - ✅ Jest config: `jest.config.js`
+
+3. Store:
+   - ✅ Defibrillators store: `src/stores/defibs.js`
+
+4. Screens + navigation:
+   - ✅ DAE list + item screens: `src/scenes/DAEList/index.js`, `src/scenes/DAEItem/index.js`
+   - ✅ Navigation wiring: `src/navigation/Drawer.js`, `src/navigation/RootStack.js`
+
+5. Alert integration:
+   - ✅ Alert overview + map hooks: `src/scenes/AlertCurOverview/index.js`, `src/scenes/AlertCurMap/useFeatures.js`, `src/scenes/AlertCurMap/useOnPress.js`
+
+6. Persistent suggestion modal:
+   - ✅ `src/containers/DaeSuggestModal/index.js` mounted in `src/layout/LayoutProviders.js`
+
+7. New asset:
+   - ✅ Marker icon: `src/assets/img/marker-grey.png`
+
+8. Verification:
+   - ✅ `yarn lint` and `yarn test` passing
+
 ### Push Notification Improvements
 1. Background Notification Fixes:
    - ✅ Added required Android permissions

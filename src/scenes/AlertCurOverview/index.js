@@ -6,14 +6,17 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { deepEqual } from "fast-equals";
 
 import withConnectivity from "~/hoc/withConnectivity";
+import { useToast } from "~/lib/toast-notifications";
 
 import {
   useAlertState,
   useSessionState,
   alertActions,
   useAggregatedMessagesState,
+  defibsActions,
 } from "~/stores";
 import { getCurrentLocation } from "~/location";
+import { getStoredLocation } from "~/location/storage";
 
 import alertBigButtonBgMap from "~/assets/img/alert-big-button-bg-map.png";
 import alertBigButtonBgMapGrey from "~/assets/img/alert-big-button-bg-map-grey.png";
@@ -79,6 +82,99 @@ export default withConnectivity(
     const isSent = userId === sessionUserId;
 
     const navigation = useNavigation();
+    const toast = useToast();
+
+    const [loadingDaeCorridor, setLoadingDaeCorridor] = useState(false);
+
+    const showDefibsOnAlertMap = useCallback(async () => {
+      if (loadingDaeCorridor) {
+        return;
+      }
+      setLoadingDaeCorridor(true);
+      try {
+        const alertLonLat = alert?.location?.coordinates;
+        const hasAlertLonLat =
+          Array.isArray(alertLonLat) &&
+          alertLonLat.length === 2 &&
+          alertLonLat[0] !== null &&
+          alertLonLat[1] !== null;
+
+        if (!hasAlertLonLat) {
+          toast.show("Position de l'alerte indisponible", {
+            placement: "top",
+            duration: 4000,
+            hideOnPress: true,
+          });
+          return;
+        }
+
+        // 1) Current coords if possible
+        let coords = await getCurrentLocation();
+
+        // 2) Fallback to last-known coords if needed
+        const hasCoords =
+          coords && coords.latitude !== null && coords.longitude !== null;
+        if (!hasCoords) {
+          const lastKnown = await getStoredLocation();
+          coords = lastKnown?.coords || coords;
+        }
+
+        const hasFinalCoords =
+          coords && coords.latitude !== null && coords.longitude !== null;
+        if (!hasFinalCoords) {
+          toast.show(
+            "Localisation indisponible : activez la géolocalisation pour afficher les défibrillateurs.",
+            {
+              placement: "top",
+              duration: 6000,
+              hideOnPress: true,
+            },
+          );
+          return;
+        }
+
+        const userLonLat = [coords.longitude, coords.latitude];
+
+        const { error } = await defibsActions.loadCorridor({
+          userLonLat,
+          alertLonLat,
+        });
+
+        if (error) {
+          defibsActions.setShowDefibsOnAlertMap(false);
+          toast.show(
+            "Impossible de charger les défibrillateurs (base hors-ligne indisponible).",
+            {
+              placement: "top",
+              duration: 6000,
+              hideOnPress: true,
+            },
+          );
+          return;
+        }
+
+        defibsActions.setShowDefibsOnAlertMap(true);
+
+        navigation.navigate("Main", {
+          screen: "AlertCur",
+          params: {
+            screen: "AlertCurTab",
+            params: {
+              screen: "AlertCurMap",
+            },
+          },
+        });
+      } catch (error) {
+        defibsActions.setShowDefibsOnAlertMap(false);
+        toast.show("Erreur lors du chargement des défibrillateurs", {
+          placement: "top",
+          duration: 6000,
+          hideOnPress: true,
+        });
+      } finally {
+        setLoadingDaeCorridor(false);
+      }
+    }, [alert, loadingDaeCorridor, navigation, toast]);
 
     const [notifyAroundMutation] = useMutation(NOTIFY_AROUND_MUTATION);
     const notifyAround = useCallback(async () => {
@@ -393,6 +489,33 @@ export default withConnectivity(
                     style={[styles.actionText, styles.actionComingHelpText]}
                   >
                     Je viens vous aider
+                  </Text>
+                </Button>
+              </View>
+            )}
+
+            {isOpen && alert.location?.coordinates && (
+              <View
+                key="show-defibs"
+                style={[styles.actionContainer, styles.actionShowDefibs]}
+              >
+                <Button
+                  mode="contained"
+                  loading={loadingDaeCorridor}
+                  disabled={loadingDaeCorridor}
+                  icon={() => (
+                    <MaterialCommunityIcons
+                      name="heart-pulse"
+                      style={[styles.actionIcon, styles.actionShowDefibsIcon]}
+                    />
+                  )}
+                  style={[styles.actionButton, styles.actionShowDefibsButton]}
+                  onPress={showDefibsOnAlertMap}
+                >
+                  <Text
+                    style={[styles.actionText, styles.actionShowDefibsText]}
+                  >
+                    Afficher les défibrillateurs
                   </Text>
                 </Button>
               </View>

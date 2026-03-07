@@ -147,6 +147,13 @@ android {
         }
     }
     packagingOptions {
+        // Resolve duplicate native libs shipped by multiple dependencies (e.g. op-sqlite + react-android).
+        // Needed for debug flavors too (merge<Variant>NativeLibs).
+        pickFirsts += [
+            'lib/**/libjsi.so',
+            'lib/**/libreactnative.so',
+        ]
+
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }

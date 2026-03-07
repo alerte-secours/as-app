@@ -10,7 +10,8 @@ import {
 } from "react-native-gesture-handler";
 import { createStyles, useTheme } from "~/theme";
 import { useMutation } from "@apollo/client";
-import { format, fr } from "date-fns";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Feather } from "@expo/vector-icons";
 import { DELETE_NOTIFICATION, MARK_NOTIFICATION_AS_READ } from "./gql";
 import {

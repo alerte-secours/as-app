@@ -4,6 +4,8 @@ import Supercluster from "supercluster";
 import useShallowMemo from "~/hooks/useShallowMemo";
 import useShallowEffect from "~/hooks/useShallowEffect";
 import { deepEqual } from "fast-equals";
+import { useDefibsState } from "~/stores";
+import { getDefibAvailability } from "~/utils/dae/getDefibAvailability";
 
 export default function useFeatures({
   clusterFeature,
@@ -13,6 +15,11 @@ export default function useFeatures({
   route,
   alertCoords,
 }) {
+  const { showDefibsOnAlertMap, corridorDefibs } = useDefibsState([
+    "showDefibsOnAlertMap",
+    "corridorDefibs",
+  ]);
+
   // Check if we have valid coordinates
   const hasUserCoords =
     userCoords && userCoords.longitude !== null && userCoords.latitude !== null;
@@ -95,15 +102,57 @@ export default function useFeatures({
       }
     });
 
+    // Add defibs (DAE) as separate, non-clustered features
+    if (showDefibsOnAlertMap && Array.isArray(corridorDefibs)) {
+      corridorDefibs.forEach((defib) => {
+        const lon = defib.longitude;
+        const lat = defib.latitude;
+        if (
+          lon === null ||
+          lat === null ||
+          lon === undefined ||
+          lat === undefined
+        ) {
+          return;
+        }
+        const { status } = getDefibAvailability(
+          defib.horaires_std,
+          defib.disponible_24h,
+        );
+        const icon =
+          status === "open" ? "green" : status === "closed" ? "red" : "grey";
+        const id = `defib:${defib.id}`;
+
+        features.push({
+          type: "Feature",
+          id,
+          properties: {
+            id,
+            icon,
+            defib,
+            isDefib: true,
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [lon, lat],
+          },
+        });
+      });
+    }
+
     return {
       type: "FeatureCollection",
       features,
     };
-  }, [list]);
+  }, [list, showDefibsOnAlertMap, corridorDefibs]);
 
   const superCluster = useShallowMemo(() => {
     const cluster = new Supercluster({ radius: 40, maxZoom: 16 });
-    cluster.load(featureCollection.features);
+    // Do not cluster defibs in v1
+    const clusterable = featureCollection.features.filter(
+      (f) => !f?.properties?.isDefib,
+    );
+    cluster.load(clusterable);
     return cluster;
   }, [featureCollection.features]);
   // console.log({ superCluster: JSON.stringify(superCluster) });
@@ -122,6 +171,15 @@ export default function useFeatures({
 
     const userCoordinates = [userCoords.longitude, userCoords.latitude];
     const features = [...clusterFeature];
+
+    // Ensure defibs are always present even if they are not part of the clustered set
+    if (showDefibsOnAlertMap && Array.isArray(featureCollection.features)) {
+      featureCollection.features.forEach((f) => {
+        if (f?.properties?.isDefib) {
+          features.push(f);
+        }
+      });
+    }
 
     // Only add route line if we have valid route data
     const isRouteEnding = route?.distance !== 0 || routeCoords?.length === 0;
@@ -157,6 +215,8 @@ export default function useFeatures({
   }, [
     setShape,
     clusterFeature,
+    featureCollection.features,
+    showDefibsOnAlertMap,
     userCoords,
     hasUserCoords,
     routeCoords,

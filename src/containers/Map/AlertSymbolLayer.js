@@ -25,7 +25,12 @@ export default function AlertSymbolLayer({ level, isDisabled }) {
 
   return (
     <Maplibre.SymbolLayer
-      filter={["==", ["get", "icon"], icon]}
+      filter={[
+        "all",
+        ["==", ["get", "icon"], icon],
+        // Exclude DAE overlay markers (v1: separate non-clustered layer)
+        ["!=", ["get", "isDefib"], true],
+      ]}
       key={key}
       id={key}
       belowLayerID={belowLayerID}

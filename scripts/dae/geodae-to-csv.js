@@ -15,7 +15,9 @@ const OUTPUT = join(__dirname, "geodae.csv");
 function escapeCsv(value) {
   if (value == null) return "";
   // Replace newlines with spaces to keep one row per entry
-  const str = String(value).replace(/[\r\n]+/g, " ").trim();
+  const str = String(value)
+    .replace(/[\r\n]+/g, " ")
+    .trim();
   if (str.includes('"') || str.includes(",")) {
     return '"' + str.replace(/"/g, '""') + '"';
   }
@@ -70,13 +72,11 @@ function formatDays(arr) {
   // Detect consecutive range
   const indices = sorted.map((d) => DAY_ORDER.indexOf(d));
   const isConsecutive = indices.every(
-    (idx, i) => i === 0 || idx === indices[i - 1] + 1
+    (idx, i) => i === 0 || idx === indices[i - 1] + 1,
   );
 
   if (isConsecutive && sorted.length >= 2) {
-    return (
-      DAY_ABBREV[sorted[0]] + "-" + DAY_ABBREV[sorted[sorted.length - 1]]
-    );
+    return DAY_ABBREV[sorted[0]] + "-" + DAY_ABBREV[sorted[sorted.length - 1]];
   }
 
   return sorted.map((d) => DAY_ABBREV[d] || d).join(", ");
@@ -91,7 +91,7 @@ function formatHours(arr) {
       (h) =>
         h &&
         h.toLowerCase() !== "non renseigné" &&
-        h.toLowerCase() !== "non renseigne"
+        h.toLowerCase() !== "non renseigne",
     );
   return cleaned.join(" + ");
 }

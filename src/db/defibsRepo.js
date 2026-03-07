@@ -1,13 +1,13 @@
 // Defibrillator repository — nearby queries with H3 geo-indexing.
-import { latLngToCell, gridDisk } from "h3-js";
+import { latLngToCell, gridDisk } from "~/lib/h3";
 
-import getDb from "./openDb";
+import { getDbSafe } from "./openDb";
 import haversine from "~/utils/geo/haversine";
 
 // H3 average edge lengths in meters per resolution (0..15).
 const H3_EDGE_M = [
-  1107712, 418676, 158244, 59810, 22606, 8544, 3229, 1220, 461, 174, 65, 24,
-  9, 3, 1, 0.5,
+  1107712, 418676, 158244, 59810, 22606, 8544, 3229, 1220, 461, 174, 65, 24, 9,
+  3, 1, 0.5,
 ];
 
 const H3_RES = 8;
@@ -29,8 +29,7 @@ function bboxClause(lat, lon, radiusMeters) {
   // 1 degree longitude shrinks with cos(lat)
   const dLon = radiusMeters / (111_320 * Math.cos((lat * Math.PI) / 180));
   return {
-    clause:
-      "latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?",
+    clause: "latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?",
     params: [lat - dLat, lat + dLat, lon - dLon, lon + dLon],
   };
 }
@@ -75,11 +74,22 @@ export async function getNearbyDefibs({
   disponible24hOnly = false,
   progressive = false,
 }) {
-  const db = await getDb();
+  const { db, error } = await getDbSafe();
+  if (!db) {
+    throw error || new Error("DAE DB unavailable");
+  }
   const maxK = kForRadius(radiusMeters);
 
   if (progressive) {
-    return progressiveSearch(db, lat, lon, radiusMeters, limit, disponible24hOnly, maxK);
+    return progressiveSearch(
+      db,
+      lat,
+      lon,
+      radiusMeters,
+      limit,
+      disponible24hOnly,
+      maxK,
+    );
   }
 
   // One-shot: compute full disk and query
@@ -89,7 +99,15 @@ export async function getNearbyDefibs({
 }
 
 // Progressive expansion: start at k=1, expand until enough results or maxK.
-async function progressiveSearch(db, lat, lon, radiusMeters, limit, dispo24h, maxK) {
+async function progressiveSearch(
+  db,
+  lat,
+  lon,
+  radiusMeters,
+  limit,
+  dispo24h,
+  maxK,
+) {
   let allCandidates = [];
   const seenIds = new Set();
 
@@ -106,7 +124,13 @@ async function progressiveSearch(db, lat, lon, radiusMeters, limit, dispo24h, ma
 
     // Early exit: if we already have more candidates than limit, rank and check
     if (allCandidates.length >= limit) {
-      const ranked = rankAndFilter(allCandidates, lat, lon, radiusMeters, limit);
+      const ranked = rankAndFilter(
+        allCandidates,
+        lat,
+        lon,
+        radiusMeters,
+        limit,
+      );
       if (ranked.length >= limit) return ranked;
     }
   }
@@ -180,7 +204,10 @@ export async function getNearbyDefibsBbox({
   limit,
   disponible24hOnly = false,
 }) {
-  const db = await getDb();
+  const { db, error } = await getDbSafe();
+  if (!db) {
+    throw error || new Error("DAE DB unavailable");
+  }
   const { clause, params } = bboxClause(lat, lon, radiusMeters);
 
   let sql = `SELECT id, latitude, longitude, nom, adresse, horaires, horaires_std, acces, disponible_24h

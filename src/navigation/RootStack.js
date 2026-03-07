@@ -57,6 +57,11 @@ function getHeaderTitle(route) {
     case "SendAlertFinder":
       return "Par mot-clé";
 
+    case "DAEList":
+      return "Défibrillateurs";
+    case "DAEItem":
+      return "Défibrillateur";
+
     case "ConnectivityError":
       return "Non connecté";
 

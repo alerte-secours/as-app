@@ -6,10 +6,17 @@ import uuidGenerator from "react-native-uuid";
 import { phoneCallEmergency } from "~/lib/phone-call";
 
 import network from "~/network";
-import { getSessionState, alertActions, useParamsState } from "~/stores";
+import {
+  getSessionState,
+  alertActions,
+  defibsActions,
+  useParamsState,
+} from "~/stores";
 import { getCurrentLocation } from "~/location";
 
 import useSendAlertSMSToEmergency from "~/hooks/useSendAlertSMSToEmergency";
+
+import subjectSuggestsDefib from "~/utils/dae/subjectSuggestsDefib";
 
 import { SEND_ALERT_MUTATION } from "./gql";
 
@@ -125,6 +132,13 @@ async function onSubmit(args, context) {
   });
 
   alertActions.setNavAlertCur({ alert });
+
+  // Task 9 (DAE v1): keyword detection based on subject only.
+  // Must be independent of network; we trigger purely from the subject and persist state in store.
+  if (subjectSuggestsDefib(subject)) {
+    defibsActions.setShowDaeSuggestModal(true);
+  }
+
   navigation.navigate("Main", {
     screen: "AlertCur",
     params: {

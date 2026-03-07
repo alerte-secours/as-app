@@ -23,6 +23,8 @@ import AlertAggListArchived from "~/scenes/AlertAggListArchived";
 import About from "~/scenes/About";
 import Contribute from "~/scenes/Contribute";
 import Location from "~/scenes/Location";
+import DAEList from "~/scenes/DAEList";
+import DAEItem from "~/scenes/DAEItem";
 import Developer from "~/scenes/Developer";
 import HelpSignal from "~/scenes/HelpSignal";
 
@@ -367,6 +369,22 @@ export default React.memo(function DrawerNav() {
         listeners={{}}
       />
       <Drawer.Screen
+        name="DAEList"
+        component={DAEList}
+        options={{
+          drawerLabel: "Défibrillateurs",
+          drawerIcon: ({ focused }) => (
+            <MaterialCommunityIcons
+              name="heart-pulse"
+              {...iconProps}
+              {...(focused ? iconFocusedProps : {})}
+            />
+          ),
+          unmountOnBlur: true,
+        }}
+        listeners={{}}
+      />
+      <Drawer.Screen
         name="Links"
         component={Links}
         options={{
@@ -502,6 +520,14 @@ export default React.memo(function DrawerNav() {
           unmountOnBlur: true,
         }}
         component={SendAlertFinder}
+      />
+      <Drawer.Screen
+        name="DAEItem"
+        component={DAEItem}
+        options={{
+          hidden: true,
+          unmountOnBlur: true,
+        }}
       />
       {devModeEnabled && (
         <Drawer.Screen
