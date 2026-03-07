@@ -14,6 +14,7 @@ import MapView from "~/containers/Map/MapView";
 import Camera from "~/containers/Map/Camera";
 import LastKnownLocationMarker from "~/containers/Map/LastKnownLocationMarker";
 import { BoundType, DEFAULT_ZOOM_LEVEL } from "~/containers/Map/constants";
+import StepZoomButtonGroup from "~/containers/Map/StepZoomButtonGroup";
 
 import Text from "~/components/Text";
 import Loader from "~/components/Loader";
@@ -103,7 +104,7 @@ export default React.memo(function DAEListCarte() {
   // Camera state — simple follow user
   const [followUserLocation] = useState(true);
   const [followUserMode] = useState(Maplibre.UserTrackingMode.Follow);
-  const [zoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
 
   const geoJSON = useMemo(() => defibsToGeoJSON(defibs), [defibs]);
 
@@ -196,6 +197,7 @@ export default React.memo(function DAEListCarte() {
           <Maplibre.UserLocation visible showsUserHeadingIndicator />
         )}
       </MapView>
+      <StepZoomButtonGroup mapRef={mapRef} setZoomLevel={setZoomLevel} />
     </View>
   );
 });

@@ -15,6 +15,7 @@ import MapView from "~/containers/Map/MapView";
 import Camera from "~/containers/Map/Camera";
 import LastKnownLocationMarker from "~/containers/Map/LastKnownLocationMarker";
 import { DEFAULT_ZOOM_LEVEL } from "~/containers/Map/constants";
+import StepZoomButtonGroup from "~/containers/Map/StepZoomButtonGroup";
 
 import Text from "~/components/Text";
 import Loader from "~/components/Loader";
@@ -54,6 +55,7 @@ export default React.memo(function DAEItemCarte() {
   const mapRef = useRef();
   const cameraRef = useRef();
   const [cameraKey, setCameraKey] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
   const abortControllerRef = useRef(null);
 
   const refreshCamera = useCallback(() => {
@@ -261,7 +263,7 @@ export default React.memo(function DAEItemCarte() {
               : Maplibre.UserTrackingMode.Follow
           }
           followPitch={0}
-          zoomLevel={DEFAULT_ZOOM_LEVEL}
+          zoomLevel={zoomLevel}
           bounds={bounds}
           detached={false}
         />
@@ -322,6 +324,7 @@ export default React.memo(function DAEItemCarte() {
           <Maplibre.UserLocation visible showsUserHeadingIndicator />
         )}
       </MapView>
+      <StepZoomButtonGroup mapRef={mapRef} setZoomLevel={setZoomLevel} />
 
       {/* Route error */}
       {routeError && !loadingRoute && (
