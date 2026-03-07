@@ -31,6 +31,26 @@
 8. Verification:
    - ✅ `yarn lint` and `yarn test` passing
 
+9. Runtime hardening follow-up fixes — 2026-03-07:
+   - ✅ Hermes fix for H3 import:
+     - `src/lib/h3/index.js`
+     - `src/db/defibsRepo.js`
+   - ✅ SQLite backend selection + wrappers (incl. op-sqlite adapter):
+     - `src/db/openDb.js`
+     - `src/db/openDbOpSqlite.js`
+     - `src/db/openDbExpoSqlite.js`
+   - ✅ Embedded DB staging + schema validation:
+     - `src/db/ensureEmbeddedDb.js`
+     - `src/db/validateDbSchema.js`
+   - ✅ Android duplicate native libs packaging fix for op-sqlite:
+     - `android/app/build.gradle`
+   - ✅ Added dependency: `expo-file-system` (`package.json`)
+   - ✅ Tests added:
+     - `src/db/openDbOpSqlite.test.js`
+     - `src/db/ensureEmbeddedDb.test.js`
+     - `src/db/validateDbSchema.test.js`
+   - ✅ Status: confirmed on Android emulator dev client that DAE list loads (no `no such table: defibs`).
+
 ### Push Notification Improvements
 1. Background Notification Fixes:
    - ✅ Added required Android permissions
