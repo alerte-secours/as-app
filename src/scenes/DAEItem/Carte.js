@@ -14,8 +14,13 @@ import Drawer from "react-native-drawer";
 import MapView from "~/containers/Map/MapView";
 import Camera from "~/containers/Map/Camera";
 import LastKnownLocationMarker from "~/containers/Map/LastKnownLocationMarker";
-import { DEFAULT_ZOOM_LEVEL } from "~/containers/Map/constants";
+import { BoundType } from "~/containers/Map/constants";
 import StepZoomButtonGroup from "~/containers/Map/StepZoomButtonGroup";
+import useMapInit from "~/containers/Map/useMapInit";
+import TargetButton from "~/containers/Map/TargetButton";
+import ToggleColorSchemeButton from "~/containers/Map/ToggleColorSchemeButton";
+import MapLinksPopupIconButton from "~/containers/MapLinksPopup/IconButton";
+import MapLinksPopup from "~/containers/MapLinksPopup";
 
 import Text from "~/components/Text";
 import IconTouchTarget from "~/components/IconTouchTarget";
@@ -49,19 +54,51 @@ export default React.memo(function DAEItemCarte() {
   const { hasInternetConnection } = useNetworkState(["hasInternetConnection"]);
   const { coords, isLastKnown, lastKnownTimestamp } = useLocation();
 
-  const mapRef = useRef();
-  const cameraRef = useRef();
-  const [cameraKey, setCameraKey] = useState(1);
-  const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM_LEVEL);
-  const abortControllerRef = useRef(null);
-
-  const refreshCamera = useCallback(() => {
-    setCameraKey(`${Date.now()}`);
-  }, []);
-
   const hasUserCoords =
     coords && coords.latitude !== null && coords.longitude !== null;
   const hasDefibCoords = defib && defib.latitude && defib.longitude;
+
+  const userCoords = useMemo(
+    () =>
+      hasUserCoords
+        ? { latitude: coords.latitude, longitude: coords.longitude }
+        : null,
+    [hasUserCoords, coords],
+  );
+
+  const {
+    mapRef,
+    cameraRef,
+    setDetached,
+    followUserLocation,
+    followUserMode,
+    followPitch,
+    zoomLevel,
+    boundType,
+    setBoundType,
+    setZoomLevel,
+    detached,
+    cameraKey,
+    setCameraKey,
+    refreshCamera,
+  } = useMapInit({
+    initialBoundType: BoundType.NAVIGATION,
+    userCoords,
+  });
+
+  const abortControllerRef = useRef(null);
+
+  const onRegionDidChange = useCallback(
+    (event) => {
+      const { isUserInteraction } = event.properties;
+      if (isUserInteraction) {
+        setDetached(true);
+      }
+    },
+    [setDetached],
+  );
+
+  const [externalGeoIsVisible, setExternalGeoIsVisible] = useState(false);
 
   const [routeCoords, setRouteCoords] = useState(null);
   const [routeError, setRouteError] = useState(null);
@@ -231,17 +268,6 @@ export default React.memo(function DAEItemCarte() {
     };
   }, [routeCoords]);
 
-  // Camera bounds to show both user + defib
-  const bounds = useMemo(() => {
-    if (!hasUserCoords || !hasDefibCoords) return null;
-    const lats = [coords.latitude, defib.latitude];
-    const lons = [coords.longitude, defib.longitude];
-    return {
-      ne: [Math.max(...lons), Math.max(...lats)],
-      sw: [Math.min(...lons), Math.min(...lats)],
-    };
-  }, [hasUserCoords, hasDefibCoords, coords, defib]);
-
   const profileDefaultMode = profileDefaultModes[profile];
 
   if (!defib) return null;
@@ -324,6 +350,7 @@ export default React.memo(function DAEItemCarte() {
 
           <MapView
             mapRef={mapRef}
+            onRegionDidChange={onRegionDidChange}
             compassViewPosition={1}
             compassViewMargin={{ x: 10, y: 10 }}
           >
@@ -332,16 +359,11 @@ export default React.memo(function DAEItemCarte() {
               setCameraKey={setCameraKey}
               refreshCamera={refreshCamera}
               cameraRef={cameraRef}
-              followUserLocation={!bounds}
-              followUserMode={
-                bounds
-                  ? Maplibre.UserTrackingMode.None
-                  : Maplibre.UserTrackingMode.Follow
-              }
-              followPitch={0}
+              followUserLocation={followUserLocation}
+              followUserMode={followUserMode}
+              followPitch={followPitch}
               zoomLevel={zoomLevel}
-              bounds={bounds}
-              detached={false}
+              detached={detached}
             />
 
             {/* Route line */}
@@ -411,7 +433,40 @@ export default React.memo(function DAEItemCarte() {
         </View>
       </Drawer>
 
-      <StepZoomButtonGroup mapRef={mapRef} setZoomLevel={setZoomLevel} />
+      <View
+        style={{
+          position: "absolute",
+          bottom: 38,
+          left: 4,
+          borderRadius: 4,
+          overflow: "hidden",
+        }}
+      >
+        <MapLinksPopupIconButton setIsVisible={setExternalGeoIsVisible} />
+      </View>
+      {(detached || boundType !== BoundType.NAVIGATION) && (
+        <TargetButton
+          userCoords={userCoords}
+          cameraRef={cameraRef}
+          boundType={boundType}
+          setBoundType={setBoundType}
+          refreshCamera={refreshCamera}
+        />
+      )}
+      <ToggleColorSchemeButton containerStyle={{ left: 4, bottom: 75 }} />
+      <StepZoomButtonGroup
+        mapRef={mapRef}
+        cameraRef={cameraRef}
+        setZoomLevel={setZoomLevel}
+      />
+      <MapLinksPopup
+        isVisible={externalGeoIsVisible}
+        setIsVisible={setExternalGeoIsVisible}
+        options={{
+          longitude: defib?.longitude,
+          latitude: defib?.latitude,
+        }}
+      />
 
       {/* Route error */}
       {routeError && !loadingRoute && (
