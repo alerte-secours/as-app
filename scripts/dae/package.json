@@ -5,10 +5,11 @@
   "type": "module",
   "packageManager": "yarn@4.5.3",
   "scripts": {
+    "download": "node download-geodae.mjs",
     "json-to-csv": "node geodae-to-csv.js",
     "csv-to-db": "node csv-to-sqlite.mjs --input geodae.csv --output ../../src/assets/db/geodae.db",
     "csv-to-db:semicolon": "node csv-to-sqlite.mjs --input geodae.csv --output ../../src/assets/db/geodae.db --delimiter ';'",
-    "build": "yarn json-to-csv && yarn csv-to-db"
+    "build": "yarn download && yarn json-to-csv && yarn csv-to-db"
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
