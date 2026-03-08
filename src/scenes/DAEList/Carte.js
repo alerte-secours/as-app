@@ -53,6 +53,23 @@ function defibsToGeoJSON(defibs) {
   };
 }
 
+function LoadingView({ message }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.loadingContainer}>
+      <Loader containerProps={{ style: styles.loaderInner }} />
+      <Text
+        style={[
+          styles.loadingText,
+          { color: colors.onSurfaceVariant || colors.grey },
+        ]}
+      >
+        {message}
+      </Text>
+    </View>
+  );
+}
+
 function EmptyNoLocation() {
   const { colors } = useTheme();
   return (
@@ -127,8 +144,18 @@ export default React.memo(function DAEListCarte() {
     return <EmptyNoLocation />;
   }
 
+  // Waiting for location
+  if (!hasLocation && defibs.length === 0 && !hasCoords) {
+    return (
+      <LoadingView message="Recherche de votre position…" />
+    );
+  }
+
+  // Loading defibs from database
   if (loading && defibs.length === 0 && !hasCoords) {
-    return <Loader />;
+    return (
+      <LoadingView message="Chargement des défibrillateurs à proximité…" />
+    );
   }
 
   return (
@@ -203,6 +230,21 @@ export default React.memo(function DAEListCarte() {
 });
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  loaderInner: {
+    flex: 0,
+  },
+  loadingText: {
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 12,
+    lineHeight: 20,
+  },
   container: {
     flex: 1,
   },
