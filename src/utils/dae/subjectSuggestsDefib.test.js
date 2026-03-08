@@ -37,4 +37,29 @@ describe("dae/subjectSuggestsDefib", () => {
     expect(subjectSuggestsDefib("mal au dos")).toBe(false);
     expect(subjectSuggestsDefib("panne de voiture")).toBe(false);
   });
+
+  test("matches when keyword is in second argument (description)", () => {
+    expect(
+      subjectSuggestsDefib(
+        "urgence médicale mortelle",
+        "crise cardiaque, attaque cérébrale, hémorragie importante, blessure grave",
+      ),
+    ).toBe(true);
+  });
+
+  test("matches when keyword is only in subject, not description", () => {
+    expect(subjectSuggestsDefib("arrêt cardiaque", "some other desc")).toBe(
+      true,
+    );
+  });
+
+  test("does not match when neither subject nor description has keywords", () => {
+    expect(subjectSuggestsDefib("agression", "violence physique")).toBe(false);
+  });
+
+  test("handles null/undefined in multi-arg", () => {
+    expect(subjectSuggestsDefib(null, "cardiaque")).toBe(true);
+    expect(subjectSuggestsDefib("cardiaque", undefined)).toBe(true);
+    expect(subjectSuggestsDefib(null, undefined)).toBe(false);
+  });
 });

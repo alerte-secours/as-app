@@ -16,6 +16,7 @@ import { getCurrentLocation } from "~/location";
 
 import useSendAlertSMSToEmergency from "~/hooks/useSendAlertSMSToEmergency";
 
+import alertsList from "~/misc/alertsList";
 import subjectSuggestsDefib from "~/utils/dae/subjectSuggestsDefib";
 
 import { SEND_ALERT_MUTATION } from "./gql";
@@ -84,6 +85,13 @@ async function onSubmit(args, context) {
     speed,
   };
 
+  // DAE suggest modal — must run before network call so it works offline.
+  // Show on red alerts unconditionally, or when cardiac keywords are detected.
+  const matchingAlert = alertsList.find((a) => a.title === subject);
+  if (level === "red" || subjectSuggestsDefib(subject, matchingAlert?.desc)) {
+    defibsActions.setShowDaeSuggestModal(true);
+  }
+
   const { userId, deviceId } = getSessionState();
   const createdAt = new Date().toISOString();
 
@@ -132,12 +140,6 @@ async function onSubmit(args, context) {
   });
 
   alertActions.setNavAlertCur({ alert });
-
-  // Task 9 (DAE v1): keyword detection based on subject only.
-  // Must be independent of network; we trigger purely from the subject and persist state in store.
-  if (subjectSuggestsDefib(subject)) {
-    defibsActions.setShowDaeSuggestModal(true);
-  }
 
   navigation.navigate("Main", {
     screen: "AlertCur",

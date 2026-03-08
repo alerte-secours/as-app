@@ -15,16 +15,18 @@ export default function DaeSuggestModal() {
 
   const styles = useMemo(
     () => ({
-      container: { backgroundColor: colors.surface, padding: 20 },
+      container: {
+        backgroundColor: colors.surface,
+        padding: 20,
+        marginHorizontal: 16,
+        borderRadius: 12,
+      },
       title: { fontSize: 20, fontWeight: "bold" },
       paragraph: { marginTop: 10, fontSize: 16 },
-      actionsRow: {
+      actionsColumn: {
         marginTop: 18,
-        flexDirection: "row",
-        justifyContent: "space-between",
+        gap: 10,
       },
-      action: { flex: 1 },
-      actionLeft: { marginRight: 12 },
     }),
     [colors.surface],
   );
@@ -52,18 +54,14 @@ export default function DaeSuggestModal() {
       >
         <Text style={styles.title}>Défibrillateur à proximité</Text>
         <Text style={styles.paragraph}>
-          Votre alerte semble concerner un malaise grave / arrêt cardiaque.
-          Recherchez rapidement un défibrillateur (DAE) près de vous.
+          En cas d'arrêt cardiaque, un défibrillateur (DAE) à proximité peut
+          sauver une vie.
         </Text>
-        <View style={styles.actionsRow}>
-          <Button
-            style={[styles.action, styles.actionLeft]}
-            mode="contained"
-            onPress={goToDaeList}
-          >
+        <View style={styles.actionsColumn}>
+          <Button mode="contained" onPress={goToDaeList}>
             Chercher un défibrillateur
           </Button>
-          <Button style={styles.action} mode="outlined" onPress={dismiss}>
+          <Button mode="outlined" onPress={dismiss}>
             Non merci
           </Button>
         </View>

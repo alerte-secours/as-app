@@ -59,13 +59,14 @@ const DEFIB_SUGGESTION_REGEXES = [
   /\brespire\s+plus\b/,
 ];
 
-export function subjectSuggestsDefib(subject) {
-  const text = normalizeSubjectText(subject);
-  if (!text) {
-    return false;
-  }
-
-  return DEFIB_SUGGESTION_REGEXES.some((re) => re.test(text));
+export function subjectSuggestsDefib(...texts) {
+  return texts.some((input) => {
+    const text = normalizeSubjectText(input);
+    if (!text) {
+      return false;
+    }
+    return DEFIB_SUGGESTION_REGEXES.some((re) => re.test(text));
+  });
 }
 
 export const __private__ = {
