@@ -1,11 +1,18 @@
-import React, { useCallback } from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
-import { Button } from "react-native-paper";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
+import { Button, Modal, Portal } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { getApps, showLocation } from "react-native-map-link";
 
 import Text from "~/components/Text";
-import { createStyles, useTheme } from "~/theme";
+import { useTheme } from "~/theme";
 import { useDefibsState } from "~/stores";
 import { getDefibAvailability } from "~/utils/dae/getDefibAvailability";
 
@@ -195,6 +202,15 @@ export default React.memo(function DAEItemInfos() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { selectedDefib: defib } = useDefibsState(["selectedDefib"]);
+  const [navModalVisible, setNavModalVisible] = useState(false);
+  const [availableApps, setAvailableApps] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const result = await getApps({ alwaysIncludeGoogle: true });
+      setAvailableApps(result);
+    })();
+  }, []);
 
   const { status, label: availabilityLabel } = getDefibAvailability(
     defib?.horaires_std,
@@ -203,9 +219,82 @@ export default React.memo(function DAEItemInfos() {
 
   const statusColor = STATUS_COLORS[status];
 
+  const openNavModal = useCallback(() => {
+    setNavModalVisible(true);
+  }, []);
+
+  const closeNavModal = useCallback(() => {
+    setNavModalVisible(false);
+  }, []);
+
   const goToCarte = useCallback(() => {
+    closeNavModal();
     navigation.navigate("DAEItemCarte");
-  }, [navigation]);
+  }, [navigation, closeNavModal]);
+
+  const openExternalApp = useCallback(
+    (app) => {
+      closeNavModal();
+      if (defib?.latitude && defib?.longitude) {
+        showLocation({
+          latitude: defib.latitude,
+          longitude: defib.longitude,
+          app: app.id,
+          naverCallerName:
+            Platform.OS === "ios"
+              ? "com.alertesecours.alertesecours"
+              : "com.alertesecours",
+        });
+      }
+    },
+    [defib, closeNavModal],
+  );
+
+  const modalStyles = useMemo(
+    () => ({
+      container: {
+        backgroundColor: colors.surface,
+        marginHorizontal: 24,
+        borderRadius: 16,
+        paddingVertical: 16,
+      },
+      title: {
+        fontSize: 18,
+        fontWeight: "700",
+        textAlign: "center",
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+      },
+      subtitle: {
+        fontSize: 14,
+        color: colors.onSurfaceVariant || colors.grey,
+        textAlign: "center",
+        paddingHorizontal: 16,
+        paddingBottom: 12,
+      },
+      option: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+      },
+      optionText: {
+        fontSize: 16,
+        marginLeft: 16,
+        flex: 1,
+      },
+      separator: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: colors.outlineVariant || colors.grey,
+        marginHorizontal: 16,
+      },
+      cancelButton: {
+        marginTop: 8,
+        marginHorizontal: 16,
+      },
+    }),
+    [colors],
+  );
 
   if (!defib) return null;
 
@@ -262,7 +351,7 @@ export default React.memo(function DAEItemInfos() {
       <View style={styles.itineraireContainer}>
         <Button
           mode="contained"
-          onPress={goToCarte}
+          onPress={openNavModal}
           icon={({ size, color }) => (
             <MaterialCommunityIcons
               name="navigation-variant"
@@ -288,6 +377,63 @@ export default React.memo(function DAEItemInfos() {
           Retour à la liste
         </Button>
       </View>
+
+      {/* Navigation app chooser modal */}
+      <Portal>
+        <Modal
+          visible={navModalVisible}
+          onDismiss={closeNavModal}
+          contentContainerStyle={modalStyles.container}
+        >
+          <Text style={modalStyles.title}>Itinéraire</Text>
+          <Text style={modalStyles.subtitle}>
+            Quelle application souhaitez-vous utiliser ?
+          </Text>
+
+          {/* In-app navigation option */}
+          <TouchableOpacity
+            onPress={goToCarte}
+            style={modalStyles.option}
+            activeOpacity={0.6}
+          >
+            <MaterialCommunityIcons
+              name="navigation-variant"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={modalStyles.optionText}>
+              Naviguer dans l'application
+            </Text>
+          </TouchableOpacity>
+
+          {/* External navigation apps */}
+          {availableApps.map((app) => (
+            <React.Fragment key={app.id}>
+              <View style={modalStyles.separator} />
+              <TouchableOpacity
+                onPress={() => openExternalApp(app)}
+                style={modalStyles.option}
+                activeOpacity={0.6}
+              >
+                <MaterialCommunityIcons
+                  name="open-in-new"
+                  size={24}
+                  color={colors.onSurface}
+                />
+                <Text style={modalStyles.optionText}>{app.name}</Text>
+              </TouchableOpacity>
+            </React.Fragment>
+          ))}
+
+          <Button
+            mode="text"
+            onPress={closeNavModal}
+            style={modalStyles.cancelButton}
+          >
+            Annuler
+          </Button>
+        </Modal>
+      </Portal>
     </ScrollView>
   );
 });
