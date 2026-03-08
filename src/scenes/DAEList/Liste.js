@@ -70,7 +70,7 @@ function EmptyError({ error, onRetry }) {
         ]}
       >
         Impossible de charger les défibrillateurs.{"\n"}
-        {error?.message || "Veuillez réessayer."}
+        Veuillez réessayer ultérieurement.
       </Text>
       {onRetry && (
         <Button mode="contained" onPress={onRetry} style={styles.retryButton}>

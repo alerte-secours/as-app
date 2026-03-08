@@ -15,6 +15,27 @@ const DEFAULT_LIMIT = 200;
 
 const AUTO_DISMISS_DELAY = 4_000;
 
+/**
+ * Convert a technical DAE update error into a user-friendly French message.
+ * The raw technical details are already logged via console.warn in updateDaeDb.
+ */
+function userFriendlyDaeError(error) {
+  const msg = error?.message || "";
+  if (msg.includes("Network") || msg.includes("network")) {
+    return "Impossible de contacter le serveur. Vérifiez votre connexion internet et réessayez.";
+  }
+  if (msg.includes("HTTP")) {
+    return "Le serveur a rencontré un problème. Veuillez réessayer ultérieurement.";
+  }
+  if (msg.includes("Download failed") || msg.includes("file is empty")) {
+    return "Le téléchargement a échoué. Veuillez réessayer.";
+  }
+  if (msg.includes("failed validation")) {
+    return "Le fichier téléchargé est corrompu. Veuillez réessayer.";
+  }
+  return "La mise à jour a échoué. Veuillez réessayer ultérieurement.";
+}
+
 export default createAtom(({ merge, reset }) => {
   const actions = {
     reset,
@@ -153,7 +174,7 @@ export default createAtom(({ merge, reset }) => {
       if (!result.success) {
         merge({
           daeUpdateState: "error",
-          daeUpdateError: result.error?.message || "Erreur inconnue",
+          daeUpdateError: userFriendlyDaeError(result.error),
         });
         return;
       }
