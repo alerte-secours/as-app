@@ -23,7 +23,10 @@ import { useTheme } from "~/theme";
 import { useDefibsState, useNetworkState } from "~/stores";
 import useLocation from "~/hooks/useLocation";
 import { getDefibAvailability } from "~/utils/dae/getDefibAvailability";
-import { osmProfileUrl, profileDefaultModes } from "~/scenes/AlertCurMap/routing";
+import {
+  osmProfileUrl,
+  profileDefaultModes,
+} from "~/scenes/AlertCurMap/routing";
 import { routeToInstructions } from "~/lib/geo/osrmTextInstructions";
 import {
   announceForA11yIfScreenReaderEnabled,
@@ -172,15 +175,12 @@ export default React.memo(function DAEItemCarte() {
   const mapHeadSeeAllRef = useRef(null);
   const lastStepsTriggerRef = useRef(null);
 
-  const openStepper = useCallback(
-    (triggerRef) => {
-      if (triggerRef) {
-        lastStepsTriggerRef.current = triggerRef;
-      }
-      setStepperIsOpened(true);
-    },
-    [],
-  );
+  const openStepper = useCallback((triggerRef) => {
+    if (triggerRef) {
+      lastStepsTriggerRef.current = triggerRef;
+    }
+    setStepperIsOpened(true);
+  }, []);
 
   const closeStepper = useCallback(() => {
     setStepperIsOpened(false);

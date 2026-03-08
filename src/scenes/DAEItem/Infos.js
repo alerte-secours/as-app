@@ -392,6 +392,7 @@ export default React.memo(function DAEItemInfos() {
 
           {/* In-app navigation option */}
           <TouchableOpacity
+            accessibilityRole="button"
             onPress={goToCarte}
             style={modalStyles.option}
             activeOpacity={0.6}
@@ -411,6 +412,7 @@ export default React.memo(function DAEItemInfos() {
             <React.Fragment key={app.id}>
               <View style={modalStyles.separator} />
               <TouchableOpacity
+                accessibilityRole="button"
                 onPress={() => openExternalApp(app)}
                 style={modalStyles.option}
                 activeOpacity={0.6}

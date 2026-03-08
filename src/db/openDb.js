@@ -51,6 +51,28 @@ export default function getDb() {
 }
 
 /**
+ * Close the current DB connection and clear all cached state.
+ * After calling this, the next `getDb()` / `getDbSafe()` call will re-open
+ * the DB from disk — picking up any file that was swapped in the meantime.
+ */
+export function resetDb() {
+  // Close the op-sqlite backend if it was loaded.
+  try {
+    // eslint-disable-next-line global-require
+    const { resetDbOpSqlite } = require("./openDbOpSqlite");
+    if (typeof resetDbOpSqlite === "function") {
+      resetDbOpSqlite();
+    }
+  } catch {
+    // op-sqlite not available — nothing to close.
+  }
+
+  _dbPromise = null;
+  _backendPromise = null;
+  _selectedBackendName = null;
+}
+
+/**
  * Non-throwing DB opener.
  *
  * v1 requirement: DB open failures must not crash the app. Downstream UI can

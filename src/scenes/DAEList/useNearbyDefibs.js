@@ -12,13 +12,19 @@ const RADIUS_METERS = 10_000;
  */
 export default function useNearbyDefibs() {
   const { coords, isLastKnown, lastKnownTimestamp } = useLocation();
-  const { nearUserDefibs, loadingNearUser, errorNearUser, showUnavailable } =
-    useDefibsState([
-      "nearUserDefibs",
-      "loadingNearUser",
-      "errorNearUser",
-      "showUnavailable",
-    ]);
+  const {
+    nearUserDefibs,
+    loadingNearUser,
+    errorNearUser,
+    showUnavailable,
+    daeUpdateState,
+  } = useDefibsState([
+    "nearUserDefibs",
+    "loadingNearUser",
+    "errorNearUser",
+    "showUnavailable",
+    "daeUpdateState",
+  ]);
 
   const hasLocation =
     coords && coords.latitude !== null && coords.longitude !== null;
@@ -41,6 +47,16 @@ export default function useNearbyDefibs() {
       radiusMeters: RADIUS_METERS,
     });
   }, [hasLocation, coords]);
+
+  // After a successful DB update, reset the position cache so the next
+  // render re-queries the fresh database.
+  const prevUpdateState = useRef(daeUpdateState);
+  useEffect(() => {
+    if (prevUpdateState.current !== "done" && daeUpdateState === "done") {
+      lastLoadedRef.current = null;
+    }
+    prevUpdateState.current = daeUpdateState;
+  }, [daeUpdateState]);
 
   useEffect(() => {
     if (hasLocation) {

@@ -81,4 +81,5 @@ export const STORAGE_KEYS = {
   EULA_ACCEPTED_SIMPLE: registerAsyncStorageKey("eula_accepted"),
   EMULATOR_MODE_ENABLED: registerAsyncStorageKey("emulator_mode_enabled"),
   SENTRY_ENABLED: registerAsyncStorageKey("@sentry_enabled"),
+  DAE_DB_UPDATED_AT: registerAsyncStorageKey("@dae_db_updated_at"),
 };

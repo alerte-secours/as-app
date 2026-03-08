@@ -191,7 +191,14 @@ function formatAddress(p) {
   // Strip parenthesized cp from city name, e.g. "GANAC (09000)" → "GANAC"
   let city = (p.c_com_nom || "").trim();
   if (cp && city) {
-    city = city.replace(new RegExp("\\s*\\(" + cp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\)"), "").trim();
+    city = city
+      .replace(
+        new RegExp(
+          "\\s*\\(" + cp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\)",
+        ),
+        "",
+      )
+      .trim();
   }
 
   // Strip cp+city already embedded in street field
@@ -199,7 +206,9 @@ function formatAddress(p) {
   if (cp && street.includes(cp)) {
     const cpEscaped = cp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // Trailing: "street 38200 Vienne" → "street"
-    street = street.replace(new RegExp("\\s+" + cpEscaped + "\\s+.*$"), "").trim();
+    street = street
+      .replace(new RegExp("\\s+" + cpEscaped + "\\s+.*$"), "")
+      .trim();
     // Leading: "62117 rue de Lambres" → "rue de Lambres"
     street = street.replace(new RegExp("^" + cpEscaped + "\\s+"), "").trim();
   }
@@ -359,7 +368,8 @@ function fixCoordinates(lat, lon, geometry) {
   // 3. Try power-of-10 normalization for misplaced decimals
   const fixedLat = tryNormalizeCoord(lat, 90);
   const fixedLon = tryNormalizeCoord(lon, 180);
-  if (isPlausibleFrance(fixedLat, fixedLon)) return { lat: fixedLat, lon: fixedLon };
+  if (isPlausibleFrance(fixedLat, fixedLon))
+    return { lat: fixedLat, lon: fixedLon };
 
   return null;
 }

@@ -212,6 +212,24 @@ async function openDbOpSqlite() {
   return _dbPromise;
 }
 
+/**
+ * Close the current DB connection and clear cached promises.
+ * After calling this, the next `openDbOpSqlite()` call will re-open the DB.
+ */
+function resetDbOpSqlite() {
+  if (_rawDb) {
+    try {
+      if (typeof _rawDb.close === "function") {
+        _rawDb.close();
+      }
+    } catch {
+      // Non-fatal: DB may already be closed or in an invalid state.
+    }
+    _rawDb = null;
+  }
+  _dbPromise = null;
+}
+
 // Exports (CJS + ESM-ish):
 // Keep `require('./openDbOpSqlite')` returning a non-null *object* so Metro/Hermes
 // cannot hand back a nullish / unexpected callable export shape.
@@ -220,6 +238,7 @@ module.exports = {
   openDbOpSqlite,
   openDb: openDbOpSqlite,
   default: openDbOpSqlite,
+  resetDbOpSqlite,
   // Named export for unit tests.
   adaptDbToRepoInterface,
 };

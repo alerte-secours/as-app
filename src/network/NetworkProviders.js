@@ -57,7 +57,9 @@ network.oaFilesKy = oaFilesKy;
 
 export default function NetworkProviders({ children }) {
   const [key, setKey] = useState(0);
-  const [transportClient, setTransportClient] = useState(() => network.apolloClient);
+  const [transportClient, setTransportClient] = useState(
+    () => network.apolloClient,
+  );
 
   const networkState = useNetworkState([
     "initialized",

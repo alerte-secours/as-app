@@ -146,9 +146,7 @@ export default React.memo(function DAEListCarte() {
 
   // Waiting for location
   if (!hasLocation && defibs.length === 0 && !hasCoords) {
-    return (
-      <LoadingView message="Recherche de votre position…" />
-    );
+    return <LoadingView message="Recherche de votre position…" />;
   }
 
   // Loading defibs from database

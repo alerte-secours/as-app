@@ -192,9 +192,7 @@ export default React.memo(function DAEListListe() {
 
   // Waiting for location
   if (!hasLocation && allDefibs.length === 0) {
-    return (
-      <LoadingView message="Recherche de votre position…" />
-    );
+    return <LoadingView message="Recherche de votre position…" />;
   }
 
   // Loading defibs from database

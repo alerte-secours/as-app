@@ -5,10 +5,15 @@ import {
   computeCorridorQueryRadiusMeters,
   filterDefibsInCorridor,
 } from "~/utils/geo/corridor";
+import { updateDaeDb } from "~/db/updateDaeDb";
+import memoryAsyncStorage from "~/storage/memoryAsyncStorage";
+import { STORAGE_KEYS } from "~/storage/storageKeys";
 
 const DEFAULT_NEAR_USER_RADIUS_M = 10_000;
 const DEFAULT_CORRIDOR_M = 10_000;
 const DEFAULT_LIMIT = 200;
+
+const AUTO_DISMISS_DELAY = 4_000;
 
 export default createAtom(({ merge, reset }) => {
   const actions = {
@@ -98,6 +103,78 @@ export default createAtom(({ merge, reset }) => {
         return { defibs: [], error };
       }
     },
+
+    // ── DAE DB Over-the-Air Update ─────────────────────────────────────
+
+    loadLastDaeUpdate: async () => {
+      try {
+        const stored = await memoryAsyncStorage.getItem(
+          STORAGE_KEYS.DAE_DB_UPDATED_AT,
+        );
+        if (stored) {
+          merge({ daeLastUpdatedAt: stored });
+        }
+      } catch {
+        // Non-fatal
+      }
+    },
+
+    triggerDaeUpdate: async () => {
+      merge({
+        daeUpdateState: "checking",
+        daeUpdateProgress: 0,
+        daeUpdateError: null,
+      });
+
+      const result = await updateDaeDb({
+        onPhase: (phase) => {
+          merge({ daeUpdateState: phase });
+        },
+        onProgress: ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+          const progress =
+            totalBytesExpectedToWrite > 0
+              ? totalBytesWritten / totalBytesExpectedToWrite
+              : 0;
+          merge({
+            daeUpdateState: "downloading",
+            daeUpdateProgress: progress,
+          });
+        },
+      });
+
+      if (result.alreadyUpToDate) {
+        merge({ daeUpdateState: "up-to-date" });
+        setTimeout(() => {
+          merge({ daeUpdateState: "idle" });
+        }, AUTO_DISMISS_DELAY);
+        return;
+      }
+
+      if (!result.success) {
+        merge({
+          daeUpdateState: "error",
+          daeUpdateError: result.error?.message || "Erreur inconnue",
+        });
+        return;
+      }
+
+      // Success: update stored timestamp and clear loaded defibs
+      // so the next query fetches from the fresh DB.
+      merge({
+        daeUpdateState: "done",
+        daeLastUpdatedAt: result.updatedAt,
+        nearUserDefibs: [],
+        corridorDefibs: [],
+      });
+
+      setTimeout(() => {
+        merge({ daeUpdateState: "idle" });
+      }, AUTO_DISMISS_DELAY);
+    },
+
+    dismissDaeUpdateError: () => {
+      merge({ daeUpdateState: "idle", daeUpdateError: null });
+    },
   };
 
   return {
@@ -113,6 +190,12 @@ export default createAtom(({ merge, reset }) => {
       loadingCorridor: false,
       errorNearUser: null,
       errorCorridor: null,
+
+      // DAE DB update state
+      daeUpdateState: "idle", // "idle"|"checking"|"downloading"|"installing"|"done"|"error"|"up-to-date"
+      daeUpdateProgress: 0, // 0..1
+      daeUpdateError: null,
+      daeLastUpdatedAt: null,
     },
     actions,
   };
