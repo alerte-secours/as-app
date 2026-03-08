@@ -20,21 +20,15 @@ import Text from "~/components/Text";
 import Loader from "~/components/Loader";
 import { useTheme } from "~/theme";
 import { defibsActions } from "~/stores";
-import { getDefibAvailability } from "~/utils/dae/getDefibAvailability";
+
+import markerDae from "~/assets/img/marker-dae.png";
 
 import useNearbyDefibs from "./useNearbyDefibs";
-
-const STATUS_COLORS = {
-  open: "#4CAF50",
-  closed: "#F44336",
-  unknown: "#9E9E9E",
-};
 
 function defibsToGeoJSON(defibs) {
   return {
     type: "FeatureCollection",
     features: defibs.map((d) => {
-      const { status } = getDefibAvailability(d.horaires_std, d.disponible_24h);
       return {
         type: "Feature",
         id: d.id,
@@ -45,8 +39,6 @@ function defibsToGeoJSON(defibs) {
         properties: {
           id: d.id,
           nom: d.nom || "Défibrillateur",
-          status,
-          color: STATUS_COLORS[status],
         },
       };
     }),
@@ -176,27 +168,19 @@ export default React.memo(function DAEListCarte() {
           detached={false}
         />
 
+        <Maplibre.Images images={{ dae: markerDae }} />
+
         {geoJSON.features.length > 0 && (
           <Maplibre.ShapeSource
             id="defibSource"
             shape={geoJSON}
             onPress={onMarkerPress}
           >
-            <Maplibre.CircleLayer
-              id="defibCircleLayer"
-              style={{
-                circleRadius: 8,
-                circleColor: ["get", "color"],
-                circleStrokeColor: "#FFFFFF",
-                circleStrokeWidth: 2,
-              }}
-            />
             <Maplibre.SymbolLayer
               id="defibSymbolLayer"
-              aboveLayerID="defibCircleLayer"
               style={{
-                iconImage: "heart-pulse",
-                iconSize: 0.6,
+                iconImage: "dae",
+                iconSize: 0.5,
                 iconAllowOverlap: true,
                 textField: ["get", "nom"],
                 textSize: 11,

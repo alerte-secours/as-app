@@ -7,6 +7,8 @@ import {
 } from "@expo/vector-icons";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+
 import DrawerContent from "~/navigation/DrawerNav/DrawerContent";
 import { useDrawerState } from "~/navigation/Context";
 import getDefaultDrawerWidth from "~/navigation/DrawerNav/getDefaultDrawerWidth";
@@ -375,11 +377,16 @@ export default React.memo(function DrawerNav() {
         options={{
           drawerLabel: "Défibrillateurs",
           drawerIcon: ({ focused }) => (
-            <MaterialCommunityIcons
-              name="heart-pulse"
+            <FontAwesome6
+              name="heart-circle-bolt"
               {...iconProps}
               {...(focused ? iconFocusedProps : {})}
             />
+            // <MaterialCommunityIcons
+            //   name="heart-flash"
+            //   {...iconProps}
+            //   {...(focused ? iconFocusedProps : {})}
+            // />
           ),
           unmountOnBlur: true,
         }}

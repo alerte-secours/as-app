@@ -22,7 +22,6 @@ import IconTouchTarget from "~/components/IconTouchTarget";
 import { useTheme } from "~/theme";
 import { useDefibsState, useNetworkState } from "~/stores";
 import useLocation from "~/hooks/useLocation";
-import { getDefibAvailability } from "~/utils/dae/getDefibAvailability";
 import {
   osmProfileUrl,
   profileDefaultModes,
@@ -33,6 +32,7 @@ import {
   setA11yFocusAfterInteractions,
 } from "~/lib/a11y";
 
+import markerDae from "~/assets/img/marker-dae.png";
 import RoutingSteps from "~/scenes/AlertCurMap/RoutingSteps";
 import MapHeadRouting from "~/scenes/AlertCurMap/MapHeadRouting";
 
@@ -42,11 +42,6 @@ import {
   STATE_CALCULATING_LOADING,
 } from "~/scenes/AlertCurMap/constants";
 
-const STATUS_COLORS = {
-  open: "#4CAF50",
-  closed: "#F44336",
-  unknown: "#9E9E9E",
-};
 
 export default React.memo(function DAEItemCarte() {
   const { colors } = useTheme();
@@ -206,10 +201,6 @@ export default React.memo(function DAEItemCarte() {
   // Defib marker GeoJSON
   const defibGeoJSON = useMemo(() => {
     if (!hasDefibCoords) return null;
-    const { status } = getDefibAvailability(
-      defib.horaires_std,
-      defib.disponible_24h,
-    );
     return {
       type: "FeatureCollection",
       features: [
@@ -222,7 +213,6 @@ export default React.memo(function DAEItemCarte() {
           properties: {
             id: defib.id,
             nom: defib.nom || "Défibrillateur",
-            color: STATUS_COLORS[status],
           },
         },
       ],
@@ -370,22 +360,17 @@ export default React.memo(function DAEItemCarte() {
               </Maplibre.ShapeSource>
             )}
 
+            <Maplibre.Images images={{ dae: markerDae }} />
+
             {/* Defib marker */}
             {defibGeoJSON && (
               <Maplibre.ShapeSource id="defibItemSource" shape={defibGeoJSON}>
-                <Maplibre.CircleLayer
-                  id="defibItemCircle"
-                  style={{
-                    circleRadius: 10,
-                    circleColor: ["get", "color"],
-                    circleStrokeColor: "#FFFFFF",
-                    circleStrokeWidth: 2.5,
-                  }}
-                />
                 <Maplibre.SymbolLayer
-                  id="defibItemLabel"
-                  aboveLayerID="defibItemCircle"
+                  id="defibItemSymbol"
                   style={{
+                    iconImage: "dae",
+                    iconSize: 0.5,
+                    iconAllowOverlap: true,
                     textField: ["get", "nom"],
                     textSize: 12,
                     textOffset: [0, 1.8],

@@ -17,11 +17,10 @@ const iconStyle = {
   iconSize: 0.5,
 };
 
-const defibCircleStyle = {
-  circleRadius: 8,
-  circleColor: ["get", "defibColor"],
-  circleStrokeColor: "#FFFFFF",
-  circleStrokeWidth: 2,
+const defibStyle = {
+  iconImage: "dae",
+  iconSize: 0.5,
+  iconAllowOverlap: true,
 };
 
 const useStyles = createStyles(({ theme: { colors } }) => ({
@@ -66,12 +65,12 @@ export default function ShapePoints({ shape, children, ...shapeSourceProps }) {
       />
 
       {/* Defibrillators (DAE) – separate layer (non-clustered) */}
-      <Maplibre.CircleLayer
+      <Maplibre.SymbolLayer
         filter={["==", ["get", "isDefib"], true]}
         key="points-defib"
         id="points-defib"
         aboveLayerID="points-origin"
-        style={defibCircleStyle}
+        style={defibStyle}
       />
 
       {children}

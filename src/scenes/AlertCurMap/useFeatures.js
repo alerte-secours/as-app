@@ -130,7 +130,6 @@ export default function useFeatures({
           id,
           properties: {
             id,
-            defibColor: "#4CAF50",
             defib,
             isDefib: true,
           },

@@ -10,6 +10,7 @@ import markerRedDisabled from "~/assets/img/marker-red-disabled.png";
 import markerYellowDisabled from "~/assets/img/marker-yellow-disabled.png";
 import markerGreenDisabled from "~/assets/img/marker-green-disabled.png";
 import markerOrigin from "~/assets/img/marker-origin.png";
+import markerDae from "~/assets/img/marker-dae.png";
 
 const images = {
   red: markerRed,
@@ -20,6 +21,7 @@ const images = {
   yellowDisabled: markerYellowDisabled,
   greenDisabled: markerGreenDisabled,
   origin: markerOrigin,
+  dae: markerDae,
 };
 
 export default function FeatureImages() {
