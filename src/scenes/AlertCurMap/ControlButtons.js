@@ -20,8 +20,6 @@ export default function ControlButtons({
   setZoomLevel,
   detached,
 }) {
-  // const styles = useStyles();
-
   return (
     <>
       <View

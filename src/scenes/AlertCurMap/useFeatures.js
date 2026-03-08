@@ -119,8 +119,10 @@ export default function useFeatures({
           defib.horaires_std,
           defib.disponible_24h,
         );
-        const icon =
-          status === "open" ? "green" : status === "closed" ? "red" : "grey";
+        // Only show available defibs on the alert navigation map
+        if (status !== "open") {
+          return;
+        }
         const id = `defib:${defib.id}`;
 
         features.push({
@@ -128,7 +130,7 @@ export default function useFeatures({
           id,
           properties: {
             id,
-            icon,
+            defibColor: "#4CAF50",
             defib,
             isDefib: true,
           },

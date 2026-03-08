@@ -73,6 +73,9 @@ export default createStyles(({ wp, hp, scaleText, theme: { colors } }) => ({
   actionShowDefibsButton: {
     backgroundColor: colors.blue,
   },
+  actionShowDefibsButtonActive: {
+    backgroundColor: colors.grey,
+  },
   actionShowDefibsText: {},
   actionShowDefibsIcon: {},
   actionSmsButton: {},

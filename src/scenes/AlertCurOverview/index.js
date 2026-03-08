@@ -13,6 +13,7 @@ import {
   useSessionState,
   alertActions,
   useAggregatedMessagesState,
+  useDefibsState,
   defibsActions,
 } from "~/stores";
 import { getCurrentLocation } from "~/location";
@@ -84,9 +85,17 @@ export default withConnectivity(
     const navigation = useNavigation();
     const toast = useToast();
 
+    const { showDefibsOnAlertMap: defibsEnabled } = useDefibsState([
+      "showDefibsOnAlertMap",
+    ]);
     const [loadingDaeCorridor, setLoadingDaeCorridor] = useState(false);
 
-    const showDefibsOnAlertMap = useCallback(async () => {
+    const toggleDefibsOnAlertMap = useCallback(async () => {
+      if (defibsEnabled) {
+        defibsActions.setShowDefibsOnAlertMap(false);
+        return;
+      }
+
       if (loadingDaeCorridor) {
         return;
       }
@@ -174,7 +183,7 @@ export default withConnectivity(
       } finally {
         setLoadingDaeCorridor(false);
       }
-    }, [alert, loadingDaeCorridor, navigation, toast]);
+    }, [alert, defibsEnabled, loadingDaeCorridor, navigation, toast]);
 
     const [notifyAroundMutation] = useMutation(NOTIFY_AROUND_MUTATION);
     const notifyAround = useCallback(async () => {
@@ -501,21 +510,33 @@ export default withConnectivity(
               >
                 <Button
                   mode="contained"
-                  loading={loadingDaeCorridor}
                   disabled={loadingDaeCorridor}
                   icon={() => (
                     <MaterialCommunityIcons
-                      name="heart-pulse"
+                      name={
+                        loadingDaeCorridor
+                          ? "loading"
+                          : defibsEnabled
+                            ? "heart-off"
+                            : "heart-pulse"
+                      }
                       style={[styles.actionIcon, styles.actionShowDefibsIcon]}
                     />
                   )}
-                  style={[styles.actionButton, styles.actionShowDefibsButton]}
-                  onPress={showDefibsOnAlertMap}
+                  style={[
+                    styles.actionButton,
+                    defibsEnabled
+                      ? styles.actionShowDefibsButtonActive
+                      : styles.actionShowDefibsButton,
+                  ]}
+                  onPress={toggleDefibsOnAlertMap}
                 >
                   <Text
                     style={[styles.actionText, styles.actionShowDefibsText]}
                   >
-                    Afficher les défibrillateurs
+                    {defibsEnabled
+                      ? "Ne plus afficher les défibrillateurs"
+                      : "Afficher les défibrillateurs"}
                   </Text>
                 </Button>
               </View>
