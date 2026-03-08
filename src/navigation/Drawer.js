@@ -85,6 +85,7 @@ export default React.memo(function DrawerNav() {
 
   return (
     <Drawer.Navigator
+      backBehavior="history"
       drawerContent={(props) => <DrawerContent {...props} />}
       drawerStyle={{
         width: getDefaultDrawerWidth(dimensions),

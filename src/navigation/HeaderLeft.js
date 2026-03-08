@@ -1,7 +1,7 @@
 import React from "react";
 
 import { Image } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import { HeaderBackButton } from "@react-navigation/elements";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -28,7 +28,24 @@ export default function HeaderLeft(props) {
           if (canGoBack) {
             navigation.goBack();
           } else {
-            navigation.navigate(drawerState.topTabPrev || "SendAlert");
+            // HeaderLeft is rendered by the RootStack which has a single
+            // "Main" screen, so canGoBack is always false here.
+            // Dispatch GO_BACK targeted at the Drawer navigator so it
+            // uses its history-based back behaviour.
+            const rootState = navigation.getState();
+            const drawerNavState = rootState.routes[0]?.state;
+            if (
+              drawerNavState?.key &&
+              drawerNavState.history?.filter((h) => h.type === "route")
+                .length > 1
+            ) {
+              navigation.dispatch({
+                ...CommonActions.goBack(),
+                target: drawerNavState.key,
+              });
+            } else {
+              navigation.navigate(drawerState.topTabPrev || "SendAlert");
+            }
           }
         }}
         backImage={() => (
